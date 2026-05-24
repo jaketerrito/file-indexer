@@ -1,0 +1,21 @@
+//go:build proto
+// +build proto
+
+syntax = "proto3";
+
+package service;
+
+option go_package = "file-indexer/internal/pb";
+
+service Greeter {
+    rpc SayHello(HelloRequest) returns (HelloResponse) {}
+    rpc SayHelloStream(HelloRequest) returns (stream HelloResponse) {}
+}
+
+message HelloRequest {
+    string name = 1;
+}
+
+message HelloResponse {
+    string message = 1;
+}

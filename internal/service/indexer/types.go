@@ -1,4 +1,4 @@
-package main
+package indexer
 
 import (
 	"time"
@@ -10,10 +10,4 @@ type FileMetadata struct {
 	ModTime time.Time
 	CreationTime time.Time
 	MimeType string
-}
-
-type FileHandler func(file FileMetadata) error
-
-type FileSystem interface {
-	Walk(fn FileHandler) error
 }

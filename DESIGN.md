@@ -30,7 +30,12 @@ Database for search
 postgres would probably be fine for simple lookups
 
 ## Indexing
-- takes in file name, generates metadata for that file, updates database
+- pushed based (file is streamed/sent over in the request)
+   - indexer runs in same cluster as the crud api (it can save file to disk but pass on to indexer)
+   - if file is to big for streaming, can use some method to try again?
+   - makes auth situation simpler
+   - Allows for indexer to handle results for multiple crawlers on different file systems
+- generates metadata for that file, updates database
 - should be triggered based off web app updates (event queue)
 - should be triggered based off of filesystem scan for unindexed files
 
@@ -52,9 +57,13 @@ Indexer can be parameterized to generate different sets of metadata
 - idempotent indexing
 
 # Plan
-1. index script for filesystem, metadata gen functions, search method
-1. api with crud and search
+1. crawler script for filesystem
+1. metadata gen functions
+1. build database
+1. search method
+1. standalone api for indexing
+1. standalone api with crud and search
 1. web client that relies on the api
-1. add more complex metadata
 1. Integrate indexing triggered via the api (using event queue)
+1. add more complex metadata
 1. kubernetes deployment
