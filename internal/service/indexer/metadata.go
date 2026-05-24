@@ -7,6 +7,7 @@ import (
 	"time"
 	"github.com/djherbis/times"
 )
+
 func getMimeType(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
