@@ -30,7 +30,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type IndexerClient interface {
-	Index(ctx context.Context, in *IndexRequest, opts ...grpc.CallOption) (*IndexResponse, error)
+	Index(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[IndexRequest, IndexResponse], error)
 }
 
 type indexerClient struct {
@@ -41,21 +41,24 @@ func NewIndexerClient(cc grpc.ClientConnInterface) IndexerClient {
 	return &indexerClient{cc}
 }
 
-func (c *indexerClient) Index(ctx context.Context, in *IndexRequest, opts ...grpc.CallOption) (*IndexResponse, error) {
+func (c *indexerClient) Index(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[IndexRequest, IndexResponse], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(IndexResponse)
-	err := c.cc.Invoke(ctx, Indexer_Index_FullMethodName, in, out, cOpts...)
+	stream, err := c.cc.NewStream(ctx, &Indexer_ServiceDesc.Streams[0], Indexer_Index_FullMethodName, cOpts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &grpc.GenericClientStream[IndexRequest, IndexResponse]{ClientStream: stream}
+	return x, nil
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Indexer_IndexClient = grpc.ClientStreamingClient[IndexRequest, IndexResponse]
 
 // IndexerServer is the server API for Indexer service.
 // All implementations must embed UnimplementedIndexerServer
 // for forward compatibility.
 type IndexerServer interface {
-	Index(context.Context, *IndexRequest) (*IndexResponse, error)
+	Index(grpc.ClientStreamingServer[IndexRequest, IndexResponse]) error
 	mustEmbedUnimplementedIndexerServer()
 }
 
@@ -66,8 +69,8 @@ type IndexerServer interface {
 // pointer dereference when methods are called.
 type UnimplementedIndexerServer struct{}
 
-func (UnimplementedIndexerServer) Index(context.Context, *IndexRequest) (*IndexResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method Index not implemented")
+func (UnimplementedIndexerServer) Index(grpc.ClientStreamingServer[IndexRequest, IndexResponse]) error {
+	return status.Error(codes.Unimplemented, "method Index not implemented")
 }
 func (UnimplementedIndexerServer) mustEmbedUnimplementedIndexerServer() {}
 func (UnimplementedIndexerServer) testEmbeddedByValue()                 {}
@@ -90,23 +93,12 @@ func RegisterIndexerServer(s grpc.ServiceRegistrar, srv IndexerServer) {
 	s.RegisterService(&Indexer_ServiceDesc, srv)
 }
 
-func _Indexer_Index_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(IndexRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(IndexerServer).Index(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: Indexer_Index_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IndexerServer).Index(ctx, req.(*IndexRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+func _Indexer_Index_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(IndexerServer).Index(&grpc.GenericServerStream[IndexRequest, IndexResponse]{ServerStream: stream})
 }
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type Indexer_IndexServer = grpc.ClientStreamingServer[IndexRequest, IndexResponse]
 
 // Indexer_ServiceDesc is the grpc.ServiceDesc for Indexer service.
 // It's only intended for direct use with grpc.RegisterService,
@@ -114,12 +106,13 @@ func _Indexer_Index_Handler(srv interface{}, ctx context.Context, dec func(inter
 var Indexer_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "service.Indexer",
 	HandlerType: (*IndexerServer)(nil),
-	Methods: []grpc.MethodDesc{
+	Methods:     []grpc.MethodDesc{},
+	Streams: []grpc.StreamDesc{
 		{
-			MethodName: "Index",
-			Handler:    _Indexer_Index_Handler,
+			StreamName:    "Index",
+			Handler:       _Indexer_Index_Handler,
+			ClientStreams: true,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
 	Metadata: "indexer.proto",
 }
