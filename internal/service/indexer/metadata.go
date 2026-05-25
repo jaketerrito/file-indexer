@@ -1,11 +1,8 @@
 package indexer
 
 import (
-	"io/fs"
 	"net/http"
 	"os"
-	"time"
-	"github.com/djherbis/times"
 )
 
 func getMimeType(path string) (string, error) {
@@ -23,14 +20,3 @@ func getMimeType(path string) (string, error) {
 
 	return http.DetectContentType(buf[:n]), nil
 }
-
-func getCreationTime(path string, fileInfo fs.FileInfo) time.Time {
-	creationTime := fileInfo.ModTime()
-	t, errTime := times.Stat(path)
-	if errTime == nil && t.HasBirthTime() {
-		creationTime = t.BirthTime()
-	}
-	return creationTime
-}
-
-
