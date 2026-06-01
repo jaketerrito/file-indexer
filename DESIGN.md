@@ -9,11 +9,12 @@ Support for local filesystem would be nice to have, potentially can implement th
 Backups should be handled via external system on file system level.
 
 ## Web App
-Web application should support: 
+Web application should support:
 - create, read, update and deletion of files
 - searching files based off of metadata
 
 Direct upload with presigned urls?
+Use BFF
 
 ## DB
 Database for search
@@ -49,6 +50,13 @@ Will want seperate process/application for handling more heavy duty indexing...
 Want indexing to be easily expandable with new indices
 
 Indexer can be parameterized to generate different sets of metadata
+
+## Search
+- simple sort by date/name/etc fetch paginated
+- search methods for different metadata categories
+  - string match name
+  - date range created date, updated date
+  - string match tags
 
 # Principles
 - eventually consistent, fine if web app is not totally in sync with file system
