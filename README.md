@@ -16,8 +16,7 @@ protoc --proto_path=proto \
 docker build --build-arg BUILD_TARGET="./cmd/indexer" -t indexer .
 docker run -p 50051:50051 -e GRPC_ADDR=:50051 --rm -it indexer
 
-tilt up
-
-Amazing
+tilt up --namespace test
+tilt down --namespace test
 
 GRPC_ADDR=:50051 go run -tags proto ./cmd/crawler
