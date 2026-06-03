@@ -2,13 +2,11 @@ package walker
 
 import (
 	"io"
-	"time"
 )
 
 type FileInfo struct {
 	Path   string
 	Source string
-	CreationTime time.Time
 }
 
 type FileWalker interface {

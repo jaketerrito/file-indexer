@@ -3,6 +3,9 @@
 ## Dev
 ### Dependencies
 - [protoc](https://protobuf.dev/installation)
+- [tilt](https://docs.tilt.dev/index.html)
+- local k8s cluster ([microk8s](https://docs.tilt.dev/choosing_clusters.html#microk8s))
+
 
 ### Commands
 protoc --proto_path=proto \
@@ -10,5 +13,11 @@ protoc --proto_path=proto \
   --go-grpc_out=internal/pb --go-grpc_opt=paths=source_relative \
   proto/*.proto
 
+docker build --build-arg BUILD_TARGET="./cmd/indexer" -t indexer .
+docker run -p 50051:50051 -e GRPC_ADDR=:50051 --rm -it indexer
+
+tilt up
+
+Amazing
+
 GRPC_ADDR=:50051 go run -tags proto ./cmd/crawler
-GRPC_ADDR=:50051 go run -tags proto ./cmd/indexer
