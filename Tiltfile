@@ -127,11 +127,13 @@ def tilt_demo():
 #
 #
 
-docker_build('indexer','.', build_args={'BUILD_TARGET': './cmd/indexer'})
 
 k8s_context('microk8s')
-k8s_yaml('app.yaml')
 
+local("kubectl --context microk8s get ns {} || kubectl --context microk8s create ns {}".format(k8s_namespace(), k8s_namespace()))
+
+docker_build('indexer','.', build_args={'BUILD_TARGET': './cmd/indexer'})
+k8s_yaml('app.yaml')
 k8s_resource('indexer', port_forwards=50051)
 
 
