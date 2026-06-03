@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: indexer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: indexer
+  template:
+    metadata:
+      labels:
+        app: indexer
+    spec:
+      containers:
+        - name: indexer
+          image: indexer
+          ports:
+            - name: grpc
+              containerPort: 50051
+          env:
+            - name: GRPC_ADDR
+              value: ":50051"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: indexer
+spec:
+  selector:
+    app: indexer
+  ports:
+    - name: grpc
+      port: 50051
+      targetPort: grpc
