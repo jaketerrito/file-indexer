@@ -8,12 +8,12 @@ SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) i
 ## Dev
 ### Dependencies
 - [protoc](https://protobuf.dev/installation)
+- [sqlc](https://docs.sqlc.dev/en/stable/index.html)
 - [tilt](https://docs.tilt.dev/index.html)
 - local k8s cluster ([microk8s](https://docs.tilt.dev/choosing_clusters.html#microk8s))
     - `microk8s enable registry`
     - `microk8s enable hostpath-storage`
     - `microk8s enable dns`
-
 ### Commands
 protoc and sqldc commands are run automatically via tilt to generate code.
 

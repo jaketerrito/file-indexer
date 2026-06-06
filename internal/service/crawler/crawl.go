@@ -36,14 +36,16 @@ func Run(address string) error {
 			return err
 		}
 
-		stream.Send(&pb.IndexRequest{
+		if err := stream.Send(&pb.IndexRequest{
 			Data: &pb.IndexRequest_Metadata{
 				Metadata: &pb.FileMetadata{
 					Name: file.Path,
 					Source: "test",
 				},
 			},
-		})
+		}); err != nil {
+			return err
+		}
 
 		buf := make([]byte, 64*1024)
 		for {
@@ -56,15 +58,20 @@ func Run(address string) error {
 			}
 
 			if n > 0 {
-				stream.Send(&pb.IndexRequest{
+				if err := stream.Send(&pb.IndexRequest{
 					Data: &pb.IndexRequest_Content{Content: buf[:n]},
-				})
+				}); err != nil {
+					return err
+				}
 			}
 		}
 
 		slog.Info("Sent file to indexer", "FileInfo", file)
 		response, err := stream.CloseAndRecv()
+		if err != nil {
+			return err
+		}
 		slog.Info("uploaded", "file", file.Path, "status", response.Status)
-		return err
+		return nil
 	})
 }

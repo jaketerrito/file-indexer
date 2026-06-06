@@ -9,5 +9,5 @@ import (
 func main() {
 	cfg := config.Load()
 	s := &indexer.IndexerServer{}
-	log.Fatal(s.Run(cfg.GrpcAddr))
+	log.Fatal(s.Run(cfg.GrpcAddr, cfg.DatabaseURL))
 }

@@ -1,24 +1,35 @@
 package indexer
 
 import (
+	"context"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
+
+	"file-indexer/internal/db/sqlc"
 	"file-indexer/internal/pb"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
-	"log"
-	"io"
 	"google.golang.org/grpc/codes"
-    "google.golang.org/grpc/status"
+	"google.golang.org/grpc/status"
 )
 
 type IndexerServer struct {
 	pb.UnimplementedIndexerServer
+	db *sqlc.Queries
 }
 
 func (s *IndexerServer) Index(stream grpc.ClientStreamingServer[pb.IndexRequest, pb.IndexResponse]) error {
 	var metadata *pb.FileMetadata
 	var contentType string
+
+	res, err := s.db.Placeholder(stream.Context())
+	if err != nil {
+		return err
+	}
+	slog.Info("test", "result", res)
+	
 
 	for {
 		req, err := stream.Recv()
@@ -59,15 +70,22 @@ func (s *IndexerServer) Index(stream grpc.ClientStreamingServer[pb.IndexRequest,
 	return stream.SendAndClose(&pb.IndexResponse{Status: "GOOD"})
 }
 
-func (s *IndexerServer) Run(addr string) error {
-	lis, err:= net.Listen("tcp", addr)
+func (s *IndexerServer) Run(addr, databaseURL string) error {
+	pool, err := pgxpool.New(context.Background(), databaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
 
+	s.db = sqlc.New(pool)
+
+	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		return err
 	}
 	grpcServer := grpc.NewServer()
 	pb.RegisterIndexerServer(grpcServer, s)
-	log.Printf("listening on %s", addr)
+	slog.Info("listening", "addr", addr)
 	return grpcServer.Serve(lis)
 }
 
