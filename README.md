@@ -22,3 +22,8 @@ tilt down
 
 GRPC_ADDR=:50051 go run -tags proto ./cmd/crawler
 
+### Linting
+Install [golangci-lint](https://golangci-lint.run) and run:
+
+golangci-lint run ./...
+
