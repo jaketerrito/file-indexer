@@ -17,14 +17,6 @@ SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) i
 ### Commands
 protoc and sqldc commands are run automatically via tilt to generate code.
 
-protoc --proto_path=proto \
-  --go_out=internal/pb --go_opt=paths=source_relative \
-  --go-grpc_out=internal/pb --go-grpc_opt=paths=source_relative \
-  proto/*.proto
-
-docker build --build-arg BUILD_TARGET="./cmd/indexer" -t indexer .
-docker run -p 50051:50051 -e GRPC_ADDR=:50051 --rm -it indexer
-
 tilt up
 tilt down
 
