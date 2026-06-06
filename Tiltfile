@@ -130,10 +130,18 @@ def tilt_demo():
 
 k8s_context('microk8s')
 
-local("kubectl --context microk8s get ns {} || kubectl --context microk8s create ns {}".format(k8s_namespace(), k8s_namespace()))
+#local("kubectl --context microk8s get ns {} || kubectl --context microk8s create ns {}".format(k8s_namespace(), k8s_namespace()))
 
-docker_build('indexer','.', build_args={'BUILD_TARGET': './cmd/indexer'})
-k8s_yaml('app.yaml')
-k8s_resource('indexer', port_forwards=50051)
+default_registry('localhost:32000')
+
+docker_build('migrate', '.', build_args={'BUILD_TARGET': './cmd/migrate'})
+docker_build('indexer', '.', build_args={'BUILD_TARGET': './cmd/indexer'})
+
+k8s_yaml('deploy/postgres.yaml')
+k8s_yaml('deploy/indexer.yaml')
+k8s_yaml('deploy/migrate.yaml')
+
+k8s_resource('migrate', resource_deps=['postgres'])
+k8s_resource('indexer', resource_deps=['postgres', 'migrate'], port_forwards=50051)
 
 
