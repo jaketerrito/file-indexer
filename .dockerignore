@@ -1,0 +1,7 @@
+.git
+*.md
+sqlc.yaml
+Tiltfile
+deploy/
+proto/
+migrate
