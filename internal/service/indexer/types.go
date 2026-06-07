@@ -5,9 +5,9 @@ import (
 )
 
 type FileMetadata struct {
-	Path string
-	Size int64
-	ModTime time.Time
+	Path         string
+	Size         int64
+	ModTime      time.Time
 	CreationTime time.Time
-	MimeType string
+	MimeType     string
 }

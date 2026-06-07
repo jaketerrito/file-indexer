@@ -1,10 +1,10 @@
 package main
 
 import (
-	"log/slog"
-	"os"
 	"file-indexer/internal/config"
 	"file-indexer/internal/service/crawler"
+	"log/slog"
+	"os"
 )
 
 func main() {

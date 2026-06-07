@@ -1,9 +1,9 @@
 package main
 
 import (
-	"log"
-	"file-indexer/internal/service/indexer"
 	"file-indexer/internal/config"
+	"file-indexer/internal/service/indexer"
+	"log"
 )
 
 func main() {

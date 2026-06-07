@@ -14,6 +14,7 @@ SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) i
     - `microk8s enable registry`
     - `microk8s enable hostpath-storage`
     - `microk8s enable dns`
+
 ### Commands
 protoc and sqldc commands are run automatically via tilt to generate code.
 
@@ -22,8 +23,9 @@ tilt down
 
 GRPC_ADDR=:50051 go run -tags proto ./cmd/crawler
 
-### Linting
+### Linting & Formatting
 Install [golangci-lint](https://golangci-lint.run) and run:
 
-golangci-lint run ./...
+golangci-lint run ./...   # check linters + formatting
+golangci-lint fmt         # auto-format code
 
