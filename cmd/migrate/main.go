@@ -1,11 +1,10 @@
 package main
 
 import (
-	"log"
-	"os"
-
 	"file-indexer/internal/config"
 	"file-indexer/internal/db"
+	"log"
+	"os"
 )
 
 func main() {

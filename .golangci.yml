@@ -1,19 +1,21 @@
+version: "2"
+
 linters:
+  default: standard
+  settings:
+    staticcheck:
+      checks:
+        - all
+    errcheck:
+      check-type-assertions: true
+
+formatters:
   enable:
-    - govet
-    - staticcheck
-    - errcheck
-    - gosimple
-    - ineffassign
-    - unused
-    - prealloc
+    - gofmt
+    - goimports
+    - gofumpt
 
-linters-settings:
-  staticcheck:
-    checks:
-      - all
-  errcheck:
-    check-type-assertions: true
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
 
-run:
-  timeout: 3m

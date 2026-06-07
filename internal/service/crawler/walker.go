@@ -1,11 +1,21 @@
-package walker
+package crawler
 
 import (
-	"io/fs"
-	"path/filepath"
 	"io"
+	"io/fs"
 	"os"
+	"path/filepath"
 )
+
+type FileInfo struct {
+	Path   string
+	Source string
+}
+
+type FileWalker interface {
+	Walk(fn func(FileInfo) error) error
+	Open(FileInfo) (io.ReadCloser, error)
+}
 
 type LinuxFileWalker struct{}
 
