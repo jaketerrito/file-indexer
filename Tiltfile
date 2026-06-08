@@ -1,12 +1,6 @@
-local_resource('proto',
-   cmd='just proto',
-   deps=['proto'],
-   auto_init=False,
-)
-
-local_resource('sqlc',
-   cmd='just sqlc',
-   deps=['internal/db/queries', 'internal/db/migrations'],
+local_resource('generate',
+   cmd='just generate',
+   deps=['internal/db/queries', 'internal/db/migrations', 'proto'],
    auto_init=False,
 )
 
