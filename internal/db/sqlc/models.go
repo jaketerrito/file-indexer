@@ -9,7 +9,8 @@ import (
 )
 
 type File struct {
-	ID          pgtype.UUID
+	ID          int64
+	Source      string
 	Path        string
 	ContentType pgtype.Text
 	SizeBytes   pgtype.Int8

@@ -1,13 +1,18 @@
 local_resource('proto',
-   cmd='protoc --proto_path=proto --go_out=internal/pb --go_opt=paths=source_relative --go-grpc_out=internal/pb --go-grpc_opt=paths=source_relative proto/*.proto',
+   cmd='just proto',
    deps=['proto'],
    auto_init=False,
 )
 
 local_resource('sqlc',
-   cmd='sqlc generate',
+   cmd='just sqlc',
    deps=['internal/db/queries', 'internal/db/migrations'],
    auto_init=False,
+)
+
+local_resource('lint',
+   cmd='just lint',
+   deps=['internal/'],
 )
 
 k8s_context('microk8s')
@@ -20,6 +25,7 @@ k8s_yaml('deploy/postgres.yaml')
 k8s_yaml('deploy/indexer.yaml')
 k8s_yaml('deploy/migrate.yaml')
 
+k8s_resource('postgres', port_forwards=5432)
 k8s_resource('migrate', resource_deps=['postgres'])
 k8s_resource('indexer', resource_deps=['postgres', 'migrate'], port_forwards=50051)
 

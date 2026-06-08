@@ -7,15 +7,39 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const placeholder = `-- name: Placeholder :one
-SELECT 1
+const createFile = `-- name: CreateFile :one
+INSERT INTO files (source, path, content_type, size_bytes)
+VALUES ($1, $2, $3, $4)
+RETURNING id, source, path, content_type, size_bytes, created_at, updated_at
 `
 
-func (q *Queries) Placeholder(ctx context.Context) (int32, error) {
-	row := q.db.QueryRow(ctx, placeholder)
-	var column_1 int32
-	err := row.Scan(&column_1)
-	return column_1, err
+type CreateFileParams struct {
+	Source      string
+	Path        string
+	ContentType pgtype.Text
+	SizeBytes   pgtype.Int8
+}
+
+func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, error) {
+	row := q.db.QueryRow(ctx, createFile,
+		arg.Source,
+		arg.Path,
+		arg.ContentType,
+		arg.SizeBytes,
+	)
+	var i File
+	err := row.Scan(
+		&i.ID,
+		&i.Source,
+		&i.Path,
+		&i.ContentType,
+		&i.SizeBytes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
