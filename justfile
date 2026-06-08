@@ -16,7 +16,8 @@ fmt:
 
 # Start local dev environment with Tilt (background)
 up:
-    nohup tilt up > /dev/null 2>&1 &
+    tilt up > tilt.log 2>&1 &
+    xdg-open http://localhost:10350 2>/dev/null
 
 # Tear down Tilt dev environment and stop the process
 down:
