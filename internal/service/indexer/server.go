@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -23,17 +24,12 @@ type IndexerServer struct {
 func (s *IndexerServer) Index(stream grpc.ClientStreamingServer[pb.IndexRequest, pb.IndexResponse]) error {
 	var metadata *pb.FileMetadata
 	var contentType string
-
-	res, err := s.db.Placeholder(stream.Context())
-	if err != nil {
-		return err
-	}
-	slog.Info("test", "result", res)
+	var totalBytes int64
 
 	for {
 		req, err := stream.Recv()
 		if err == io.EOF {
-			break // DONE
+			break
 		}
 		if err != nil {
 			return err
@@ -45,28 +41,34 @@ func (s *IndexerServer) Index(stream grpc.ClientStreamingServer[pb.IndexRequest,
 				return status.Errorf(codes.InvalidArgument, "protocol violation: the first stream message must be 'metadata'")
 			}
 			metadata = metaReq.Metadata
-
-			// Should have something to create a buffer or something for reading the file
 			continue
 		}
 
-		// Read file contents
 		contentReq, ok := req.GetData().(*pb.IndexRequest_Content)
 		if !ok {
 			return status.Errorf(codes.InvalidArgument, "protocol violation: content missing")
 		}
 
-		if contentType == "" {
-			// Content Type can be determined with first 512 bytes of a file
+		if contentType == "" && len(contentReq.Content) > 0 {
 			limit := min(512, len(contentReq.Content))
 			contentType = http.DetectContentType(contentReq.Content[:limit])
 		}
-		// Do something with the content
-		// slog.Info("Data", "content", contentReq.Content)
+
+		totalBytes += int64(len(contentReq.Content))
 	}
 
-	slog.Info("handling", "name", metadata.Name, "content type", contentType)
-	return stream.SendAndClose(&pb.IndexResponse{Status: "GOOD"})
+	file, err := s.db.CreateFile(stream.Context(), sqlc.CreateFileParams{
+		Source:      metadata.Source,
+		Path:        metadata.Name,
+		ContentType: pgtype.Text{String: contentType, Valid: contentType != ""},
+		SizeBytes:   pgtype.Int8{Int64: totalBytes, Valid: true},
+	})
+	if err != nil {
+		return err
+	}
+
+	slog.Info("Indexed", "file", file, "content_type", contentType, "size_bytes", totalBytes)
+	return stream.SendAndClose(&pb.IndexResponse{Status: "OK"})
 }
 
 func (s *IndexerServer) Run(addr, databaseURL string) error {

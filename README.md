@@ -7,25 +7,26 @@ SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) i
 
 ## Dev
 ### Dependencies
+- [just](https://just.systems/man/en/)
+- [psql](https://www.postgresql.org/docs/current/app-psql.html)
 - [protoc](https://protobuf.dev/installation)
 - [sqlc](https://docs.sqlc.dev/en/stable/index.html)
 - [tilt](https://docs.tilt.dev/index.html)
+- [golangci-lint](https://golangci-lint.run)
 - local k8s cluster ([microk8s](https://docs.tilt.dev/choosing_clusters.html#microk8s))
     - `microk8s enable registry`
     - `microk8s enable hostpath-storage`
     - `microk8s enable dns`
 
 ### Commands
+To see available commands: `just`
+
+`tilt up`
+`tilt down`
+
 protoc and sqldc commands are run automatically via tilt to generate code.
+`GRPC_ADDR=:50051 go run -tags proto ./cmd/crawler`
 
-tilt up
-tilt down
 
-GRPC_ADDR=:50051 go run -tags proto ./cmd/crawler
-
-### Linting & Formatting
-Install [golangci-lint](https://golangci-lint.run) and run:
-
-golangci-lint run ./...   # check linters + formatting
-golangci-lint fmt         # auto-format code
-
+just file to handle development commads
+micro k8s is out of scope of this project, devs can use whatever cluster they want.
