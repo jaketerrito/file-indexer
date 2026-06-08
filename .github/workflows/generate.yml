@@ -1,0 +1,24 @@
+name: check-generated
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check-generated:
+    name: Check generated code is up-to-date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Generate code
+        run: go generate ./...
+      - name: Check for uncommitted changes
+        run: git diff --exit-code

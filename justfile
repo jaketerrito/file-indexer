@@ -2,17 +2,9 @@
 help:
     @just --list
 
-# Connect to the project postgres database
-psql:
-    psql -h localhost -U postgres -d postgres
-
-# Generate sqlc type-safe Go code from SQL queries
-sqlc:
-    sqlc generate
-
-# Compile protobuf definitions into Go code
-proto:
-    protoc --proto_path=proto --go_out=internal/pb --go_opt=paths=source_relative --go-grpc_out=internal/pb --go-grpc_opt=paths=source_relative proto/*.proto
+# Regenerate all generated code (sqlc, protobuf) via go generate
+generate:
+    go generate ./...
 
 # Run golangci-lint checks on all Go code
 lint:
@@ -30,3 +22,7 @@ up:
 down:
     tilt down
     pkill tilt 2>/dev/null; true
+
+# Connect to the project postgres database
+psql:
+    psql -h localhost -U postgres -d postgres
