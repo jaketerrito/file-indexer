@@ -21,8 +21,9 @@ SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) i
 ### Commands
 To see available commands: `just`
 
-`tilt up`
-`tilt down`
+Start and stop dev servers
+`just up`
+`just down`
 
 protoc and sqldc commands are run automatically via tilt to generate code.
 `GRPC_ADDR=:50051 go run -tags proto ./cmd/crawler`
@@ -30,3 +31,10 @@ protoc and sqldc commands are run automatically via tilt to generate code.
 
 just file to handle development commads
 micro k8s is out of scope of this project, devs can use whatever cluster they want.
+
+
+### Tilt
+Manages development resources in k8s cluster
+Automatically generates code
+Automatically rebuilds containers
+Automatically runs build checks

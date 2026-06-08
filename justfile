@@ -21,3 +21,12 @@ lint:
 # Auto-format Go code with golangci-lint
 fmt:
     golangci-lint fmt
+
+# Start local dev environment with Tilt (background)
+up:
+    nohup tilt up > /dev/null 2>&1 &
+
+# Tear down Tilt dev environment and stop the process
+down:
+    tilt down
+    pkill tilt 2>/dev/null; true
