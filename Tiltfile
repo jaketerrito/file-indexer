@@ -28,5 +28,3 @@ k8s_yaml('deploy/migrate.yaml')
 k8s_resource('postgres', port_forwards=5432)
 k8s_resource('migrate', resource_deps=['postgres'])
 k8s_resource('indexer', resource_deps=['postgres', 'migrate'], port_forwards=50051)
-
-
