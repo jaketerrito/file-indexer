@@ -40,8 +40,7 @@ postgres would probably be fine for simple lookups
 - should be triggered based off web app updates (event queue)
 - should be triggered based off of filesystem scan for unindexed files
 
-Should be able to handle out of band uploads to file system directly (not through api)
-Reads file directly from storage
+Should be able to handle out of band uploads to file system directly (not through api), can have file system crawling script
 
 Will want seperate process/application for handling more heavy duty indexing...
 - AI based tagging
@@ -66,10 +65,10 @@ Indexer can be parameterized to generate different sets of metadata
 
 # Plan
 1. crawler script for filesystem
+1. standalone api for indexing
 1. metadata gen functions
 1. build database
 1. search method
-1. standalone api for indexing
 1. standalone api with crud and search
 1. web client that relies on the api
 1. Integrate indexing triggered via the api (using event queue)

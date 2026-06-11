@@ -48,13 +48,12 @@ func (s *IndexerServer) Index(stream grpc.ClientStreamingServer[pb.IndexRequest,
 		if !ok {
 			return status.Errorf(codes.InvalidArgument, "protocol violation: content missing")
 		}
+		totalBytes += int64(len(contentReq.Content))
 
 		if contentType == "" && len(contentReq.Content) > 0 {
 			limit := min(512, len(contentReq.Content))
 			contentType = http.DetectContentType(contentReq.Content[:limit])
 		}
-
-		totalBytes += int64(len(contentReq.Content))
 	}
 
 	file, err := s.db.CreateFile(stream.Context(), sqlc.CreateFileParams{
