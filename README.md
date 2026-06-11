@@ -9,8 +9,6 @@ SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) i
 ### Dependencies
 - [just](https://just.systems/man/en/)
 - [psql](https://www.postgresql.org/docs/current/app-psql.html)
-- [protoc](https://protobuf.dev/installation)
-- [sqlc](https://docs.sqlc.dev/en/stable/index.html)
 - [tilt](https://docs.tilt.dev/index.html)
 - [golangci-lint](https://golangci-lint.run)
 - local k8s cluster ([microk8s](https://docs.tilt.dev/choosing_clusters.html#microk8s))
