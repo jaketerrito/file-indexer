@@ -3,3 +3,6 @@
 
 6/1/26
 - indexer write stuff to database (repository pattern for writing to db)
+
+6/12/26
+- indexer turn the byte stream into reader instance so i can pass to exif package
