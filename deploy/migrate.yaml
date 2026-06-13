@@ -10,14 +10,6 @@ spec:
       containers:
         - name: migrate
           image: migrate
-          env:
-            - name: DB_HOST
-              value: "postgres"
-            - name: DB_PORT
-              value: "5432"
-            - name: DB_USER
-              value: "postgres"
-            - name: DB_PASSWORD
-              value: "mysecretpassword"
-            - name: DB_NAME
-              value: "postgres"
+          envFrom:
+            - secretRef:
+                name: db-secret

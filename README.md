@@ -1,5 +1,7 @@
 # file-indexer
 
+[![trivy](https://github.com/jaketerrito/file-indexer/actions/workflows/trivy.yml/badge.svg)](https://github.com/jaketerrito/file-indexer/actions/workflows/trivy.yml)
+
 ## Database
 Postgres Database
 Migrations live in `internal/db/migrations/` as SQL files and are handled by [goose](https://github.com/pressly/goose).
