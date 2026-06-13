@@ -28,21 +28,35 @@ spec:
         app: postgres
     spec:
       containers:
-      - name: postgres
-        image: postgres:16-alpine
-        ports:
-        - containerPort: 5432
-        env:
-        - name: POSTGRES_PASSWORD
-          value: "mysecretpassword"
-        volumeMounts:
-        - name: pgdata
-          mountPath: /var/lib/postgresql/data
-          subPath: postgres-data
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DB_USER
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DB_NAME
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: DB_PASSWORD
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
+              subPath: postgres-data
       volumes:
-      - name: pgdata
-        persistentVolumeClaim:
-          claimName: postgres-pvc
+        - name: pgdata
+          persistentVolumeClaim:
+            claimName: postgres-pvc
 ---
 apiVersion: v1
 kind: Service
@@ -52,5 +66,6 @@ spec:
   selector:
     app: postgres
   ports:
-  - port: 5432
-    targetPort: 5432
+    - port: 5432
+      targetPort: postgres
+      name: postgres

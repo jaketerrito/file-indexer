@@ -6,13 +6,27 @@ help:
 generate:
     go generate ./...
 
+# Run all linters (Go + Kubernetes manifests)
+lint: lint-go lint-k8s
+
 # Run golangci-lint checks on all Go code
-lint:
+lint-go:
     golangci-lint run ./...
 
+# Validate Kubernetes manifests with kubeconform (builds kustomize output first)
+lint-k8s:
+    kubectl kustomize deploy | kubeconform -strict -summary
+
+# Auto-format all code (Go + YAML)
+fmt: fmt-go fmt-yaml
+
 # Auto-format Go code with golangci-lint
-fmt:
+fmt-go:
     golangci-lint fmt
+
+# Auto-format YAML files with yamlfmt
+fmt-yaml:
+    yamlfmt .
 
 # Start local dev environment with Tilt (background)
 up:

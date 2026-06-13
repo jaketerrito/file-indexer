@@ -18,19 +18,11 @@ spec:
           ports:
             - name: grpc
               containerPort: 50051
-          env:
-            - name: GRPC_ADDR
-              value: ":50051"
-            - name: DB_HOST
-              value: "postgres"
-            - name: DB_PORT
-              value: "5432"
-            - name: DB_USER
-              value: "postgres"
-            - name: DB_PASSWORD
-              value: "mysecretpassword"
-            - name: DB_NAME
-              value: "postgres"
+          envFrom:
+            - secretRef:
+                name: db-secret
+            - secretRef:
+                name: s3-secret
 ---
 apiVersion: v1
 kind: Service

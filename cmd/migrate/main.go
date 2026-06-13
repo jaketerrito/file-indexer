@@ -10,7 +10,7 @@ import (
 func main() {
 	cfg := config.Load()
 
-	if err := db.RunMigrations("pgx", cfg.DatabaseURL); err != nil {
+	if err := db.RunMigrations("pgx", cfg.Database.URL()); err != nil {
 		log.Fatal(err)
 	}
 
