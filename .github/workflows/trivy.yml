@@ -13,7 +13,7 @@ jobs:
     name: filesystem scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Trivy filesystem scan (vuln, misconfig, secrets)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -32,7 +32,7 @@ jobs:
       matrix:
         target: [./cmd/indexer, ./cmd/migrate]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build image
         run: |
           docker build \
