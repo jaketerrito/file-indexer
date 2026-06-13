@@ -27,12 +27,28 @@ spec:
       labels:
         app: postgres
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: postgres
           image: postgres:16-alpine
           ports:
             - containerPort: 5432
               name: postgres
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
           env:
             - name: POSTGRES_USER
               valueFrom:
@@ -53,10 +69,14 @@ spec:
             - name: pgdata
               mountPath: /var/lib/postgresql/data
               subPath: postgres-data
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: pgdata
           persistentVolumeClaim:
             claimName: postgres-pvc
+        - name: tmp
+          emptyDir: {}
 ---
 apiVersion: v1
 kind: Service
