@@ -28,6 +28,7 @@ spec:
         app: postgres
     spec:
       securityContext:
+        fsGroup: 10001
         runAsNonRoot: true
         runAsUser: 10001
         runAsGroup: 10001
@@ -44,11 +45,6 @@ spec:
             capabilities:
               drop: ["ALL"]
             readOnlyRootFilesystem: true
-            runAsNonRoot: true
-            runAsUser: 10001
-            runAsGroup: 10001
-            seccompProfile:
-              type: RuntimeDefault
           env:
             - name: POSTGRES_USER
               valueFrom:
@@ -65,17 +61,23 @@ spec:
                 secretKeyRef:
                   name: db-secret
                   key: DB_PASSWORD
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
           volumeMounts:
             - name: pgdata
               mountPath: /var/lib/postgresql/data
               subPath: postgres-data
             - name: tmp
               mountPath: /tmp
+            - name: rundir
+              mountPath: /var/run/postgresql
       volumes:
         - name: pgdata
           persistentVolumeClaim:
             claimName: postgres-pvc
         - name: tmp
+          emptyDir: {}
+        - name: rundir
           emptyDir: {}
 ---
 apiVersion: v1
