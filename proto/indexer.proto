@@ -14,9 +14,10 @@ message IndexRequest {
     bytes content = 2;
   }
 }
+
 message FileMetadata {
   string name = 1;
-  string source = 2; 
+  string source = 2;
 }
 
 message IndexResponse {
