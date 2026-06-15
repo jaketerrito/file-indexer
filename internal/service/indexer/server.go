@@ -1,3 +1,4 @@
+// Package indexer implements the gRPC Indexer service.
 package indexer
 
 import (
@@ -8,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/grpc"
 )
 
@@ -32,9 +34,20 @@ func (s *IndexerServer) Index(ctx context.Context, req *pb.IndexRequest) (*pb.In
 	ref := req.GetRef()
 	key := ref.GetKey()
 
-	// TODO: fetch the object from storage (s.storage.Get(ctx, key)),
-	// compute metadata (size, checksum, MIME, EXIF), and persist via s.queries.
-	_ = key
+	info, err := s.storage.Stat(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := s.queries.CreateFile(ctx, db.CreateFileParams{
+		Key:         info.Key,
+		ContentType: pgtype.Text{String: info.ContentType, Valid: true},
+		SizeBytes:   pgtype.Int8{Int64: info.Size, Valid: true},
+		CreatedAt:   pgtype.Timestamptz{Time: info.LastModified, Valid: true},
+		UpdatedAt:   pgtype.Timestamptz{Time: info.LastModified, Valid: true},
+	}); err != nil {
+		return nil, err
+	}
 
 	return &pb.IndexResponse{Status: "OK"}, nil
 }

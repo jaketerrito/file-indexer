@@ -12,30 +12,31 @@ import (
 )
 
 const createFile = `-- name: CreateFile :one
-INSERT INTO files (source, path, content_type, size_bytes)
-VALUES ($1, $2, $3, $4)
-RETURNING id, source, path, content_type, size_bytes, created_at, updated_at
+INSERT INTO files (key, content_type, size_bytes, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5)
+RETURNING id, key, content_type, size_bytes, created_at, updated_at
 `
 
 type CreateFileParams struct {
-	Source      string
-	Path        string
+	Key         string
 	ContentType pgtype.Text
 	SizeBytes   pgtype.Int8
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
 }
 
 func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, error) {
 	row := q.db.QueryRow(ctx, createFile,
-		arg.Source,
-		arg.Path,
+		arg.Key,
 		arg.ContentType,
 		arg.SizeBytes,
+		arg.CreatedAt,
+		arg.UpdatedAt,
 	)
 	var i File
 	err := row.Scan(
 		&i.ID,
-		&i.Source,
-		&i.Path,
+		&i.Key,
 		&i.ContentType,
 		&i.SizeBytes,
 		&i.CreatedAt,

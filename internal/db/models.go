@@ -10,8 +10,7 @@ import (
 
 type File struct {
 	ID          int64
-	Source      string
-	Path        string
+	Key         string
 	ContentType pgtype.Text
 	SizeBytes   pgtype.Int8
 	CreatedAt   pgtype.Timestamptz
