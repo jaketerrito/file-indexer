@@ -5,6 +5,7 @@ import (
 	"errors"
 	"file-indexer/internal/pb"
 	"io"
+	"log/slog"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -37,7 +38,28 @@ func New(endpoint, accessKeyID, secretAccessKey string, secure bool, bucket stri
 }
 
 func (s *s3Storage) Get(ctx context.Context, key string) (*Object, error) {
-	return nil, errNotImplemented
+	obj, err := s.client.GetObject(ctx, s.bucket, key, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	info, err := obj.Stat()
+	if err != nil {
+		if closeErr := obj.Close(); closeErr != nil {
+			slog.Warn("close object after stat failure", "key", key, "statErr", err, "closeErr", closeErr)
+		}
+		return nil, err
+	}
+
+	return &Object{
+		ObjectInfo: ObjectInfo{
+			Key:          info.Key,
+			Size:         info.Size,
+			ContentType:  info.ContentType,
+			LastModified: info.LastModified,
+		},
+		Reader: obj,
+	}, nil
 }
 
 func (s *s3Storage) Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error {
@@ -59,5 +81,10 @@ func (s *s3Storage) Walk(ctx context.Context, fn func(*pb.FileRef) error) error 
 }
 
 func (s *s3Storage) Stat(ctx context.Context, key string) (ObjectInfo, error) {
-	return ObjectInfo{}, errNotImplemented
+	info, err := s.client.StatObject(ctx, s.bucket, key, minio.StatObjectOptions{})
+	if err != nil {
+		return ObjectInfo{}, err
+	}
+
+	return ObjectInfo{Key: info.Key, Size: info.Size, ContentType: info.ContentType, LastModified: info.LastModified}, nil
 }

@@ -1,8 +1,17 @@
 # file-indexer
-
 [![trivy](https://github.com/jaketerrito/file-indexer/actions/workflows/trivy.yml/badge.svg)](https://github.com/jaketerrito/file-indexer/actions/workflows/trivy.yml)
 
-## Database
+## Components
+### Indexer
+Builds searchable database from files in s3 bucket
+
+### Crawler
+Searches for new files in s3 bucket, sending to indexer
+
+### File Manager
+Crud operations on files
+
+### Database
 Postgres Database
 Migrations live in `internal/db/migrations/` as SQL files and are handled by [goose](https://github.com/pressly/goose).
 SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) into type-safe Go code in `internal/db/`.

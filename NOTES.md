@@ -16,7 +16,6 @@
 - logs in crawler are nonsense. need start, stop, proper reference on that
 - crawler should be updated to properly check if each file is actually in need of reindexing. (indexer shouldnt do that, should treat index requests as commnad to refresh the indexed data)
 
-TODO:
-1. Update crawler to read s3
-1. Update indexer to handle by reference rather than stream
-1. Fill in minio storage stubs to support crawler/indexer
+6/15/26
+- use single file info across the board from storage.stat -> db schema -> db create file args
+- logs in indexer for each file processsed
