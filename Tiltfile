@@ -14,6 +14,7 @@ default_registry('localhost:32000')
 
 docker_build('migrate', '.', build_args={'BUILD_TARGET': './cmd/migrate'})
 docker_build('indexer', '.', build_args={'BUILD_TARGET': './cmd/indexer'})
+docker_build('crawler', '.', build_args={'BUILD_TARGET': './cmd/crawler'})
 
 k8s_yaml(kustomize('deploy'))
 
@@ -27,3 +28,9 @@ k8s_resource(
 k8s_resource('postgres', port_forwards=5432)
 k8s_resource('migrate', resource_deps=['postgres'])
 k8s_resource('indexer', resource_deps=['postgres', 'migrate'], port_forwards=50051)
+k8s_resource(
+    'crawler',
+    resource_deps=['indexer', 'local-s3'],
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    auto_init=False,
+)

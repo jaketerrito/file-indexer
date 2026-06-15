@@ -30,13 +30,11 @@ func New(addr string, store storage.Storage, queries *db.Queries) *IndexerServer
 
 func (s *IndexerServer) Index(ctx context.Context, req *pb.IndexRequest) (*pb.IndexResponse, error) {
 	ref := req.GetRef()
-	bucket := ref.GetBucket()
-	path := ref.GetPath()
+	key := ref.GetKey()
 
-	// TODO: fetch the object from storage (s.storage.Get(ctx, bucket, path)),
+	// TODO: fetch the object from storage (s.storage.Get(ctx, key)),
 	// compute metadata (size, checksum, MIME, EXIF), and persist via s.queries.
-	_ = bucket
-	_ = path
+	_ = key
 
 	return &pb.IndexResponse{Status: "OK"}, nil
 }

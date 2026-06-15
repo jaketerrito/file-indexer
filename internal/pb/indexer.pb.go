@@ -67,8 +67,7 @@ func (x *IndexRequest) GetRef() *FileRef {
 
 type FileRef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Bucket        string                 `protobuf:"bytes,1,opt,name=bucket,proto3" json:"bucket,omitempty"`
-	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -103,16 +102,9 @@ func (*FileRef) Descriptor() ([]byte, []int) {
 	return file_indexer_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *FileRef) GetBucket() string {
+func (x *FileRef) GetKey() string {
 	if x != nil {
-		return x.Bucket
-	}
-	return ""
-}
-
-func (x *FileRef) GetPath() string {
-	if x != nil {
-		return x.Path
+		return x.Key
 	}
 	return ""
 }
@@ -167,10 +159,9 @@ const file_indexer_proto_rawDesc = "" +
 	"\n" +
 	"\rindexer.proto\x12\aservice\"2\n" +
 	"\fIndexRequest\x12\"\n" +
-	"\x03ref\x18\x01 \x01(\v2\x10.service.FileRefR\x03ref\"5\n" +
-	"\aFileRef\x12\x16\n" +
-	"\x06bucket\x18\x01 \x01(\tR\x06bucket\x12\x12\n" +
-	"\x04path\x18\x02 \x01(\tR\x04path\"'\n" +
+	"\x03ref\x18\x01 \x01(\v2\x10.service.FileRefR\x03ref\"\x1b\n" +
+	"\aFileRef\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\"'\n" +
 	"\rIndexResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status2C\n" +
 	"\aIndexer\x128\n" +

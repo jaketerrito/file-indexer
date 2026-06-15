@@ -13,8 +13,7 @@ message IndexRequest {
 }
 
 message FileRef {
-  string bucket = 1;
-  string path = 2;
+  string key = 1;
 }
 
 message IndexResponse {

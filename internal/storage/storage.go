@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"file-indexer/internal/pb"
 	"io"
 	"time"
 )
@@ -24,18 +25,17 @@ type ObjectInfo struct {
 	LastModified time.Time
 }
 
-// Storage abstracts an object store. Bucket is passed per call to match the
-// reference-based indexing model where each request carries its own bucket.
+// Storage abstracts an object store. The bucket is bound at construction, so
+// methods operate on keys within that single bucket.
 type Storage interface {
 	// Get retrieves an object and its content stream.
-	Get(ctx context.Context, bucket, key string) (*Object, error)
+	Get(ctx context.Context, key string) (*Object, error)
 
 	// Put stores an object from r. size may be -1 if unknown.
-	Put(ctx context.Context, bucket, key string, r io.Reader, size int64, contentType string) error
+	Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error
 
-	// List returns metadata for objects under prefix.
-	List(ctx context.Context, bucket, prefix string) ([]ObjectInfo, error)
+	Walk(ctx context.Context, fn func(*pb.FileRef) error) error
 
 	// Stat returns metadata for a single object without fetching its content.
-	Stat(ctx context.Context, bucket, key string) (ObjectInfo, error)
+	Stat(ctx context.Context, key string) (ObjectInfo, error)
 }

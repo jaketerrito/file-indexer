@@ -12,7 +12,11 @@
   - teeing upload bytes to the indexer saves at most one GET but adds failure modes (phantom index entries, upload coupled to indexer availability); pull path is required anyway for re-indexing and crawler-discovered files
   - no inline metadata compute in the api — keep ingest dumb, indexer owns all metadata
 
+6/14/26
+- logs in crawler are nonsense. need start, stop, proper reference on that
+- crawler should be updated to properly check if each file is actually in need of reindexing. (indexer shouldnt do that, should treat index requests as commnad to refresh the indexed data)
 
 TODO:
 1. Update crawler to read s3
 1. Update indexer to handle by reference rather than stream
+1. Fill in minio storage stubs to support crawler/indexer

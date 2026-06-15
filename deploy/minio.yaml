@@ -21,6 +21,46 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
+        # Local-only convenience sidecar: waits for MinIO, then creates the
+        # bucket and uploads a few empty test objects via the S3 API (objects
+        # must go through the API, not the data dir, to be valid MinIO objects).
+        - name: seed
+          image: minio/mc:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              until mc alias set local "http://127.0.0.1:9000" "$S3_ACCESS_ID" "$S3_SECRET"; do
+                echo "waiting for minio..."
+                sleep 2
+              done
+              mc mb --ignore-existing "local/$S3_BUCKET"
+              for n in 1 2 3; do
+                echo -n "" | mc pipe "local/$S3_BUCKET/test-$n.txt"
+              done
+              echo "seeded bucket '$S3_BUCKET'"
+              # Keep the sidecar alive so the pod stays Ready.
+              tail -f /dev/null
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          env:
+            - name: MC_CONFIG_DIR
+              value: /tmp/mc
+          envFrom:
+            - secretRef:
+                name: s3-secret
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
         - name: minio
           image: minio/minio:latest
           args:
