@@ -1,13 +1,38 @@
 package main
 
 import (
+	"context"
 	"file-indexer/internal/config"
+	"file-indexer/internal/db"
+	"file-indexer/internal/logger"
 	"file-indexer/internal/service/indexer"
-	"log"
+	"file-indexer/internal/storage"
+	"log/slog"
+	"os"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
+	logger.Setup(slog.LevelInfo)
 	cfg := config.Load()
-	s := &indexer.IndexerServer{}
-	log.Fatal(s.Run(cfg.GrpcAddr, cfg.Database.URL()))
+
+	pool, err := pgxpool.New(context.Background(), cfg.Database.URL())
+	if err != nil {
+		slog.Error("database connection failed", "error", err)
+		os.Exit(1)
+	}
+	defer pool.Close()
+
+	s3, err := storage.New(cfg.S3.Endpoint, cfg.S3.AccessKeyID, cfg.S3.SecretAccessKey, false)
+	if err != nil {
+		slog.Error("storage init failed", "error", err)
+		os.Exit(1)
+	}
+
+	srv := indexer.New(cfg.GrpcAddr, s3, db.New(pool))
+	if err := srv.Serve(); err != nil {
+		slog.Error("indexer failed", "error", err)
+		os.Exit(1)
+	}
 }

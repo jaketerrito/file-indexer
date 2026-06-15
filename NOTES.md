@@ -14,6 +14,5 @@
 
 
 TODO:
-1. Local s3 system for testing
 1. Update crawler to read s3
 1. Update indexer to handle by reference rather than stream
