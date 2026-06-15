@@ -3,23 +3,24 @@ package crawler
 import (
 	"context"
 	"file-indexer/internal/pb"
+	"file-indexer/internal/storage"
 	"log/slog"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Crawler walks a filesystem and sends discovered file references to the
+// Crawler walks an object store and sends discovered file references to the
 // indexer service over gRPC.
 type Crawler struct {
-	addr   string
-	walker FileWalker
+	addr  string
+	store storage.Storage
 }
 
 // New constructs a Crawler with its dependencies already built by the caller
 // (composition root). It does no I/O; call Run to start crawling.
-func New(addr string, walker FileWalker) *Crawler {
-	return &Crawler{addr: addr, walker: walker}
+func New(addr string, store storage.Storage) *Crawler {
+	return &Crawler{addr: addr, store: store}
 }
 
 // Run dials the indexer and walks the filesystem, emitting a reference per file.
@@ -36,7 +37,7 @@ func (c *Crawler) Run() error {
 
 	client := pb.NewIndexerClient(conn)
 
-	return c.walker.Walk(func(ref *pb.FileRef) error {
+	return c.store.Walk(context.Background(), func(ref *pb.FileRef) error {
 		response, err := client.Index(context.Background(), &pb.IndexRequest{
 			Ref: ref,
 		})
@@ -44,7 +45,7 @@ func (c *Crawler) Run() error {
 			return err
 		}
 
-		slog.Info("uploaded", "file", ref.GetPath(), "status", response.Status)
+		slog.Info("uploaded", "file", ref.GetKey(), "status", response.Status)
 		return nil
 	})
 }

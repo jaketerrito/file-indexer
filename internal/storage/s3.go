@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"file-indexer/internal/pb"
 	"io"
 
 	"github.com/minio/minio-go/v7"
@@ -17,13 +18,14 @@ var errNotImplemented = errors.New("storage: not implemented")
 // (AWS S3, MinIO, etc.).
 type s3Storage struct {
 	client *minio.Client
+	bucket string
 }
 
 // New constructs a Storage backed by an S3-compatible object store. endpoint is
-// host:port (no scheme); set secure to true to use TLS. It takes plain
-// primitives rather than a config type so the storage package stays decoupled
-// from application config.
-func New(endpoint, accessKeyID, secretAccessKey string, secure bool) (Storage, error) {
+// host:port (no scheme); set secure to true to use TLS. bucket is the single
+// bucket this Storage operates on. It takes plain primitives rather than a
+// config type so the storage package stays decoupled from application config.
+func New(endpoint, accessKeyID, secretAccessKey string, secure bool, bucket string) (Storage, error) {
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKeyID, secretAccessKey, ""),
 		Secure: secure,
@@ -31,21 +33,31 @@ func New(endpoint, accessKeyID, secretAccessKey string, secure bool) (Storage, e
 	if err != nil {
 		return nil, err
 	}
-	return &s3Storage{client: client}, nil
+	return &s3Storage{client: client, bucket: bucket}, nil
 }
 
-func (s *s3Storage) Get(ctx context.Context, bucket, key string) (*Object, error) {
+func (s *s3Storage) Get(ctx context.Context, key string) (*Object, error) {
 	return nil, errNotImplemented
 }
 
-func (s *s3Storage) Put(ctx context.Context, bucket, key string, r io.Reader, size int64, contentType string) error {
+func (s *s3Storage) Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error {
 	return errNotImplemented
 }
 
-func (s *s3Storage) List(ctx context.Context, bucket, prefix string) ([]ObjectInfo, error) {
-	return nil, errNotImplemented
+func (s *s3Storage) Walk(ctx context.Context, fn func(*pb.FileRef) error) error {
+	for obj := range s.client.ListObjectsIter(ctx, s.bucket, minio.ListObjectsOptions{}) {
+		if obj.Err != nil {
+			return obj.Err
+		}
+		if err := fn(&pb.FileRef{
+			Key: obj.Key,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (s *s3Storage) Stat(ctx context.Context, bucket, key string) (ObjectInfo, error) {
+func (s *s3Storage) Stat(ctx context.Context, key string) (ObjectInfo, error) {
 	return ObjectInfo{}, errNotImplemented
 }

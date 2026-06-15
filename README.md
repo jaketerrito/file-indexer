@@ -26,8 +26,8 @@ Start and stop dev servers
 `just down`
 
 protoc and sqldc commands are run automatically via tilt to generate code.
-`GRPC_ADDR=:50051 go run -tags proto ./cmd/crawler`
 
+crawler gets run through tilt too now
 
 just file to handle development commads
 micro k8s is out of scope of this project, devs can use whatever cluster they want.
