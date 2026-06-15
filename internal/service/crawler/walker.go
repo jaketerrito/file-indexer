@@ -1,25 +1,18 @@
 package crawler
 
 import (
-	"io"
+	"file-indexer/internal/pb"
 	"io/fs"
-	"os"
 	"path/filepath"
 )
 
-type FileInfo struct {
-	Path   string
-	Source string
-}
-
 type FileWalker interface {
-	Walk(fn func(FileInfo) error) error
-	Open(FileInfo) (io.ReadCloser, error)
+	Walk(fn func(*pb.FileRef) error) error
 }
 
 type LinuxFileWalker struct{}
 
-func (l LinuxFileWalker) Walk(fn func(FileInfo) error) error {
+func (l LinuxFileWalker) Walk(fn func(*pb.FileRef) error) error {
 	return filepath.WalkDir(".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -29,10 +22,6 @@ func (l LinuxFileWalker) Walk(fn func(FileInfo) error) error {
 			return nil
 		}
 
-		return fn(FileInfo{Path: path, Source: "test"})
+		return fn(&pb.FileRef{Path: path, Bucket: "test"})
 	})
-}
-
-func (l LinuxFileWalker) Open(fileInfo FileInfo) (io.ReadCloser, error) {
-	return os.Open(fileInfo.Path)
 }

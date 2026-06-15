@@ -3,17 +3,20 @@ package main
 import (
 	"file-indexer/internal/config"
 	"file-indexer/internal/db"
-	"log"
+	"file-indexer/internal/logger"
+	"log/slog"
 	"os"
 )
 
 func main() {
+	logger.Setup(slog.LevelInfo)
 	cfg := config.Load()
 
 	if err := db.RunMigrations("pgx", cfg.Database.URL()); err != nil {
-		log.Fatal(err)
+		slog.Error("migrations failed", "error", err)
+		os.Exit(1)
 	}
 
-	log.Println("Migrations complete")
+	slog.Info("Migrations complete")
 	os.Exit(0)
 }

@@ -3,19 +3,32 @@ package crawler
 import (
 	"context"
 	"file-indexer/internal/pb"
-	"io"
 	"log/slog"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func Run(address string) error {
-	slog.Info("port", "is", address)
+// Crawler walks a filesystem and sends discovered file references to the
+// indexer service over gRPC.
+type Crawler struct {
+	addr   string
+	walker FileWalker
+}
+
+// New constructs a Crawler with its dependencies already built by the caller
+// (composition root). It does no I/O; call Run to start crawling.
+func New(addr string, walker FileWalker) *Crawler {
+	return &Crawler{addr: addr, walker: walker}
+}
+
+// Run dials the indexer and walks the filesystem, emitting a reference per file.
+func (c *Crawler) Run() error {
+	slog.Info("connecting to indexer", "addr", c.addr)
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	}
-	conn, err := grpc.NewClient("localhost:50051", opts...)
+	conn, err := grpc.NewClient(c.addr, opts...)
 	if err != nil {
 		return err
 	}
@@ -23,55 +36,15 @@ func Run(address string) error {
 
 	client := pb.NewIndexerClient(conn)
 
-	localFs := LinuxFileWalker{}
-	return localFs.Walk(func(file FileInfo) error {
-		r, err := localFs.Open(file)
-		if err != nil {
-			return err
-		}
-		defer func() { _ = r.Close() }()
-
-		stream, err := client.Index(context.Background())
+	return c.walker.Walk(func(ref *pb.FileRef) error {
+		response, err := client.Index(context.Background(), &pb.IndexRequest{
+			Ref: ref,
+		})
 		if err != nil {
 			return err
 		}
 
-		if err := stream.Send(&pb.IndexRequest{
-			Data: &pb.IndexRequest_Metadata{
-				Metadata: &pb.FileMetadata{
-					Name:   file.Path,
-					Source: "test",
-				},
-			},
-		}); err != nil {
-			return err
-		}
-
-		buf := make([]byte, 64*1024)
-		for {
-			n, err := r.Read(buf)
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return err
-			}
-
-			if n > 0 {
-				if err := stream.Send(&pb.IndexRequest{
-					Data: &pb.IndexRequest_Content{Content: buf[:n]},
-				}); err != nil {
-					return err
-				}
-			}
-		}
-
-		slog.Info("Sent file to indexer", "FileInfo", file)
-		response, err := stream.CloseAndRecv()
-		if err != nil {
-			return err
-		}
-		slog.Info("uploaded", "file", file.Path, "status", response.Status)
+		slog.Info("uploaded", "file", ref.GetPath(), "status", response.Status)
 		return nil
 	})
 }
