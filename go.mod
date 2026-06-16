@@ -4,6 +4,7 @@ go 1.26.2
 
 require (
 	github.com/jackc/pgx/v5 v5.10.0
+	github.com/minio/minio-go/v7 v7.2.0
 	github.com/pressly/goose/v3 v3.27.1
 	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.11
@@ -19,10 +20,10 @@ require (
 	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
 	github.com/klauspost/crc32 v1.3.0 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
-	github.com/minio/minio-go/v7 v7.2.0 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/sethvargo/go-retry v0.3.0 // indirect

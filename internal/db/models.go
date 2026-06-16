@@ -2,7 +2,7 @@
 // versions:
 //   sqlc v1.31.1
 
-package sqlc
+package db
 
 import (
 	"github.com/jackc/pgx/v5/pgtype"
@@ -10,8 +10,7 @@ import (
 
 type File struct {
 	ID          int64
-	Source      string
-	Path        string
+	Key         string
 	ContentType pgtype.Text
 	SizeBytes   pgtype.Int8
 	CreatedAt   pgtype.Timestamptz
