@@ -22,6 +22,7 @@ type S3Config struct {
 	Endpoint        string
 	AccessKeyID     string
 	SecretAccessKey string
+	Bucket          string
 }
 
 type Config struct {
@@ -51,6 +52,7 @@ func Load() *Config {
 			Endpoint:        os.Getenv("S3_ENDPOINT"),
 			AccessKeyID:     os.Getenv("S3_ACCESS_ID"),
 			SecretAccessKey: os.Getenv("S3_SECRET"),
+			Bucket:          os.Getenv("S3_BUCKET"),
 		},
 	}
 }

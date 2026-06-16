@@ -1,11 +1,20 @@
 # file-indexer
-
 [![trivy](https://github.com/jaketerrito/file-indexer/actions/workflows/trivy.yml/badge.svg)](https://github.com/jaketerrito/file-indexer/actions/workflows/trivy.yml)
 
-## Database
+## Components
+### Indexer
+Builds searchable database from files in s3 bucket
+
+### Crawler
+Searches for new files in s3 bucket, sending to indexer
+
+### File Manager
+Crud operations on files
+
+### Database
 Postgres Database
 Migrations live in `internal/db/migrations/` as SQL files and are handled by [goose](https://github.com/pressly/goose).
-SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) into type-safe Go code in `internal/db/sqlc/`.
+SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) into type-safe Go code in `internal/db/`.
 
 ## Dev
 ### Dependencies
@@ -26,8 +35,8 @@ Start and stop dev servers
 `just down`
 
 protoc and sqldc commands are run automatically via tilt to generate code.
-`GRPC_ADDR=:50051 go run -tags proto ./cmd/crawler`
 
+crawler gets run through tilt too now
 
 just file to handle development commads
 micro k8s is out of scope of this project, devs can use whatever cluster they want.

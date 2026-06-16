@@ -5,19 +5,15 @@ package service;
 option go_package = "file-indexer/internal/pb";
 
 service Indexer {
-  rpc Index(stream IndexRequest) returns (IndexResponse) {}
+  rpc Index(IndexRequest) returns (IndexResponse) {}
 }
 
 message IndexRequest {
-  oneof data {
-    FileMetadata metadata = 1;
-    bytes content = 2;
-  }
+  FileRef ref = 1;
 }
 
-message FileMetadata {
-  string name = 1;
-  string source = 2;
+message FileRef {
+  string key = 1;
 }
 
 message IndexResponse {
