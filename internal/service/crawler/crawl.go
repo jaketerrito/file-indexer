@@ -2,7 +2,7 @@ package crawler
 
 import (
 	"context"
-	"file-indexer/internal/pb"
+	pb "file-indexer/internal/pb/service/v1"
 	"file-indexer/internal/storage"
 	"log/slog"
 
@@ -35,7 +35,7 @@ func (c *Crawler) Run() error {
 	}
 	defer func() { _ = conn.Close() }()
 
-	client := pb.NewIndexerClient(conn)
+	client := pb.NewIndexerServiceClient(conn)
 
 	return c.store.Walk(context.Background(), func(ref *pb.FileRef) error {
 		response, err := client.Index(context.Background(), &pb.IndexRequest{

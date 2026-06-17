@@ -2,7 +2,7 @@ package storage
 
 import (
 	"context"
-	"file-indexer/internal/pb"
+	pb "file-indexer/internal/pb/service/v1"
 	"io"
 	"time"
 )

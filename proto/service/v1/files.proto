@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package service.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "file-indexer/internal/pb";
+
+service FilesService {
+  rpc GetDownloadUrl(GetDownloadUrlRequest) returns (GetDownloadUrlResponse);
+  rpc GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+}
+
+message GetDownloadUrlRequest {
+  repeated int64 ids = 1;
+}
+
+message DownloadUrlSpec {
+  string url = 1;
+  google.protobuf.Timestamp expires_at = 2;
+}
+
+message GetDownloadUrlResponse {
+  repeated DownloadUrlSpec download_urls = 1;
+}
+
+message GetFileInfoRequest {
+  int64 id = 1;
+}
+
+message FileInfo {
+  int64 id = 1;
+  string key = 2;
+  string content_type = 3;
+  int64 size_bytes = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+message GetFileInfoResponse {
+  FileInfo file = 1;
+}
+
+message ListFilesRequest {
+  int32 page_size = 1;
+  int32 page_cursor = 2; // hash of the last value being sorted by, so can filter that out with a where
+  string prefix = 3;
+  // TODO add sorting option
+}
+
+message ListFilesResponse {
+  repeated FileInfo files = 1;
+  string next_page_token = 2;
+}
+
+message DeleteFileRequest {
+  int64 id = 1;
+}
+
+message DeleteFileResponse {}

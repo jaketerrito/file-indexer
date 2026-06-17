@@ -1,10 +1,10 @@
 syntax = "proto3";
 
-package service;
+package service.v1;
 
 option go_package = "file-indexer/internal/pb";
 
-service Indexer {
+service IndexerService {
   rpc Index(IndexRequest) returns (IndexResponse) {}
 }
 

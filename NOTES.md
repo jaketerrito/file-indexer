@@ -19,3 +19,7 @@
 6/15/26
 - use single file info across the board from storage.stat -> db schema -> db create file args
 - logs in indexer for each file processsed
+
+6/16/26
+- defer uploads, will handle that later in favor of just using the crawler
+- ci check for linting proto, ensure proto lint also checks fmt
