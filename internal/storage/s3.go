@@ -3,7 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
-	"file-indexer/internal/pb"
+	pb "file-indexer/internal/pb/service/v1"
 	"io"
 	"log/slog"
 

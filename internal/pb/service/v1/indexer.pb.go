@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: indexer.proto
+// source: service/v1/indexer.proto
 
 package pb
 
@@ -30,7 +30,7 @@ type IndexRequest struct {
 
 func (x *IndexRequest) Reset() {
 	*x = IndexRequest{}
-	mi := &file_indexer_proto_msgTypes[0]
+	mi := &file_service_v1_indexer_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +42,7 @@ func (x *IndexRequest) String() string {
 func (*IndexRequest) ProtoMessage() {}
 
 func (x *IndexRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_indexer_proto_msgTypes[0]
+	mi := &file_service_v1_indexer_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +55,7 @@ func (x *IndexRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IndexRequest.ProtoReflect.Descriptor instead.
 func (*IndexRequest) Descriptor() ([]byte, []int) {
-	return file_indexer_proto_rawDescGZIP(), []int{0}
+	return file_service_v1_indexer_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *IndexRequest) GetRef() *FileRef {
@@ -74,7 +74,7 @@ type FileRef struct {
 
 func (x *FileRef) Reset() {
 	*x = FileRef{}
-	mi := &file_indexer_proto_msgTypes[1]
+	mi := &file_service_v1_indexer_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -86,7 +86,7 @@ func (x *FileRef) String() string {
 func (*FileRef) ProtoMessage() {}
 
 func (x *FileRef) ProtoReflect() protoreflect.Message {
-	mi := &file_indexer_proto_msgTypes[1]
+	mi := &file_service_v1_indexer_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -99,7 +99,7 @@ func (x *FileRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileRef.ProtoReflect.Descriptor instead.
 func (*FileRef) Descriptor() ([]byte, []int) {
-	return file_indexer_proto_rawDescGZIP(), []int{1}
+	return file_service_v1_indexer_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *FileRef) GetKey() string {
@@ -118,7 +118,7 @@ type IndexResponse struct {
 
 func (x *IndexResponse) Reset() {
 	*x = IndexResponse{}
-	mi := &file_indexer_proto_msgTypes[2]
+	mi := &file_service_v1_indexer_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -130,7 +130,7 @@ func (x *IndexResponse) String() string {
 func (*IndexResponse) ProtoMessage() {}
 
 func (x *IndexResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_indexer_proto_msgTypes[2]
+	mi := &file_service_v1_indexer_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -143,7 +143,7 @@ func (x *IndexResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IndexResponse.ProtoReflect.Descriptor instead.
 func (*IndexResponse) Descriptor() ([]byte, []int) {
-	return file_indexer_proto_rawDescGZIP(), []int{2}
+	return file_service_v1_indexer_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *IndexResponse) GetStatus() string {
@@ -153,42 +153,43 @@ func (x *IndexResponse) GetStatus() string {
 	return ""
 }
 
-var File_indexer_proto protoreflect.FileDescriptor
+var File_service_v1_indexer_proto protoreflect.FileDescriptor
 
-const file_indexer_proto_rawDesc = "" +
+const file_service_v1_indexer_proto_rawDesc = "" +
 	"\n" +
-	"\rindexer.proto\x12\aservice\"2\n" +
-	"\fIndexRequest\x12\"\n" +
-	"\x03ref\x18\x01 \x01(\v2\x10.service.FileRefR\x03ref\"\x1b\n" +
+	"\x18service/v1/indexer.proto\x12\n" +
+	"service.v1\"5\n" +
+	"\fIndexRequest\x12%\n" +
+	"\x03ref\x18\x01 \x01(\v2\x13.service.v1.FileRefR\x03ref\"\x1b\n" +
 	"\aFileRef\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\"'\n" +
 	"\rIndexResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status2C\n" +
-	"\aIndexer\x128\n" +
-	"\x05Index\x12\x15.service.IndexRequest\x1a\x16.service.IndexResponse\"\x00B\x1aZ\x18file-indexer/internal/pbb\x06proto3"
+	"\x06status\x18\x01 \x01(\tR\x06status2P\n" +
+	"\x0eIndexerService\x12>\n" +
+	"\x05Index\x12\x18.service.v1.IndexRequest\x1a\x19.service.v1.IndexResponse\"\x00B\x1aZ\x18file-indexer/internal/pbb\x06proto3"
 
 var (
-	file_indexer_proto_rawDescOnce sync.Once
-	file_indexer_proto_rawDescData []byte
+	file_service_v1_indexer_proto_rawDescOnce sync.Once
+	file_service_v1_indexer_proto_rawDescData []byte
 )
 
-func file_indexer_proto_rawDescGZIP() []byte {
-	file_indexer_proto_rawDescOnce.Do(func() {
-		file_indexer_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_indexer_proto_rawDesc), len(file_indexer_proto_rawDesc)))
+func file_service_v1_indexer_proto_rawDescGZIP() []byte {
+	file_service_v1_indexer_proto_rawDescOnce.Do(func() {
+		file_service_v1_indexer_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_service_v1_indexer_proto_rawDesc), len(file_service_v1_indexer_proto_rawDesc)))
 	})
-	return file_indexer_proto_rawDescData
+	return file_service_v1_indexer_proto_rawDescData
 }
 
-var file_indexer_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
-var file_indexer_proto_goTypes = []any{
-	(*IndexRequest)(nil),  // 0: service.IndexRequest
-	(*FileRef)(nil),       // 1: service.FileRef
-	(*IndexResponse)(nil), // 2: service.IndexResponse
+var file_service_v1_indexer_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_service_v1_indexer_proto_goTypes = []any{
+	(*IndexRequest)(nil),  // 0: service.v1.IndexRequest
+	(*FileRef)(nil),       // 1: service.v1.FileRef
+	(*IndexResponse)(nil), // 2: service.v1.IndexResponse
 }
-var file_indexer_proto_depIdxs = []int32{
-	1, // 0: service.IndexRequest.ref:type_name -> service.FileRef
-	0, // 1: service.Indexer.Index:input_type -> service.IndexRequest
-	2, // 2: service.Indexer.Index:output_type -> service.IndexResponse
+var file_service_v1_indexer_proto_depIdxs = []int32{
+	1, // 0: service.v1.IndexRequest.ref:type_name -> service.v1.FileRef
+	0, // 1: service.v1.IndexerService.Index:input_type -> service.v1.IndexRequest
+	2, // 2: service.v1.IndexerService.Index:output_type -> service.v1.IndexResponse
 	2, // [2:3] is the sub-list for method output_type
 	1, // [1:2] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -196,26 +197,26 @@ var file_indexer_proto_depIdxs = []int32{
 	0, // [0:1] is the sub-list for field type_name
 }
 
-func init() { file_indexer_proto_init() }
-func file_indexer_proto_init() {
-	if File_indexer_proto != nil {
+func init() { file_service_v1_indexer_proto_init() }
+func file_service_v1_indexer_proto_init() {
+	if File_service_v1_indexer_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_indexer_proto_rawDesc), len(file_indexer_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_v1_indexer_proto_rawDesc), len(file_service_v1_indexer_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_indexer_proto_goTypes,
-		DependencyIndexes: file_indexer_proto_depIdxs,
-		MessageInfos:      file_indexer_proto_msgTypes,
+		GoTypes:           file_service_v1_indexer_proto_goTypes,
+		DependencyIndexes: file_service_v1_indexer_proto_depIdxs,
+		MessageInfos:      file_service_v1_indexer_proto_msgTypes,
 	}.Build()
-	File_indexer_proto = out.File
-	file_indexer_proto_goTypes = nil
-	file_indexer_proto_depIdxs = nil
+	File_service_v1_indexer_proto = out.File
+	file_service_v1_indexer_proto_goTypes = nil
+	file_service_v1_indexer_proto_depIdxs = nil
 }
