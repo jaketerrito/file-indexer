@@ -24,7 +24,7 @@ jobs:
       - uses: bufbuild/buf-action@v1
         with:
           input: proto
-          version: v1.70.0
+          version: 1.70.0
           lint: true
           format: true
           breaking: false
