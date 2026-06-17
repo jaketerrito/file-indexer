@@ -19,7 +19,7 @@ lint-k8s:
 
 # Lint protobuf files with buf
 lint-proto:
-    go run github.com/bufbuild/buf/cmd/buf@v1.70.0 lint proto
+    go run github.com/bufbuild/buf/cmd/buf lint proto
 
 # Auto-format all code (Go + YAML + protobuf)
 fmt: fmt-go fmt-yaml fmt-proto
@@ -34,7 +34,7 @@ fmt-yaml:
 
 # Auto-format protobuf files with buf
 fmt-proto:
-    go run github.com/bufbuild/buf/cmd/buf@v1.70.0 format -w proto
+    go run github.com/bufbuild/buf/cmd/buf format -w proto
 
 # Start local dev environment with Tilt (background)
 up:
