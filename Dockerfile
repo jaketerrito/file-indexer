@@ -2,7 +2,7 @@
 ARG BUILD_TARGET=./cmd/indexer
 
 # Build the application from source
-FROM golang:1.26.4-alpine@sha256:f1ddd9fe14fffc091dd98cb4bfa999f32c5fc77d2f2305ea9f0e2595c5437c14 AS build-stage
+FROM golang:1.26.4-alpine3.24@sha256:f1ddd9fe14fffc091dd98cb4bfa999f32c5fc77d2f2305ea9f0e2595c5437c14 AS build-stage
 
 ARG BUILD_TARGET
 WORKDIR /app
