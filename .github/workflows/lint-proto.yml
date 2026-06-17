@@ -27,5 +27,4 @@ jobs:
           version: 1.70.0
           lint: true
           format: true
-          breaking: false
           push: false
