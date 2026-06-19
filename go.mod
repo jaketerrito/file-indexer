@@ -2,6 +2,9 @@ module file-indexer
 
 go 1.26.2
 
+tool github.com/bufbuild/buf/cmd/buf
+tool github.com/sqlc-dev/sqlc/cmd/sqlc
+
 require (
 	github.com/bufbuild/buf v1.70.0
 	github.com/jackc/pgx/v5 v5.10.0
