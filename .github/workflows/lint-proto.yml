@@ -1,0 +1,30 @@
+name: lint-proto
+on:
+  push:
+    branches: [main]
+    paths:
+      - "proto/**"
+      - ".github/workflows/lint-proto.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "proto/**"
+      - ".github/workflows/lint-proto.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  lint-proto:
+    name: lint-proto
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: bufbuild/buf-action@v1
+        with:
+          input: proto
+          version: 1.70.0
+          lint: true
+          format: true
+          push: false

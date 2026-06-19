@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package service.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "file-indexer/internal/pb";
+
+service FilesService {
+  rpc GetDownloadURL(GetDownloadURLRequest) returns (GetDownloadURLResponse);
+  rpc GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+}
+
+message GetDownloadURLRequest {
+  repeated int64 ids = 1;
+}
+
+message DownloadURLSpec {
+  int64 id = 1;
+  string url = 2;
+}
+
+message GetDownloadURLResponse {
+  repeated DownloadURLSpec download_urls = 1;
+}
+
+message GetFileInfoRequest {
+  int64 id = 1;
+}
+
+message FileInfo {
+  int64 id = 1;
+  string key = 2;
+  string content_type = 3;
+  int64 size_bytes = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+message GetFileInfoResponse {
+  FileInfo file = 1;
+}
+
+message DeleteFileRequest {
+  int64 id = 1;
+}
+
+message DeleteFileResponse {}

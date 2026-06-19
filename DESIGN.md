@@ -13,7 +13,7 @@ Web application should support:
 - create, read, update and deletion of files
 - searching files based off of metadata
 
-Direct upload with presigned urls?
+client gets Presigned urls for upload, then it needs to make a call to index
 Use BFF
 
 ## DB
@@ -75,8 +75,8 @@ Indexer can be parameterized to generate different sets of metadata
 1. crawler script for filesystem --
 1. standalone api for indexing --
 1. build database --
-1. metadata gen functions
 1. standalone api with crud and search
+1. metadata gen functions
 1. web client that relies on the api
 1. Integrate indexing triggered via the api (using event queue)
 1. add more complex metadata

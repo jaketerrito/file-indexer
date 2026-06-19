@@ -6,8 +6,8 @@ help:
 generate:
     go generate ./...
 
-# Run all linters (Go + Kubernetes manifests)
-lint: lint-go lint-k8s
+# Run all linters (Go + Kubernetes manifests + protobuf)
+lint: lint-go lint-k8s lint-proto
 
 # Run golangci-lint checks on all Go code
 lint-go:
@@ -17,8 +17,12 @@ lint-go:
 lint-k8s:
     kubectl kustomize deploy | kubeconform -strict -summary
 
-# Auto-format all code (Go + YAML)
-fmt: fmt-go fmt-yaml
+# Lint protobuf files with buf
+lint-proto:
+    go run github.com/bufbuild/buf/cmd/buf lint proto
+
+# Auto-format all code (Go + YAML + protobuf)
+fmt: fmt-go fmt-yaml fmt-proto
 
 # Auto-format Go code with golangci-lint
 fmt-go:
@@ -27,6 +31,10 @@ fmt-go:
 # Auto-format YAML files with yamlfmt
 fmt-yaml:
     yamlfmt .
+
+# Auto-format protobuf files with buf
+fmt-proto:
+    go run github.com/bufbuild/buf/cmd/buf format -w proto
 
 # Start local dev environment with Tilt (background)
 up:

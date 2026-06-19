@@ -4,7 +4,7 @@ package indexer
 import (
 	"context"
 	"file-indexer/internal/db"
-	"file-indexer/internal/pb"
+	pb "file-indexer/internal/pb/service/v1"
 	"file-indexer/internal/storage"
 	"log/slog"
 	"net"
@@ -14,7 +14,7 @@ import (
 )
 
 type IndexerServer struct {
-	pb.UnimplementedIndexerServer
+	pb.UnimplementedIndexerServiceServer
 	addr    string
 	storage storage.Storage
 	queries *db.Queries
@@ -59,7 +59,7 @@ func (s *IndexerServer) Serve() error {
 		return err
 	}
 	grpcServer := grpc.NewServer()
-	pb.RegisterIndexerServer(grpcServer, s)
+	pb.RegisterIndexerServiceServer(grpcServer, s)
 	slog.Info("listening", "addr", s.addr)
 	return grpcServer.Serve(lis)
 }
