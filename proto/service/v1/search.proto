@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package service.v1;
+
+import "service/v1/files.proto";
+
+option go_package = "file-indexer/internal/pb";
+
+service SearchService {
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+}
+
+message ListFilesRequest {
+  int32 page_size = 1;
+  int32 page_cursor = 2; // hash of the last value being sorted by, so can filter that out with a where
+  string prefix = 3;
+  // TODO add sorting option
+}
+
+message ListFilesResponse {
+  repeated FileInfo files = 1;
+  string next_page_token = 2;
+}

@@ -22,4 +22,8 @@
 
 6/16/26
 - defer uploads, will handle that later in favor of just using the crawler
-- ci check for linting proto, ensure proto lint also checks fmt
+
+TODO:
+- Implement file server
+- TESTS
+- Frontend

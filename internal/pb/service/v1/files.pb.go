@@ -22,27 +22,27 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-type GetDownloadUrlRequest struct {
+type GetDownloadURLRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ids           []int64                `protobuf:"varint,1,rep,packed,name=ids,proto3" json:"ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetDownloadUrlRequest) Reset() {
-	*x = GetDownloadUrlRequest{}
+func (x *GetDownloadURLRequest) Reset() {
+	*x = GetDownloadURLRequest{}
 	mi := &file_service_v1_files_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetDownloadUrlRequest) String() string {
+func (x *GetDownloadURLRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetDownloadUrlRequest) ProtoMessage() {}
+func (*GetDownloadURLRequest) ProtoMessage() {}
 
-func (x *GetDownloadUrlRequest) ProtoReflect() protoreflect.Message {
+func (x *GetDownloadURLRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_service_v1_files_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -54,40 +54,40 @@ func (x *GetDownloadUrlRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetDownloadUrlRequest.ProtoReflect.Descriptor instead.
-func (*GetDownloadUrlRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetDownloadURLRequest.ProtoReflect.Descriptor instead.
+func (*GetDownloadURLRequest) Descriptor() ([]byte, []int) {
 	return file_service_v1_files_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *GetDownloadUrlRequest) GetIds() []int64 {
+func (x *GetDownloadURLRequest) GetIds() []int64 {
 	if x != nil {
 		return x.Ids
 	}
 	return nil
 }
 
-type DownloadUrlSpec struct {
+type DownloadURLSpec struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	Url           string                 `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *DownloadUrlSpec) Reset() {
-	*x = DownloadUrlSpec{}
+func (x *DownloadURLSpec) Reset() {
+	*x = DownloadURLSpec{}
 	mi := &file_service_v1_files_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *DownloadUrlSpec) String() string {
+func (x *DownloadURLSpec) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*DownloadUrlSpec) ProtoMessage() {}
+func (*DownloadURLSpec) ProtoMessage() {}
 
-func (x *DownloadUrlSpec) ProtoReflect() protoreflect.Message {
+func (x *DownloadURLSpec) ProtoReflect() protoreflect.Message {
 	mi := &file_service_v1_files_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -99,46 +99,46 @@ func (x *DownloadUrlSpec) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use DownloadUrlSpec.ProtoReflect.Descriptor instead.
-func (*DownloadUrlSpec) Descriptor() ([]byte, []int) {
+// Deprecated: Use DownloadURLSpec.ProtoReflect.Descriptor instead.
+func (*DownloadURLSpec) Descriptor() ([]byte, []int) {
 	return file_service_v1_files_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *DownloadUrlSpec) GetUrl() string {
+func (x *DownloadURLSpec) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *DownloadURLSpec) GetUrl() string {
 	if x != nil {
 		return x.Url
 	}
 	return ""
 }
 
-func (x *DownloadUrlSpec) GetExpiresAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ExpiresAt
-	}
-	return nil
-}
-
-type GetDownloadUrlResponse struct {
+type GetDownloadURLResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DownloadUrls  []*DownloadUrlSpec     `protobuf:"bytes,1,rep,name=download_urls,json=downloadUrls,proto3" json:"download_urls,omitempty"`
+	DownloadUrls  []*DownloadURLSpec     `protobuf:"bytes,1,rep,name=download_urls,json=downloadUrls,proto3" json:"download_urls,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetDownloadUrlResponse) Reset() {
-	*x = GetDownloadUrlResponse{}
+func (x *GetDownloadURLResponse) Reset() {
+	*x = GetDownloadURLResponse{}
 	mi := &file_service_v1_files_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetDownloadUrlResponse) String() string {
+func (x *GetDownloadURLResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetDownloadUrlResponse) ProtoMessage() {}
+func (*GetDownloadURLResponse) ProtoMessage() {}
 
-func (x *GetDownloadUrlResponse) ProtoReflect() protoreflect.Message {
+func (x *GetDownloadURLResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_service_v1_files_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -150,12 +150,12 @@ func (x *GetDownloadUrlResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetDownloadUrlResponse.ProtoReflect.Descriptor instead.
-func (*GetDownloadUrlResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use GetDownloadURLResponse.ProtoReflect.Descriptor instead.
+func (*GetDownloadURLResponse) Descriptor() ([]byte, []int) {
 	return file_service_v1_files_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *GetDownloadUrlResponse) GetDownloadUrls() []*DownloadUrlSpec {
+func (x *GetDownloadURLResponse) GetDownloadUrls() []*DownloadURLSpec {
 	if x != nil {
 		return x.DownloadUrls
 	}
@@ -334,118 +334,6 @@ func (x *GetFileInfoResponse) GetFile() *FileInfo {
 	return nil
 }
 
-type ListFilesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	PageCursor    int32                  `protobuf:"varint,2,opt,name=page_cursor,json=pageCursor,proto3" json:"page_cursor,omitempty"` // hash of the last value being sorted by, so can filter that out with a where
-	Prefix        string                 `protobuf:"bytes,3,opt,name=prefix,proto3" json:"prefix,omitempty"`                            // TODO add sorting option
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListFilesRequest) Reset() {
-	*x = ListFilesRequest{}
-	mi := &file_service_v1_files_proto_msgTypes[6]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListFilesRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListFilesRequest) ProtoMessage() {}
-
-func (x *ListFilesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[6]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListFilesRequest.ProtoReflect.Descriptor instead.
-func (*ListFilesRequest) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *ListFilesRequest) GetPageSize() int32 {
-	if x != nil {
-		return x.PageSize
-	}
-	return 0
-}
-
-func (x *ListFilesRequest) GetPageCursor() int32 {
-	if x != nil {
-		return x.PageCursor
-	}
-	return 0
-}
-
-func (x *ListFilesRequest) GetPrefix() string {
-	if x != nil {
-		return x.Prefix
-	}
-	return ""
-}
-
-type ListFilesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Files         []*FileInfo            `protobuf:"bytes,1,rep,name=files,proto3" json:"files,omitempty"`
-	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ListFilesResponse) Reset() {
-	*x = ListFilesResponse{}
-	mi := &file_service_v1_files_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ListFilesResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ListFilesResponse) ProtoMessage() {}
-
-func (x *ListFilesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ListFilesResponse.ProtoReflect.Descriptor instead.
-func (*ListFilesResponse) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *ListFilesResponse) GetFiles() []*FileInfo {
-	if x != nil {
-		return x.Files
-	}
-	return nil
-}
-
-func (x *ListFilesResponse) GetNextPageToken() string {
-	if x != nil {
-		return x.NextPageToken
-	}
-	return ""
-}
-
 type DeleteFileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -455,7 +343,7 @@ type DeleteFileRequest struct {
 
 func (x *DeleteFileRequest) Reset() {
 	*x = DeleteFileRequest{}
-	mi := &file_service_v1_files_proto_msgTypes[8]
+	mi := &file_service_v1_files_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -467,7 +355,7 @@ func (x *DeleteFileRequest) String() string {
 func (*DeleteFileRequest) ProtoMessage() {}
 
 func (x *DeleteFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[8]
+	mi := &file_service_v1_files_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -480,7 +368,7 @@ func (x *DeleteFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFileRequest.ProtoReflect.Descriptor instead.
 func (*DeleteFileRequest) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{8}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *DeleteFileRequest) GetId() int64 {
@@ -498,7 +386,7 @@ type DeleteFileResponse struct {
 
 func (x *DeleteFileResponse) Reset() {
 	*x = DeleteFileResponse{}
-	mi := &file_service_v1_files_proto_msgTypes[9]
+	mi := &file_service_v1_files_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -510,7 +398,7 @@ func (x *DeleteFileResponse) String() string {
 func (*DeleteFileResponse) ProtoMessage() {}
 
 func (x *DeleteFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[9]
+	mi := &file_service_v1_files_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -523,7 +411,7 @@ func (x *DeleteFileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFileResponse.ProtoReflect.Descriptor instead.
 func (*DeleteFileResponse) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{9}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{7}
 }
 
 var File_service_v1_files_proto protoreflect.FileDescriptor
@@ -532,14 +420,13 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\n" +
 	"\x16service/v1/files.proto\x12\n" +
 	"service.v1\x1a\x1fgoogle/protobuf/timestamp.proto\")\n" +
-	"\x15GetDownloadUrlRequest\x12\x10\n" +
-	"\x03ids\x18\x01 \x03(\x03R\x03ids\"^\n" +
-	"\x0fDownloadUrlSpec\x12\x10\n" +
-	"\x03url\x18\x01 \x01(\tR\x03url\x129\n" +
-	"\n" +
-	"expires_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"Z\n" +
-	"\x16GetDownloadUrlResponse\x12@\n" +
-	"\rdownload_urls\x18\x01 \x03(\v2\x1b.service.v1.DownloadUrlSpecR\fdownloadUrls\"$\n" +
+	"\x15GetDownloadURLRequest\x12\x10\n" +
+	"\x03ids\x18\x01 \x03(\x03R\x03ids\"3\n" +
+	"\x0fDownloadURLSpec\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x10\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url\"Z\n" +
+	"\x16GetDownloadURLResponse\x12@\n" +
+	"\rdownload_urls\x18\x01 \x03(\v2\x1b.service.v1.DownloadURLSpecR\fdownloadUrls\"$\n" +
 	"\x12GetFileInfoRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"\xe4\x01\n" +
 	"\bFileInfo\x12\x0e\n" +
@@ -553,22 +440,13 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"?\n" +
 	"\x13GetFileInfoResponse\x12(\n" +
-	"\x04file\x18\x01 \x01(\v2\x14.service.v1.FileInfoR\x04file\"h\n" +
-	"\x10ListFilesRequest\x12\x1b\n" +
-	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1f\n" +
-	"\vpage_cursor\x18\x02 \x01(\x05R\n" +
-	"pageCursor\x12\x16\n" +
-	"\x06prefix\x18\x03 \x01(\tR\x06prefix\"g\n" +
-	"\x11ListFilesResponse\x12*\n" +
-	"\x05files\x18\x01 \x03(\v2\x14.service.v1.FileInfoR\x05files\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"#\n" +
+	"\x04file\x18\x01 \x01(\v2\x14.service.v1.FileInfoR\x04file\"#\n" +
 	"\x11DeleteFileRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"\x14\n" +
-	"\x12DeleteFileResponse2\xce\x02\n" +
+	"\x12DeleteFileResponse2\x84\x02\n" +
 	"\fFilesService\x12W\n" +
-	"\x0eGetDownloadUrl\x12!.service.v1.GetDownloadUrlRequest\x1a\".service.v1.GetDownloadUrlResponse\x12N\n" +
-	"\vGetFileInfo\x12\x1e.service.v1.GetFileInfoRequest\x1a\x1f.service.v1.GetFileInfoResponse\x12H\n" +
-	"\tListFiles\x12\x1c.service.v1.ListFilesRequest\x1a\x1d.service.v1.ListFilesResponse\x12K\n" +
+	"\x0eGetDownloadURL\x12!.service.v1.GetDownloadURLRequest\x1a\".service.v1.GetDownloadURLResponse\x12N\n" +
+	"\vGetFileInfo\x12\x1e.service.v1.GetFileInfoRequest\x1a\x1f.service.v1.GetFileInfoResponse\x12K\n" +
 	"\n" +
 	"DeleteFile\x12\x1d.service.v1.DeleteFileRequest\x1a\x1e.service.v1.DeleteFileResponseB\x1aZ\x18file-indexer/internal/pbb\x06proto3"
 
@@ -584,40 +462,34 @@ func file_service_v1_files_proto_rawDescGZIP() []byte {
 	return file_service_v1_files_proto_rawDescData
 }
 
-var file_service_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_service_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_service_v1_files_proto_goTypes = []any{
-	(*GetDownloadUrlRequest)(nil),  // 0: service.v1.GetDownloadUrlRequest
-	(*DownloadUrlSpec)(nil),        // 1: service.v1.DownloadUrlSpec
-	(*GetDownloadUrlResponse)(nil), // 2: service.v1.GetDownloadUrlResponse
+	(*GetDownloadURLRequest)(nil),  // 0: service.v1.GetDownloadURLRequest
+	(*DownloadURLSpec)(nil),        // 1: service.v1.DownloadURLSpec
+	(*GetDownloadURLResponse)(nil), // 2: service.v1.GetDownloadURLResponse
 	(*GetFileInfoRequest)(nil),     // 3: service.v1.GetFileInfoRequest
 	(*FileInfo)(nil),               // 4: service.v1.FileInfo
 	(*GetFileInfoResponse)(nil),    // 5: service.v1.GetFileInfoResponse
-	(*ListFilesRequest)(nil),       // 6: service.v1.ListFilesRequest
-	(*ListFilesResponse)(nil),      // 7: service.v1.ListFilesResponse
-	(*DeleteFileRequest)(nil),      // 8: service.v1.DeleteFileRequest
-	(*DeleteFileResponse)(nil),     // 9: service.v1.DeleteFileResponse
-	(*timestamppb.Timestamp)(nil),  // 10: google.protobuf.Timestamp
+	(*DeleteFileRequest)(nil),      // 6: service.v1.DeleteFileRequest
+	(*DeleteFileResponse)(nil),     // 7: service.v1.DeleteFileResponse
+	(*timestamppb.Timestamp)(nil),  // 8: google.protobuf.Timestamp
 }
 var file_service_v1_files_proto_depIdxs = []int32{
-	10, // 0: service.v1.DownloadUrlSpec.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 1: service.v1.GetDownloadUrlResponse.download_urls:type_name -> service.v1.DownloadUrlSpec
-	10, // 2: service.v1.FileInfo.created_at:type_name -> google.protobuf.Timestamp
-	10, // 3: service.v1.FileInfo.updated_at:type_name -> google.protobuf.Timestamp
-	4,  // 4: service.v1.GetFileInfoResponse.file:type_name -> service.v1.FileInfo
-	4,  // 5: service.v1.ListFilesResponse.files:type_name -> service.v1.FileInfo
-	0,  // 6: service.v1.FilesService.GetDownloadUrl:input_type -> service.v1.GetDownloadUrlRequest
-	3,  // 7: service.v1.FilesService.GetFileInfo:input_type -> service.v1.GetFileInfoRequest
-	6,  // 8: service.v1.FilesService.ListFiles:input_type -> service.v1.ListFilesRequest
-	8,  // 9: service.v1.FilesService.DeleteFile:input_type -> service.v1.DeleteFileRequest
-	2,  // 10: service.v1.FilesService.GetDownloadUrl:output_type -> service.v1.GetDownloadUrlResponse
-	5,  // 11: service.v1.FilesService.GetFileInfo:output_type -> service.v1.GetFileInfoResponse
-	7,  // 12: service.v1.FilesService.ListFiles:output_type -> service.v1.ListFilesResponse
-	9,  // 13: service.v1.FilesService.DeleteFile:output_type -> service.v1.DeleteFileResponse
-	10, // [10:14] is the sub-list for method output_type
-	6,  // [6:10] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	1, // 0: service.v1.GetDownloadURLResponse.download_urls:type_name -> service.v1.DownloadURLSpec
+	8, // 1: service.v1.FileInfo.created_at:type_name -> google.protobuf.Timestamp
+	8, // 2: service.v1.FileInfo.updated_at:type_name -> google.protobuf.Timestamp
+	4, // 3: service.v1.GetFileInfoResponse.file:type_name -> service.v1.FileInfo
+	0, // 4: service.v1.FilesService.GetDownloadURL:input_type -> service.v1.GetDownloadURLRequest
+	3, // 5: service.v1.FilesService.GetFileInfo:input_type -> service.v1.GetFileInfoRequest
+	6, // 6: service.v1.FilesService.DeleteFile:input_type -> service.v1.DeleteFileRequest
+	2, // 7: service.v1.FilesService.GetDownloadURL:output_type -> service.v1.GetDownloadURLResponse
+	5, // 8: service.v1.FilesService.GetFileInfo:output_type -> service.v1.GetFileInfoResponse
+	7, // 9: service.v1.FilesService.DeleteFile:output_type -> service.v1.DeleteFileResponse
+	7, // [7:10] is the sub-list for method output_type
+	4, // [4:7] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_service_v1_files_proto_init() }
@@ -631,7 +503,7 @@ func file_service_v1_files_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_v1_files_proto_rawDesc), len(file_service_v1_files_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

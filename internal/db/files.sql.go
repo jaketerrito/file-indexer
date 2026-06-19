@@ -44,3 +44,74 @@ func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, e
 	)
 	return i, err
 }
+
+const deleteFile = `-- name: DeleteFile :one
+DELETE FROM files
+WHERE id = $1
+RETURNING id, key, content_type, size_bytes, created_at, updated_at
+`
+
+func (q *Queries) DeleteFile(ctx context.Context, id int64) (File, error) {
+	row := q.db.QueryRow(ctx, deleteFile, id)
+	var i File
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.ContentType,
+		&i.SizeBytes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getFile = `-- name: GetFile :one
+SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
+WHERE id = $1
+`
+
+func (q *Queries) GetFile(ctx context.Context, id int64) (File, error) {
+	row := q.db.QueryRow(ctx, getFile, id)
+	var i File
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.ContentType,
+		&i.SizeBytes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getFilesByIDs = `-- name: GetFilesByIDs :many
+SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
+WHERE id = ANY($1::bigint[])
+`
+
+func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []int64) ([]File, error) {
+	rows, err := q.db.Query(ctx, getFilesByIDs, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []File
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
