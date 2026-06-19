@@ -2,17 +2,14 @@ package storage
 
 import (
 	"context"
-	"errors"
-	"file-indexer/internal/pb"
-	"io"
+	pb "file-indexer/internal/pb/service/v1"
 	"log/slog"
+	"net/url"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
-
-// errNotImplemented is returned by stubbed methods until they are filled in.
-var errNotImplemented = errors.New("storage: not implemented")
 
 // s3Storage is the S3-backed implementation of Storage. It uses the minio-go
 // client, which speaks the S3 API and works against any S3-compatible store
@@ -62,8 +59,19 @@ func (s *s3Storage) Get(ctx context.Context, key string) (*Object, error) {
 	}, nil
 }
 
-func (s *s3Storage) Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error {
-	return errNotImplemented
+func (s *s3Storage) GetURL(ctx context.Context, key string) (string, error) {
+	// Set request parameters
+	reqParams := make(url.Values)
+	reqParams.Set("response-content-disposition", "attachment")
+
+	expires := time.Duration(1000) * time.Second
+
+	// Gernerate presigned get object url.
+	presignedURL, err := s.client.PresignedGetObject(ctx, s.bucket, key, expires, reqParams)
+	if err != nil {
+		return "", err
+	}
+	return presignedURL.String(), nil
 }
 
 func (s *s3Storage) Walk(ctx context.Context, fn func(*pb.FileRef) error) error {
@@ -87,4 +95,9 @@ func (s *s3Storage) Stat(ctx context.Context, key string) (ObjectInfo, error) {
 	}
 
 	return ObjectInfo{Key: info.Key, Size: info.Size, ContentType: info.ContentType, LastModified: info.LastModified}, nil
+}
+
+func (s *s3Storage) Delete(ctx context.Context, key string) error {
+	err := s.client.RemoveObject(ctx, s.bucket, key, minio.RemoveObjectOptions{})
+	return err
 }
