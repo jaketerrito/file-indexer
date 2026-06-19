@@ -28,11 +28,12 @@ type Storage interface {
 	// Get retrieves an object and its content stream.
 	Get(ctx context.Context, key string) (*Object, error)
 
-	// Put stores an object from r. size may be -1 if unknown.
-	Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error
+	GetURL(ctx context.Context, key string) (string, error)
 
 	Walk(ctx context.Context, fn func(*pb.FileRef) error) error
 
 	// Stat returns metadata for a single object without fetching its content.
 	Stat(ctx context.Context, key string) (ObjectInfo, error)
+
+	Delete(ctx context.Context, key string) error
 }

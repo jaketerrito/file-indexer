@@ -6,6 +6,7 @@ resources:
   - minio.yaml
   - migrate.yaml
   - indexer.yaml
+  - files.yaml
   - crawler.yaml
 
 secretGenerator:
