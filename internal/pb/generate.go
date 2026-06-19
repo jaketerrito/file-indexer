@@ -2,4 +2,4 @@
 // versioned subpackages (e.g. service/v1) produced by the directive below.
 package pb
 
-//go:generate go run github.com/bufbuild/buf/cmd/buf generate --template=../../proto/buf.gen.yaml ../../proto
+//go:generate go tool buf generate --template=../../proto/buf.gen.yaml ../../proto
