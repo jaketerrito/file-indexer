@@ -13,6 +13,23 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+func TestNew(t *testing.T) {
+	store := NewMockObjectStore(t)
+	queries := NewMockFileIndex(t)
+
+	srv := New(":1234", store, queries)
+
+	if srv == nil {
+		t.Fatal("New returned nil")
+	}
+	if srv.addr != ":1234" {
+		t.Errorf("addr = %q, want %q", srv.addr, ":1234")
+	}
+	if srv.storage != store || srv.queries != queries {
+		t.Error("New did not wire dependencies")
+	}
+}
+
 func TestIndex(t *testing.T) {
 	now := time.Now()
 	info := storage.ObjectInfo{

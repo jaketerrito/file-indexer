@@ -13,6 +13,23 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+func TestNew(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	store := NewMockObjectStore(t)
+
+	srv := New(":1234", store, queries)
+
+	if srv == nil {
+		t.Fatal("New returned nil")
+	}
+	if srv.addr != ":1234" {
+		t.Errorf("addr = %q, want %q", srv.addr, ":1234")
+	}
+	if srv.storage != store || srv.queries != queries {
+		t.Error("New did not wire dependencies")
+	}
+}
+
 func TestGetFileInfo(t *testing.T) {
 	now := time.Now()
 	want := db.File{
@@ -85,6 +102,39 @@ func TestDeleteFileStorageError(t *testing.T) {
 	queries.AssertNotCalled(t, "DeleteFile", mock.Anything, mock.Anything)
 }
 
+func TestDeleteFileGetFileError(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFile(mock.Anything, int64(7)).Return(db.File{}, errors.New("not found"))
+
+	storage := NewMockObjectStore(t)
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	_, err := srv.DeleteFile(context.Background(), &pb.DeleteFileRequest{Id: 7})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	storage.AssertNotCalled(t, "Delete", mock.Anything, mock.Anything)
+}
+
+func TestDeleteFileDBDeleteError(t *testing.T) {
+	file := db.File{ID: 1, Key: "obj-key"}
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(file, nil)
+	queries.EXPECT().DeleteFile(mock.Anything, int64(1)).Return(db.File{}, errors.New("db error"))
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().Delete(mock.Anything, "obj-key").Return(nil)
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	_, err := srv.DeleteFile(context.Background(), &pb.DeleteFileRequest{Id: 1})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
 func TestDbFileToProto(t *testing.T) {
 	now := time.Now()
 	f := db.File{
@@ -137,5 +187,37 @@ func TestGetDownloadURL(t *testing.T) {
 	}
 	if len(resp.DownloadUrls) != 2 {
 		t.Fatalf("got %d urls, want 2", len(resp.DownloadUrls))
+	}
+}
+
+func TestGetDownloadURLQueryError(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFilesByIDs(mock.Anything, []int64{1}).Return(nil, errors.New("db error"))
+
+	storage := NewMockObjectStore(t)
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	_, err := srv.GetDownloadURL(context.Background(), &pb.GetDownloadURLRequest{Ids: []int64{1}})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	storage.AssertNotCalled(t, "GetURL", mock.Anything, mock.Anything)
+}
+
+func TestGetDownloadURLStorageError(t *testing.T) {
+	files := []db.File{{ID: 1, Key: "obj-1"}}
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFilesByIDs(mock.Anything, []int64{1}).Return(files, nil)
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().GetURL(mock.Anything, "obj-1").Return("", errors.New("s3 error"))
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	_, err := srv.GetDownloadURL(context.Background(), &pb.GetDownloadURLRequest{Ids: []int64{1}})
+	if err == nil {
+		t.Fatal("expected error")
 	}
 }
