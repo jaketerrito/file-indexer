@@ -1,0 +1,25 @@
+all: false
+dir: "{{.InterfaceDir}}"
+filename: "mocks_test.go"
+structname: "Mock{{.InterfaceName}}"
+pkgname: "{{.SrcPackageName}}"
+packages:
+  file-indexer/internal/service/files:
+    interfaces:
+      ObjectStore:
+      FileIndex:
+  file-indexer/internal/service/indexer:
+    interfaces:
+      ObjectStore:
+      FileIndex:
+  file-indexer/internal/service/crawler:
+    interfaces:
+      ObjectStore:
+  file-indexer/internal/pb/service/v1:
+    config:
+      dir: internal/service/crawler
+      filename: "mock_client_test.go"
+      pkgname: crawler
+      include-auto-generated: true
+    interfaces:
+      IndexerServiceClient:

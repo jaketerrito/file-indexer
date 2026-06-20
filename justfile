@@ -46,6 +46,23 @@ down:
     tilt down
     pkill tilt 2>/dev/null; true
 
+# Run all Go tests
+test:
+    go test ./...
+
+# Run Go tests with race detector and verbose output
+test-verbose:
+    go test -race -v ./...
+
+# Run tests with coverage report
+test-cover:
+    go test -cover -coverprofile=coverage.out ./...
+    go tool cover -func=coverage.out
+
+# Run integration tests (requires DB/S3; build-tag gated)
+test-integration:
+    go test -tags=integration -race ./...
+
 # Connect to the project postgres database
 psql:
     psql -h localhost -U postgres -d postgres

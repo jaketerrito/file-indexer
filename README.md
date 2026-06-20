@@ -46,4 +46,24 @@ micro k8s is out of scope of this project, devs can use whatever cluster they wa
 Manages development resources in k8s cluster
 Automatically generates code
 Automatically rebuilds containers
+
+### Testing
+
+Run all unit tests:
+`just test`
+
+Run with race detector + verbose output:
+`just test-verbose`
+
+Run with coverage report:
+`just test-cover`
+
+Run integration tests (requires DB/S3):
+`just test-integration`
+
+#### Conventions
+
+- **Table-driven tests with standard `testing` package.** No external assertion libraries.
+- **Consumer-side interfaces for fakes.** Each service defines a narrow `Store` interface listing only the queries it uses. Tests pass hand-written `fakeStore`/`fakeStorage` structs; no mocking framework needed.
+- **Integration tests** use `//go:build integration` and are excluded from `go test ./...`. Only add them when you need real DB or S3 interactions.
 Automatically runs build checks

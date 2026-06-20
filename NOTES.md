@@ -24,6 +24,4 @@
 - defer uploads, will handle that later in favor of just using the crawler
 
 TODO:
-- Implement file server
-- TESTS
 - Frontend

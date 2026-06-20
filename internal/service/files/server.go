@@ -4,7 +4,6 @@ import (
 	"context"
 	"file-indexer/internal/db"
 	pb "file-indexer/internal/pb/service/v1"
-	"file-indexer/internal/storage"
 	"log/slog"
 	"net"
 
@@ -12,14 +11,27 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+type ObjectStore interface {
+	GetURL(ctx context.Context, key string) (string, error)
+	Delete(ctx context.Context, key string) error
+}
+
+type FileIndex interface {
+	GetFile(ctx context.Context, id int64) (db.File, error)
+	GetFilesByIDs(ctx context.Context, ids []int64) ([]db.File, error)
+	DeleteFile(ctx context.Context, id int64) (db.File, error)
+}
+
 type FilesServer struct {
 	pb.UnimplementedFilesServiceServer
 	addr    string
-	storage storage.Storage
-	queries *db.Queries
+	storage ObjectStore
+	queries FileIndex
 }
 
-func New(addr string, store storage.Storage, queries *db.Queries) *FilesServer {
+// New constructs an IndexerServer with its dependencies already built by the
+// caller (composition root). It does no I/O; call Serve to start listening.
+func New(addr string, store ObjectStore, queries FileIndex) *FilesServer {
 	return &FilesServer{
 		addr:    addr,
 		storage: store,

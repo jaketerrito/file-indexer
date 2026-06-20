@@ -9,6 +9,11 @@ local_resource('lint',
    deps=['internal/'],
 )
 
+local_resource('test',
+   cmd='just test',
+   deps=['internal/', 'cmd/'],
+)
+
 k8s_context('microk8s')
 default_registry('localhost:32000')
 
