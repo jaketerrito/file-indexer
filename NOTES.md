@@ -24,11 +24,7 @@
 - defer uploads, will handle that later in favor of just using the crawler
 
 6/20/26
-- Integration tests
-- coverage gate currently excludes storage/s3.go and db/migrate.go (thin minio/goose
-  wrappers) since they're only exercised by build-tagged integration tests. Once the
-  integration job runs in CI, fold its coverage into the report and drop those
-  exclusions so the wrappers are measured instead of ignored.
+- Integration tests for db and s3, fold them into the test coverage report
 
 TODO:
 - Frontend

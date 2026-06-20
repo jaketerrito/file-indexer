@@ -52,11 +52,10 @@ Automatically rebuilds containers
 Run all unit tests:
 `just test`
 
+`just test` also generates a coverage profile (`coverage.out`) and checks it against the thresholds in `.testcoverage.yml`.
+
 Run with race detector + verbose output:
 `just test-verbose`
-
-Run with coverage report:
-`just test-cover`
 
 Run integration tests (requires DB/S3):
 `just test-integration`

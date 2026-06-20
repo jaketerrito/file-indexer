@@ -1,0 +1,18 @@
+# Configuration for vladopajic/go-test-coverage.
+# Single source of truth for coverage thresholds and exclusions, shared by the
+# `just test` recipe and the coverage GitHub workflow.
+profile: coverage.out
+
+# Industry-standard thresholds (Google guidance: ~60% acceptable, 75%
+# commendable, 80%+ exemplary). These are targets to work toward; coverage may
+# fall below them until more tests are added.
+threshold:
+  file: 60
+  package: 70
+  total: 80
+
+# Exclude generated and untestable code from coverage statistics.
+exclude:
+  paths:
+    - ^internal/pb        # generated protobuf
+    - ^cmd/               # composition roots (thin main() wiring)

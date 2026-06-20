@@ -46,26 +46,15 @@ down:
     tilt down
     pkill tilt 2>/dev/null; true
 
-# Run all Go tests
+# Run unit tests with race detector, generate coverage profile, and check
+# thresholds (exclusions and thresholds defined in .testcoverage.yml).
 test:
-    go test ./...
+    go test -race ./... -coverprofile=coverage.out -covermode=atomic -coverpkg=./...
+    go tool go-test-coverage --config=.testcoverage.yml
 
 # Run Go tests with race detector and verbose output
 test-verbose:
     go test -race -v ./...
-
-# Packages excluded from coverage: generated protobuf plumbing and the
-# cmd composition roots (thin main() wiring, no testable logic).
-COVER_EXCLUDE := "file-indexer/internal/pb|file-indexer/cmd/"
-
-# Run tests with coverage report (excludes generated + main wiring)
-test-cover:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    pkgs=$(go list ./... | grep -Ev '{{COVER_EXCLUDE}}' | paste -sd,)
-    go test -cover -coverpkg="$pkgs" -coverprofile=coverage.out \
-        $(go list ./... | grep -Ev '{{COVER_EXCLUDE}}')
-    go tool cover -func=coverage.out
 
 # Run integration tests (requires DB/S3; build-tag gated)
 test-integration:
