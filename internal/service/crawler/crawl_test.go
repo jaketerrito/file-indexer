@@ -29,7 +29,7 @@ func TestRun(t *testing.T) {
 	store.EXPECT().Walk(mock.Anything, mock.Anything).
 		RunAndReturn(walkOver(&pb.FileRef{Key: "a"}, &pb.FileRef{Key: "b"}))
 
-	client := NewMockIndexerServiceClient(t)
+	client := NewMockIndexer(t)
 	client.EXPECT().Index(mock.Anything, mock.MatchedBy(func(req *pb.IndexRequest) bool {
 		return req.GetRef().GetKey() == "a"
 	})).Return(&pb.IndexResponse{Status: "OK"}, nil)
@@ -48,7 +48,7 @@ func TestRunIndexError(t *testing.T) {
 	store.EXPECT().Walk(mock.Anything, mock.Anything).
 		RunAndReturn(walkOver(&pb.FileRef{Key: "a"}))
 
-	client := NewMockIndexerServiceClient(t)
+	client := NewMockIndexer(t)
 	client.EXPECT().Index(mock.Anything, mock.Anything).
 		Return(nil, errors.New("index failed"))
 
@@ -63,7 +63,7 @@ func TestRunWalkError(t *testing.T) {
 	store.EXPECT().Walk(mock.Anything, mock.Anything).Return(errors.New("walk failed"))
 
 	// Index must never be called when Walk itself fails.
-	client := NewMockIndexerServiceClient(t)
+	client := NewMockIndexer(t)
 
 	c := New(store, client)
 	if err := c.Run(); err == nil {
