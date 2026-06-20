@@ -54,9 +54,17 @@ test:
 test-verbose:
     go test -race -v ./...
 
-# Run tests with coverage report
+# Packages excluded from coverage: generated protobuf plumbing and the
+# cmd composition roots (thin main() wiring, no testable logic).
+COVER_EXCLUDE := "file-indexer/internal/pb|file-indexer/cmd/"
+
+# Run tests with coverage report (excludes generated + main wiring)
 test-cover:
-    go test -cover -coverprofile=coverage.out ./...
+    #!/usr/bin/env bash
+    set -euo pipefail
+    pkgs=$(go list ./... | grep -Ev '{{COVER_EXCLUDE}}' | paste -sd,)
+    go test -cover -coverpkg="$pkgs" -coverprofile=coverage.out \
+        $(go list ./... | grep -Ev '{{COVER_EXCLUDE}}')
     go tool cover -func=coverage.out
 
 # Run integration tests (requires DB/S3; build-tag gated)
