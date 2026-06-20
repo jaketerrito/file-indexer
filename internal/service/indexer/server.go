@@ -13,16 +13,24 @@ import (
 	"google.golang.org/grpc"
 )
 
+type ObjectStore interface {
+	Stat(ctx context.Context, key string) (storage.ObjectInfo, error)
+}
+
+type FileIndex interface {
+	CreateFile(ctx context.Context, arg db.CreateFileParams) (db.File, error)
+}
+
 type IndexerServer struct {
 	pb.UnimplementedIndexerServiceServer
 	addr    string
-	storage storage.Storage
-	queries *db.Queries
+	storage ObjectStore
+	queries FileIndex
 }
 
 // New constructs an IndexerServer with its dependencies already built by the
 // caller (composition root). It does no I/O; call Serve to start listening.
-func New(addr string, store storage.Storage, queries *db.Queries) *IndexerServer {
+func New(addr string, store ObjectStore, queries FileIndex) *IndexerServer {
 	return &IndexerServer{
 		addr:    addr,
 		storage: store,
