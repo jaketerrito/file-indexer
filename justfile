@@ -46,6 +46,20 @@ down:
     tilt down
     pkill tilt 2>/dev/null; true
 
+# Run unit tests with race detector, generate coverage profile, and check
+# thresholds (exclusions and thresholds defined in .testcoverage.yml).
+test:
+    go test -race ./... -coverprofile=coverage.out -covermode=atomic -coverpkg=./...
+    go tool go-test-coverage --config=.testcoverage.yml
+
+# Run Go tests with race detector and verbose output
+test-verbose:
+    go test -race -v ./...
+
+# Run integration tests (requires DB/S3; build-tag gated)
+test-integration:
+    go test -tags=integration -race ./...
+
 # Connect to the project postgres database
 psql:
     psql -h localhost -U postgres -d postgres

@@ -23,7 +23,8 @@
 6/16/26
 - defer uploads, will handle that later in favor of just using the crawler
 
+6/20/26
+- Integration tests for db and s3, fold them into the test coverage report
+
 TODO:
-- Implement file server
-- TESTS
 - Frontend
