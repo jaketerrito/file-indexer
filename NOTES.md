@@ -23,5 +23,8 @@
 6/16/26
 - defer uploads, will handle that later in favor of just using the crawler
 
+6/20/26
+- Integration tests
+
 TODO:
 - Frontend
