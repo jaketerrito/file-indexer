@@ -14,5 +14,5 @@ threshold:
 # Exclude generated and untestable code from coverage statistics.
 exclude:
   paths:
-    - ^internal/pb        # generated protobuf
-    - ^cmd/               # composition roots (thin main() wiring)
+    - ^internal/pb # generated protobuf
+    - ^cmd/ # composition roots (thin main() wiring)
