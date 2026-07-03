@@ -94,6 +94,12 @@ spec:
               name: s3
             - containerPort: 9001
               name: console
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: s3
+            initialDelaySeconds: 2
+            periodSeconds: 5
           volumeMounts:
             - name: s3-data
               mountPath: /data

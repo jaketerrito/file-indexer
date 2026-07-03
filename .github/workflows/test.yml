@@ -7,6 +7,10 @@ on:
       - "go.mod"
       - "go.sum"
       - ".testcoverage.yml"
+      - "Tiltfile"
+      - "justfile"
+      - "ctlptl.yaml"
+      - "deploy/**"
       - ".github/workflows/test.yml"
   pull_request:
     branches: [main]
@@ -15,14 +19,20 @@ on:
       - "go.mod"
       - "go.sum"
       - ".testcoverage.yml"
+      - "Tiltfile"
+      - "justfile"
+      - "ctlptl.yaml"
+      - "deploy/**"
       - ".github/workflows/test.yml"
 
 permissions:
   contents: read
 
 jobs:
-  test:
-    name: test
+  # Fast feedback: unit tests only. Coverage thresholds are checked by the
+  # integration job, since unit tests alone cannot reach them.
+  unit:
+    name: unit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -30,9 +40,43 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - name: Run tests and generate coverage profile
+      - name: Run unit tests
         run: go test -race ./... -coverprofile=coverage.out -covermode=atomic -coverpkg=./...
-      - name: Check coverage thresholds
-        uses: vladopajic/go-test-coverage@a93b868a4cbcbf18dc3781650fad241f0020e609 # v2.18.8
+
+  # Full suite: provisions the same kind cluster + postgres/MinIO as local dev
+  # (ctlptl.yaml + deploy/ manifests) and runs `tilt ci`, which executes the
+  # test-integration Tilt resource (unit + integration tests + coverage
+  # thresholds from .testcoverage.yml).
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      JUST_VERSION: 1.55.1
+      KIND_VERSION: 0.32.0
+      CTLPTL_VERSION: 0.9.4
+      TILT_VERSION: 0.37.5
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
-          config: ./.testcoverage.yml
+          go-version-file: go.mod
+          cache: true
+      - name: Install just, kind, ctlptl, tilt
+        run: |
+          curl -fsSL "https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" | sudo tar -xz -C /usr/local/bin just
+          curl -fsSLo /tmp/kind "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-linux-amd64"
+          chmod +x /tmp/kind && sudo mv /tmp/kind /usr/local/bin/kind
+          curl -fsSL "https://github.com/tilt-dev/ctlptl/releases/download/v${CTLPTL_VERSION}/ctlptl.${CTLPTL_VERSION}.linux.x86_64.tar.gz" | sudo tar -xz -C /usr/local/bin ctlptl
+          curl -fsSL "https://github.com/tilt-dev/tilt/releases/download/v${TILT_VERSION}/tilt.${TILT_VERSION}.linux.x86_64.tar.gz" | sudo tar -xz -C /usr/local/bin tilt
+      - name: Create kind cluster
+        run: just cluster-up
+      - name: Run integration tests via tilt ci
+        run: just ci
+      - name: Upload coverage profile
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage
+          path: coverage.out
+          if-no-files-found: ignore

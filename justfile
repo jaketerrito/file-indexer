@@ -36,8 +36,16 @@ fmt-yaml:
 fmt-proto:
     go tool buf format -w proto
 
+# Create (or update) the local kind cluster and image registry via ctlptl
+cluster-up:
+    ctlptl apply -f ctlptl.yaml
+
+# Delete the local kind cluster and image registry
+cluster-down:
+    ctlptl delete -f ctlptl.yaml
+
 # Start local dev environment with Tilt (background)
-up:
+up: cluster-up
     tilt up > /dev/null 2>&1 &
     xdg-open http://localhost:10350 2>/dev/null
 
@@ -45,6 +53,12 @@ up:
 down:
     tilt down
     pkill tilt 2>/dev/null; true
+
+# Deploy test dependencies (postgres, MinIO, secrets) to the cluster and run
+# the full test suite + coverage gate via the test-integration Tilt resource.
+# This is what CI runs; reproduce locally with `just cluster-up && just ci`.
+ci:
+    tilt ci uncategorized postgres local-s3 test-integration
 
 # Run unit tests with race detector and write a coverage profile. Integration
 # tests are excluded (build-tag gated); coverage thresholds are only checked by

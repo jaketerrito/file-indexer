@@ -14,11 +14,11 @@ local_resource('test',
    deps=['internal/', 'cmd/'],
 )
 
-# Guard against accidentally deploying to a non-dev cluster. (k8s_context()
-# takes no arguments; it returns the current context.)
-if k8s_context() != 'microk8s':
-    fail('expected k8s context "microk8s", got "%s"' % k8s_context())
-default_registry('localhost:32000')
+# Guard against accidentally deploying to a non-dev cluster. Local clusters
+# are created by ctlptl (see ctlptl.yaml), which also provides the image
+# registry that Tilt auto-detects; run `just cluster-up`.
+if not k8s_context().startswith('kind-'):
+    fail('expected a kind k8s context (see `just cluster-up`), got "%s"' % k8s_context())
 
 docker_build('migrate', '.', build_args={'BUILD_TARGET': './cmd/migrate'})
 docker_build('indexer', '.', build_args={'BUILD_TARGET': './cmd/indexer'})
