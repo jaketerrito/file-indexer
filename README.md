@@ -47,6 +47,10 @@ check coverage thresholds from `.testcoverage.yml`:
 
 Integration tests fail hard if postgres/MinIO are unreachable; they never skip.
 
+### CI caching
+
+`setup-go`'s built-in caching is disabled in CI because its cache key (a hash of `go.sum`) is shared across all Go jobs. Jobs with different module or build-cache needs end up poisoning each other's caches. Instead, each job uses `actions/cache` with its own unique key prefix.
+
 #### Conventions
 - **Table-driven tests with standard `testing` package.** No external assertion libraries.
 - **Consumer-side interfaces for fakes.** Each service defines a narrow `Store` interface listing only the queries it uses. Tests pass hand-written `fakeStore`/`fakeStorage` structs; no mocking framework needed.
