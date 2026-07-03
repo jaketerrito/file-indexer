@@ -21,11 +21,127 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// SortField selects the column ListFiles orders results by.
+type SortField int32
+
+const (
+	SortField_SORT_FIELD_UNSPECIFIED SortField = 0 // defaults to SORT_FIELD_KEY
+	SortField_SORT_FIELD_KEY         SortField = 1
+	SortField_SORT_FIELD_CREATED_AT  SortField = 2
+	SortField_SORT_FIELD_SIZE        SortField = 3
+)
+
+// Enum value maps for SortField.
+var (
+	SortField_name = map[int32]string{
+		0: "SORT_FIELD_UNSPECIFIED",
+		1: "SORT_FIELD_KEY",
+		2: "SORT_FIELD_CREATED_AT",
+		3: "SORT_FIELD_SIZE",
+	}
+	SortField_value = map[string]int32{
+		"SORT_FIELD_UNSPECIFIED": 0,
+		"SORT_FIELD_KEY":         1,
+		"SORT_FIELD_CREATED_AT":  2,
+		"SORT_FIELD_SIZE":        3,
+	}
+)
+
+func (x SortField) Enum() *SortField {
+	p := new(SortField)
+	*p = x
+	return p
+}
+
+func (x SortField) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SortField) Descriptor() protoreflect.EnumDescriptor {
+	return file_service_v1_search_proto_enumTypes[0].Descriptor()
+}
+
+func (SortField) Type() protoreflect.EnumType {
+	return &file_service_v1_search_proto_enumTypes[0]
+}
+
+func (x SortField) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SortField.Descriptor instead.
+func (SortField) EnumDescriptor() ([]byte, []int) {
+	return file_service_v1_search_proto_rawDescGZIP(), []int{0}
+}
+
+// SortOrder selects the direction ListFiles orders results in.
+type SortOrder int32
+
+const (
+	SortOrder_SORT_ORDER_UNSPECIFIED SortOrder = 0 // defaults to SORT_ORDER_ASC
+	SortOrder_SORT_ORDER_ASC         SortOrder = 1
+	SortOrder_SORT_ORDER_DESC        SortOrder = 2
+)
+
+// Enum value maps for SortOrder.
+var (
+	SortOrder_name = map[int32]string{
+		0: "SORT_ORDER_UNSPECIFIED",
+		1: "SORT_ORDER_ASC",
+		2: "SORT_ORDER_DESC",
+	}
+	SortOrder_value = map[string]int32{
+		"SORT_ORDER_UNSPECIFIED": 0,
+		"SORT_ORDER_ASC":         1,
+		"SORT_ORDER_DESC":        2,
+	}
+)
+
+func (x SortOrder) Enum() *SortOrder {
+	p := new(SortOrder)
+	*p = x
+	return p
+}
+
+func (x SortOrder) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SortOrder) Descriptor() protoreflect.EnumDescriptor {
+	return file_service_v1_search_proto_enumTypes[1].Descriptor()
+}
+
+func (SortOrder) Type() protoreflect.EnumType {
+	return &file_service_v1_search_proto_enumTypes[1]
+}
+
+func (x SortOrder) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SortOrder.Descriptor instead.
+func (SortOrder) EnumDescriptor() ([]byte, []int) {
+	return file_service_v1_search_proto_rawDescGZIP(), []int{1}
+}
+
 type ListFilesRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	PageCursor    int32                  `protobuf:"varint,2,opt,name=page_cursor,json=pageCursor,proto3" json:"page_cursor,omitempty"` // hash of the last value being sorted by, so can filter that out with a where
-	Prefix        string                 `protobuf:"bytes,3,opt,name=prefix,proto3" json:"prefix,omitempty"`                            // TODO add sorting option
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Maximum number of files to return. Defaults to 50, clamped to 200.
+	PageSize int32 `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// A page token, received from a previous ListFiles call's next_page_token.
+	// Provide this to retrieve the subsequent page.
+	//
+	// When paginating, all other parameters provided to ListFiles (except
+	// page_size) must match the call that provided the page token; otherwise
+	// the request fails with INVALID_ARGUMENT.
+	PageToken string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	// Only return files whose key starts with this prefix.
+	Prefix string `protobuf:"bytes,3,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	// Filter by MIME type: an exact match like "image/png", or a category
+	// prefix ending in "/" like "image/" to match all images.
+	ContentType   string    `protobuf:"bytes,4,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	SortField     SortField `protobuf:"varint,5,opt,name=sort_field,json=sortField,proto3,enum=service.v1.SortField" json:"sort_field,omitempty"`
+	SortOrder     SortOrder `protobuf:"varint,6,opt,name=sort_order,json=sortOrder,proto3,enum=service.v1.SortOrder" json:"sort_order,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -67,11 +183,11 @@ func (x *ListFilesRequest) GetPageSize() int32 {
 	return 0
 }
 
-func (x *ListFilesRequest) GetPageCursor() int32 {
+func (x *ListFilesRequest) GetPageToken() string {
 	if x != nil {
-		return x.PageCursor
+		return x.PageToken
 	}
-	return 0
+	return ""
 }
 
 func (x *ListFilesRequest) GetPrefix() string {
@@ -81,10 +197,32 @@ func (x *ListFilesRequest) GetPrefix() string {
 	return ""
 }
 
+func (x *ListFilesRequest) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+func (x *ListFilesRequest) GetSortField() SortField {
+	if x != nil {
+		return x.SortField
+	}
+	return SortField_SORT_FIELD_UNSPECIFIED
+}
+
+func (x *ListFilesRequest) GetSortOrder() SortOrder {
+	if x != nil {
+		return x.SortOrder
+	}
+	return SortOrder_SORT_ORDER_UNSPECIFIED
+}
+
 type ListFilesResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Files         []*FileInfo            `protobuf:"bytes,1,rep,name=files,proto3" json:"files,omitempty"`
-	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Files []*FileInfo            `protobuf:"bytes,1,rep,name=files,proto3" json:"files,omitempty"`
+	// Cursor for the next page; empty when there are no more results.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -138,17 +276,31 @@ var File_service_v1_search_proto protoreflect.FileDescriptor
 const file_service_v1_search_proto_rawDesc = "" +
 	"\n" +
 	"\x17service/v1/search.proto\x12\n" +
-	"service.v1\x1a\x16service/v1/files.proto\"h\n" +
+	"service.v1\x1a\x16service/v1/files.proto\"\xf5\x01\n" +
 	"\x10ListFilesRequest\x12\x1b\n" +
-	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1f\n" +
-	"\vpage_cursor\x18\x02 \x01(\x05R\n" +
-	"pageCursor\x12\x16\n" +
-	"\x06prefix\x18\x03 \x01(\tR\x06prefix\"g\n" +
+	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\x12\x16\n" +
+	"\x06prefix\x18\x03 \x01(\tR\x06prefix\x12!\n" +
+	"\fcontent_type\x18\x04 \x01(\tR\vcontentType\x124\n" +
+	"\n" +
+	"sort_field\x18\x05 \x01(\x0e2\x15.service.v1.SortFieldR\tsortField\x124\n" +
+	"\n" +
+	"sort_order\x18\x06 \x01(\x0e2\x15.service.v1.SortOrderR\tsortOrder\"g\n" +
 	"\x11ListFilesResponse\x12*\n" +
 	"\x05files\x18\x01 \x03(\v2\x14.service.v1.FileInfoR\x05files\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken2Y\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*k\n" +
+	"\tSortField\x12\x1a\n" +
+	"\x16SORT_FIELD_UNSPECIFIED\x10\x00\x12\x12\n" +
+	"\x0eSORT_FIELD_KEY\x10\x01\x12\x19\n" +
+	"\x15SORT_FIELD_CREATED_AT\x10\x02\x12\x13\n" +
+	"\x0fSORT_FIELD_SIZE\x10\x03*P\n" +
+	"\tSortOrder\x12\x1a\n" +
+	"\x16SORT_ORDER_UNSPECIFIED\x10\x00\x12\x12\n" +
+	"\x0eSORT_ORDER_ASC\x10\x01\x12\x13\n" +
+	"\x0fSORT_ORDER_DESC\x10\x022Y\n" +
 	"\rSearchService\x12H\n" +
-	"\tListFiles\x12\x1c.service.v1.ListFilesRequest\x1a\x1d.service.v1.ListFilesResponseB\x1aZ\x18file-indexer/internal/pbb\x06proto3"
+	"\tListFiles\x12\x1c.service.v1.ListFilesRequest\x1a\x1d.service.v1.ListFilesResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
 
 var (
 	file_service_v1_search_proto_rawDescOnce sync.Once
@@ -162,21 +314,26 @@ func file_service_v1_search_proto_rawDescGZIP() []byte {
 	return file_service_v1_search_proto_rawDescData
 }
 
+var file_service_v1_search_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_service_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_service_v1_search_proto_goTypes = []any{
-	(*ListFilesRequest)(nil),  // 0: service.v1.ListFilesRequest
-	(*ListFilesResponse)(nil), // 1: service.v1.ListFilesResponse
-	(*FileInfo)(nil),          // 2: service.v1.FileInfo
+	(SortField)(0),            // 0: service.v1.SortField
+	(SortOrder)(0),            // 1: service.v1.SortOrder
+	(*ListFilesRequest)(nil),  // 2: service.v1.ListFilesRequest
+	(*ListFilesResponse)(nil), // 3: service.v1.ListFilesResponse
+	(*FileInfo)(nil),          // 4: service.v1.FileInfo
 }
 var file_service_v1_search_proto_depIdxs = []int32{
-	2, // 0: service.v1.ListFilesResponse.files:type_name -> service.v1.FileInfo
-	0, // 1: service.v1.SearchService.ListFiles:input_type -> service.v1.ListFilesRequest
-	1, // 2: service.v1.SearchService.ListFiles:output_type -> service.v1.ListFilesResponse
-	2, // [2:3] is the sub-list for method output_type
-	1, // [1:2] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	0, // 0: service.v1.ListFilesRequest.sort_field:type_name -> service.v1.SortField
+	1, // 1: service.v1.ListFilesRequest.sort_order:type_name -> service.v1.SortOrder
+	4, // 2: service.v1.ListFilesResponse.files:type_name -> service.v1.FileInfo
+	2, // 3: service.v1.SearchService.ListFiles:input_type -> service.v1.ListFilesRequest
+	3, // 4: service.v1.SearchService.ListFiles:output_type -> service.v1.ListFilesResponse
+	4, // [4:5] is the sub-list for method output_type
+	3, // [3:4] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_service_v1_search_proto_init() }
@@ -190,13 +347,14 @@ func file_service_v1_search_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_v1_search_proto_rawDesc), len(file_service_v1_search_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      2,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_service_v1_search_proto_goTypes,
 		DependencyIndexes: file_service_v1_search_proto_depIdxs,
+		EnumInfos:         file_service_v1_search_proto_enumTypes,
 		MessageInfos:      file_service_v1_search_proto_msgTypes,
 	}.Build()
 	File_service_v1_search_proto = out.File

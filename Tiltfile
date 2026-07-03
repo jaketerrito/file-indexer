@@ -9,11 +9,6 @@ local_resource('lint',
    deps=['internal/'],
 )
 
-local_resource('test',
-   cmd='just test',
-   deps=['internal/', 'cmd/'],
-)
-
 # Guard against accidentally deploying to a non-dev cluster. Local clusters
 # are created by ctlptl (see ctlptl.yaml), which also provides the image
 # registry that Tilt auto-detects; run `just cluster-up`.
@@ -23,6 +18,7 @@ if not k8s_context().startswith('kind-'):
 docker_build('migrate', '.', build_args={'BUILD_TARGET': './cmd/migrate'})
 docker_build('indexer', '.', build_args={'BUILD_TARGET': './cmd/indexer'})
 docker_build('files', '.', build_args={'BUILD_TARGET': './cmd/files'})
+docker_build('search', '.', build_args={'BUILD_TARGET': './cmd/search'})
 docker_build('crawler', '.', build_args={'BUILD_TARGET': './cmd/crawler'})
 
 k8s_yaml(kustomize('deploy'))
@@ -37,17 +33,19 @@ k8s_resource(
 k8s_resource('postgres', port_forwards=5432)
 
 # Full test suite (unit + integration) against the port-forwarded postgres and
-# MinIO above, including the coverage threshold check. Runs once on `tilt up`;
-# re-run manually from the UI (deliberately not on every file save).
+# MinIO above, including the coverage threshold check. Runs on `tilt up` and on
+# every Go file change. Waits for the migrate Job so the schema is already in
+# place (the tests also run migrations themselves, guarded by a session lock,
+# so they stay runnable against a bare postgres).
 local_resource('test-integration',
    cmd='just test-integration',
-   resource_deps=['postgres', 'local-s3'],
-   trigger_mode=TRIGGER_MODE_MANUAL,
-   auto_init=True,
+   deps=['internal/', 'cmd/'],
+   resource_deps=['postgres', 'local-s3', 'migrate'],
 )
 k8s_resource('migrate', resource_deps=['postgres'])
-k8s_resource('indexer', resource_deps=['postgres', 'migrate'], port_forwards=50051)
-k8s_resource('files', resource_deps=['postgres', 'migrate'], port_forwards=50052)
+k8s_resource('indexer', resource_deps=['postgres', 'migrate', 'local-s3'], port_forwards=50051)
+k8s_resource('files', resource_deps=['postgres', 'migrate', 'local-s3'], port_forwards='50052:50051')
+k8s_resource('search', resource_deps=['postgres', 'migrate'], port_forwards='50053:50051')
 k8s_resource(
     'crawler',
     resource_deps=['indexer', 'local-s3'],

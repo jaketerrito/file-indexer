@@ -4,7 +4,7 @@ package service.v1;
 
 import "google/protobuf/timestamp.proto";
 
-option go_package = "file-indexer/internal/pb";
+option go_package = "file-indexer/internal/pb/service/v1;pb";
 
 service FilesService {
   rpc GetDownloadURL(GetDownloadURLRequest) returns (GetDownloadURLResponse);

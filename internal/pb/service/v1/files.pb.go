@@ -448,7 +448,7 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\x0eGetDownloadURL\x12!.service.v1.GetDownloadURLRequest\x1a\".service.v1.GetDownloadURLResponse\x12N\n" +
 	"\vGetFileInfo\x12\x1e.service.v1.GetFileInfoRequest\x1a\x1f.service.v1.GetFileInfoResponse\x12K\n" +
 	"\n" +
-	"DeleteFile\x12\x1d.service.v1.DeleteFileRequest\x1a\x1e.service.v1.DeleteFileResponseB\x1aZ\x18file-indexer/internal/pbb\x06proto3"
+	"DeleteFile\x12\x1d.service.v1.DeleteFileRequest\x1a\x1e.service.v1.DeleteFileResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
 
 var (
 	file_service_v1_files_proto_rawDescOnce sync.Once
