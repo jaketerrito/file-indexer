@@ -23,8 +23,8 @@
 6/16/26
 - defer uploads, will handle that later in favor of just using the crawler
 
-6/20/26
-- Integration tests for db and s3, fold them into the test coverage report
+7/2/26
+- setup grpc swagger type thing for files and indexer
 
 TODO:
 - Frontend
