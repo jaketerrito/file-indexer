@@ -44,15 +44,21 @@ cluster-up:
 cluster-down:
     ctlptl delete -f ctlptl.yaml
 
-# Start local dev environment with Tilt (background)
-up: cluster-up
+# Start Tilt dev environment (background)
+tilt-up:
     tilt up > /dev/null 2>&1 &
     xdg-open http://localhost:10350 2>/dev/null
 
-# Tear down Tilt dev environment and stop the process
-down: cluster-down
+# Tear down Tilt dev environment
+tilt-down:
     tilt down
     pkill tilt 2>/dev/null; true
+
+# Create cluster and start Tilt
+up: cluster-up tilt-up
+
+# Delete cluster and stop Tilt
+down: tilt-down cluster-down
 
 # Deploy test dependencies (postgres, MinIO, secrets) to the cluster and run
 # the full test suite + coverage gate via the test-integration Tilt resource.
