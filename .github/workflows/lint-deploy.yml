@@ -29,10 +29,8 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-      - name: Install yamlfmt
-        run: go install github.com/google/yamlfmt/cmd/yamlfmt@latest
       - name: Check YAML formatting
-        run: yamlfmt -lint .
+        run: go tool yamlfmt -lint .
 
   lint-k8s:
     name: lint-k8s
@@ -42,9 +40,11 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-      - name: Install kubeconform
-        run: go install github.com/yannh/kubeconform/cmd/kubeconform@latest
+      - uses: azure/setup-kubectl@3951e8c4e07c0a2915e08660ac190bdc11e2d32f # v4
+        with:
+          # renovate: datasource=github-releases depName=kubernetes/kubernetes
+          version: v1.32.0
       - name: Build kustomize manifests
         run: kubectl kustomize deploy > manifests.yaml
       - name: Validate manifests
-        run: kubeconform -strict -summary manifests.yaml
+        run: go tool kubeconform -strict -summary manifests.yaml

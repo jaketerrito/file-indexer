@@ -11,11 +11,11 @@ lint: lint-go lint-k8s lint-proto
 
 # Run golangci-lint checks on all Go code
 lint-go:
-    golangci-lint run ./...
+    go tool golangci-lint run ./...
 
 # Validate Kubernetes manifests with kubeconform (builds kustomize output first)
 lint-k8s:
-    kubectl kustomize deploy | kubeconform -strict -summary
+    kubectl kustomize deploy | go tool kubeconform -strict -summary
 
 # Lint protobuf files with buf
 lint-proto:
@@ -26,11 +26,11 @@ fmt: fmt-go fmt-yaml fmt-proto
 
 # Auto-format Go code with golangci-lint
 fmt-go:
-    golangci-lint fmt
+    go tool golangci-lint fmt
 
 # Auto-format YAML files with yamlfmt
 fmt-yaml:
-    yamlfmt .
+    go tool yamlfmt .
 
 # Auto-format protobuf files with buf
 fmt-proto:

@@ -9,9 +9,10 @@
   "customManagers": [
     {
       "customType": "regex",
-      "fileMatch": ["^\\.github/workflows/test\\.yml$"],
+      "fileMatch": ["^\\.github/workflows/.+\\.ya?ml$"],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n\\s+[A-Z_]+_VERSION: \"?(?<currentValue>[^\"\\s]+)\"?\\s*"
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n\\s+[A-Z_]+_VERSION: \"?(?<currentValue>[^\"\\s]+)\"?\\s*",
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?\\s*"
       ],
       "extractVersion": "^v?(?<version>.*)$",
       "versioningTemplate": "semver"
