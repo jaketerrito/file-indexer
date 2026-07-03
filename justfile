@@ -50,7 +50,7 @@ up: cluster-up
     xdg-open http://localhost:10350 2>/dev/null
 
 # Tear down Tilt dev environment and stop the process
-down:
+down: cluster-down
     tilt down
     pkill tilt 2>/dev/null; true
 
