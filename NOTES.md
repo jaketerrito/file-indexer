@@ -24,7 +24,7 @@
 - defer uploads, will handle that later in favor of just using the crawler
 
 7/2/26
-- setup grpc swagger type thing for files and indexer
+- setup grpc swagger type thing for files and indexer? Or portforward with reflection then use an external tool
 
 TODO:
 - Frontend
