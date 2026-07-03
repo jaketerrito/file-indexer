@@ -39,7 +39,19 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-          cache: true
+          # Disabled because setup-go's cache key is shared across all Go
+          # jobs (hash of go.sum), so jobs with different needs poison each
+          # other's caches. Use a job-specific cache instead.
+          cache: false
+      - name: Cache Go modules and build cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e4b4e # v4.2.3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: test-unit-go-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            test-unit-go-${{ runner.os }}-
       - name: Run unit tests
         run: go test -race ./... -coverprofile=coverage.out -covermode=atomic -coverpkg=./...
 
@@ -65,7 +77,21 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-          cache: true
+          # Disabled because setup-go's cache key is shared across all Go
+          # jobs (hash of go.sum), so jobs with different needs poison each
+          # other's caches. Use a job-specific cache instead. Note: most
+          # builds here happen inside Docker via tilt, so this only covers
+          # host-side go usage (e.g. go-test-coverage).
+          cache: false
+      - name: Cache Go modules and build cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e4b4e # v4.2.3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: test-integration-go-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            test-integration-go-${{ runner.os }}-
       - name: Cache tool binaries
         id: tools-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

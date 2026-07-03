@@ -2,8 +2,28 @@ name: check-generated
 on:
   push:
     branches: [main]
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - "proto/**"
+      - "sqlc.yaml"
+      - "internal/db/migrations/**"
+      - "internal/db/queries/**"
+      - ".mockery.yaml"
+      - ".github/workflows/generate.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - "proto/**"
+      - "sqlc.yaml"
+      - "internal/db/migrations/**"
+      - "internal/db/queries/**"
+      - ".mockery.yaml"
+      - ".github/workflows/generate.yml"
 
 permissions:
   contents: read
@@ -17,7 +37,22 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-          cache: true
+          # Disabled because setup-go's cache key is shared across all Go
+          # jobs (hash of go.sum). Another job saves a cache without the
+          # `tool` module deps or their build cache, this job then gets an
+          # exact-key hit and never saves, so buf/sqlc/mockery are
+          # re-downloaded and recompiled on every run. Use a job-specific
+          # cache instead.
+          cache: false
+      - name: Cache Go modules and build cache
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e4b4e # v4.2.3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: generate-go-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            generate-go-${{ runner.os }}-
       - name: Generate code
         run: go generate ./...
       - name: Check for uncommitted changes
