@@ -39,9 +39,6 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-          # Disabled because setup-go's cache key is shared across all Go
-          # jobs (hash of go.sum), so jobs with different needs poison each
-          # other's caches. Use a job-specific cache instead.
           cache: false
       - name: Cache Go modules and build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -77,11 +74,6 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-          # Disabled because setup-go's cache key is shared across all Go
-          # jobs (hash of go.sum), so jobs with different needs poison each
-          # other's caches. Use a job-specific cache instead. Note: most
-          # builds here happen inside Docker via tilt, so this only covers
-          # host-side go usage (e.g. go-test-coverage).
           cache: false
       - name: Cache Go modules and build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
