@@ -37,12 +37,6 @@ jobs:
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-          # Disabled because setup-go's cache key is shared across all Go
-          # jobs (hash of go.sum). Another job saves a cache without the
-          # `tool` module deps or their build cache, this job then gets an
-          # exact-key hit and never saves, so buf/sqlc/mockery are
-          # re-downloaded and recompiled on every run. Use a job-specific
-          # cache instead.
           cache: false
       - name: Cache Go modules and build cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
