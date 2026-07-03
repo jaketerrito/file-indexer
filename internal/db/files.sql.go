@@ -115,3 +115,322 @@ func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []int64) ([]File, 
 	}
 	return items, nil
 }
+
+const listFilesByCreatedAtAsc = `-- name: ListFilesByCreatedAtAsc :many
+SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
+WHERE key LIKE $1
+  AND ($2::text = '' OR content_type LIKE $2)
+  AND (NOT $3::bool OR (created_at, id) > ($4::timestamptz, $5::bigint))
+ORDER BY created_at ASC, id ASC
+LIMIT $6
+`
+
+type ListFilesByCreatedAtAscParams struct {
+	KeyPattern         string
+	ContentTypePattern string
+	HasCursor          bool
+	LastCreatedAt      pgtype.Timestamptz
+	LastID             int64
+	PageLimit          int32
+}
+
+func (q *Queries) ListFilesByCreatedAtAsc(ctx context.Context, arg ListFilesByCreatedAtAscParams) ([]File, error) {
+	rows, err := q.db.Query(ctx, listFilesByCreatedAtAsc,
+		arg.KeyPattern,
+		arg.ContentTypePattern,
+		arg.HasCursor,
+		arg.LastCreatedAt,
+		arg.LastID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []File
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFilesByCreatedAtDesc = `-- name: ListFilesByCreatedAtDesc :many
+SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
+WHERE key LIKE $1
+  AND ($2::text = '' OR content_type LIKE $2)
+  AND (NOT $3::bool OR (created_at, id) < ($4::timestamptz, $5::bigint))
+ORDER BY created_at DESC, id DESC
+LIMIT $6
+`
+
+type ListFilesByCreatedAtDescParams struct {
+	KeyPattern         string
+	ContentTypePattern string
+	HasCursor          bool
+	LastCreatedAt      pgtype.Timestamptz
+	LastID             int64
+	PageLimit          int32
+}
+
+func (q *Queries) ListFilesByCreatedAtDesc(ctx context.Context, arg ListFilesByCreatedAtDescParams) ([]File, error) {
+	rows, err := q.db.Query(ctx, listFilesByCreatedAtDesc,
+		arg.KeyPattern,
+		arg.ContentTypePattern,
+		arg.HasCursor,
+		arg.LastCreatedAt,
+		arg.LastID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []File
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFilesByKeyAsc = `-- name: ListFilesByKeyAsc :many
+
+SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
+WHERE key LIKE $1
+  AND ($2::text = '' OR content_type LIKE $2)
+  AND (NOT $3::bool OR (key, id) > ($4::text, $5::bigint))
+ORDER BY key ASC, id ASC
+LIMIT $6
+`
+
+type ListFilesByKeyAscParams struct {
+	KeyPattern         string
+	ContentTypePattern string
+	HasCursor          bool
+	LastKey            string
+	LastID             int64
+	PageLimit          int32
+}
+
+// The ListFilesBy* queries below implement keyset pagination for the search
+// service: one query per (sort field, direction), always tie-breaking on id
+// so cursors are stable. key_pattern and content_type_pattern are LIKE
+// patterns built (and escaped) by the caller; an empty content_type_pattern
+// disables the content type filter. When has_cursor is false the last_*
+// arguments are ignored.
+func (q *Queries) ListFilesByKeyAsc(ctx context.Context, arg ListFilesByKeyAscParams) ([]File, error) {
+	rows, err := q.db.Query(ctx, listFilesByKeyAsc,
+		arg.KeyPattern,
+		arg.ContentTypePattern,
+		arg.HasCursor,
+		arg.LastKey,
+		arg.LastID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []File
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFilesByKeyDesc = `-- name: ListFilesByKeyDesc :many
+SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
+WHERE key LIKE $1
+  AND ($2::text = '' OR content_type LIKE $2)
+  AND (NOT $3::bool OR (key, id) < ($4::text, $5::bigint))
+ORDER BY key DESC, id DESC
+LIMIT $6
+`
+
+type ListFilesByKeyDescParams struct {
+	KeyPattern         string
+	ContentTypePattern string
+	HasCursor          bool
+	LastKey            string
+	LastID             int64
+	PageLimit          int32
+}
+
+func (q *Queries) ListFilesByKeyDesc(ctx context.Context, arg ListFilesByKeyDescParams) ([]File, error) {
+	rows, err := q.db.Query(ctx, listFilesByKeyDesc,
+		arg.KeyPattern,
+		arg.ContentTypePattern,
+		arg.HasCursor,
+		arg.LastKey,
+		arg.LastID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []File
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFilesBySizeAsc = `-- name: ListFilesBySizeAsc :many
+SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
+WHERE key LIKE $1
+  AND ($2::text = '' OR content_type LIKE $2)
+  AND (NOT $3::bool OR (COALESCE(size_bytes, 0), id) > ($4::bigint, $5::bigint))
+ORDER BY COALESCE(size_bytes, 0) ASC, id ASC
+LIMIT $6
+`
+
+type ListFilesBySizeAscParams struct {
+	KeyPattern         string
+	ContentTypePattern string
+	HasCursor          bool
+	LastSize           int64
+	LastID             int64
+	PageLimit          int32
+}
+
+func (q *Queries) ListFilesBySizeAsc(ctx context.Context, arg ListFilesBySizeAscParams) ([]File, error) {
+	rows, err := q.db.Query(ctx, listFilesBySizeAsc,
+		arg.KeyPattern,
+		arg.ContentTypePattern,
+		arg.HasCursor,
+		arg.LastSize,
+		arg.LastID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []File
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFilesBySizeDesc = `-- name: ListFilesBySizeDesc :many
+SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
+WHERE key LIKE $1
+  AND ($2::text = '' OR content_type LIKE $2)
+  AND (NOT $3::bool OR (COALESCE(size_bytes, 0), id) < ($4::bigint, $5::bigint))
+ORDER BY COALESCE(size_bytes, 0) DESC, id DESC
+LIMIT $6
+`
+
+type ListFilesBySizeDescParams struct {
+	KeyPattern         string
+	ContentTypePattern string
+	HasCursor          bool
+	LastSize           int64
+	LastID             int64
+	PageLimit          int32
+}
+
+func (q *Queries) ListFilesBySizeDesc(ctx context.Context, arg ListFilesBySizeDescParams) ([]File, error) {
+	rows, err := q.db.Query(ctx, listFilesBySizeDesc,
+		arg.KeyPattern,
+		arg.ContentTypePattern,
+		arg.HasCursor,
+		arg.LastSize,
+		arg.LastID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []File
+	for rows.Next() {
+		var i File
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

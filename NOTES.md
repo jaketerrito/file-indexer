@@ -26,5 +26,9 @@
 7/2/26
 - setup grpc swagger type thing for files and indexer? Or portforward with reflection then use an external tool
 
+7/3/26
+- search service: integration tests currently cover the db list queries only; add full-service integration tests that exercise SearchService.ListFiles over gRPC against the deployed service (cursor paging, filters, sorting)
+- consider protovalidate (buf) + a shared server interceptor for declarative request validation (e.g. page_size bounds, enum defined_only) across all services; defaulting logic (unspecified sort -> key asc, page_size 0 -> 50) stays in code
+
 TODO:
 - Frontend

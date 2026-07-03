@@ -23,6 +23,7 @@ if not k8s_context().startswith('kind-'):
 docker_build('migrate', '.', build_args={'BUILD_TARGET': './cmd/migrate'})
 docker_build('indexer', '.', build_args={'BUILD_TARGET': './cmd/indexer'})
 docker_build('files', '.', build_args={'BUILD_TARGET': './cmd/files'})
+docker_build('search', '.', build_args={'BUILD_TARGET': './cmd/search'})
 docker_build('crawler', '.', build_args={'BUILD_TARGET': './cmd/crawler'})
 
 k8s_yaml(kustomize('deploy'))
@@ -47,7 +48,8 @@ local_resource('test-integration',
 )
 k8s_resource('migrate', resource_deps=['postgres'])
 k8s_resource('indexer', resource_deps=['postgres', 'migrate'], port_forwards=50051)
-k8s_resource('files', resource_deps=['postgres', 'migrate'], port_forwards=50052)
+k8s_resource('files', resource_deps=['postgres', 'migrate'], port_forwards='50052:50051')
+k8s_resource('search', resource_deps=['postgres', 'migrate'], port_forwards='50053:50051')
 k8s_resource(
     'crawler',
     resource_deps=['indexer', 'local-s3'],
