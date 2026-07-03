@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package service.v1;
 
-option go_package = "file-indexer/internal/pb";
+option go_package = "file-indexer/internal/pb/service/v1;pb";
 
 service IndexerService {
   rpc Index(IndexRequest) returns (IndexResponse) {}

@@ -4,20 +4,48 @@ package service.v1;
 
 import "service/v1/files.proto";
 
-option go_package = "file-indexer/internal/pb";
+option go_package = "file-indexer/internal/pb/service/v1;pb";
 
 service SearchService {
   rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
 }
 
+// SortField selects the column ListFiles orders results by.
+enum SortField {
+  SORT_FIELD_UNSPECIFIED = 0; // defaults to SORT_FIELD_KEY
+  SORT_FIELD_KEY = 1;
+  SORT_FIELD_CREATED_AT = 2;
+  SORT_FIELD_SIZE = 3;
+}
+
+// SortOrder selects the direction ListFiles orders results in.
+enum SortOrder {
+  SORT_ORDER_UNSPECIFIED = 0; // defaults to SORT_ORDER_ASC
+  SORT_ORDER_ASC = 1;
+  SORT_ORDER_DESC = 2;
+}
+
 message ListFilesRequest {
+  // Maximum number of files to return. Defaults to 50, clamped to 200.
   int32 page_size = 1;
-  int32 page_cursor = 2; // hash of the last value being sorted by, so can filter that out with a where
+  // A page token, received from a previous ListFiles call's next_page_token.
+  // Provide this to retrieve the subsequent page.
+  //
+  // When paginating, all other parameters provided to ListFiles (except
+  // page_size) must match the call that provided the page token; otherwise
+  // the request fails with INVALID_ARGUMENT.
+  string page_token = 2;
+  // Only return files whose key starts with this prefix.
   string prefix = 3;
-  // TODO add sorting option
+  // Filter by MIME type: an exact match like "image/png", or a category
+  // prefix ending in "/" like "image/" to match all images.
+  string content_type = 4;
+  SortField sort_field = 5;
+  SortOrder sort_order = 6;
 }
 
 message ListFilesResponse {
   repeated FileInfo files = 1;
+  // Cursor for the next page; empty when there are no more results.
   string next_page_token = 2;
 }

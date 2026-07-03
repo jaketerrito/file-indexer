@@ -16,3 +16,6 @@ packages:
     interfaces:
       ObjectStore:
       Indexer:
+  file-indexer/internal/service/search:
+    interfaces:
+      FileIndex:

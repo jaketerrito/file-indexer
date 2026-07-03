@@ -36,15 +36,18 @@ func testDSN(t *testing.T) string {
 }
 
 // testConn runs migrations and returns a connection to the test database.
+// Running migrations here keeps the suite hermetic (runnable against a bare
+// postgres); under Tilt the migrate Job has already run, making this a no-op,
+// and the session lock in RunMigrations makes concurrent runs safe.
 func testConn(t *testing.T) *pgx.Conn {
 	t.Helper()
 	dsn := testDSN(t)
 
-	if err := RunMigrations("pgx", dsn); err != nil {
+	ctx := context.Background()
+	if err := RunMigrations(ctx, "pgx", dsn); err != nil {
 		t.Fatalf("RunMigrations: %v", err)
 	}
 
-	ctx := context.Background()
 	conn, err := pgx.Connect(ctx, dsn)
 	if err != nil {
 		t.Fatalf("pgx.Connect: %v", err)
@@ -93,7 +96,7 @@ func TestRunMigrations(t *testing.T) {
 
 	// Running migrations twice must be idempotent (goose tracks versions).
 	for range 2 {
-		if err := RunMigrations("pgx", dsn); err != nil {
+		if err := RunMigrations(context.Background(), "pgx", dsn); err != nil {
 			t.Fatalf("RunMigrations: %v", err)
 		}
 	}
@@ -102,7 +105,7 @@ func TestRunMigrations(t *testing.T) {
 func TestRunMigrationsUnknownDriver(t *testing.T) {
 	testDSN(t)
 
-	err := RunMigrations("no-such-driver", "dsn")
+	err := RunMigrations(context.Background(), "no-such-driver", "dsn")
 	if err == nil {
 		t.Fatal("RunMigrations with unknown driver: want error, got nil")
 	}
@@ -112,7 +115,7 @@ func TestRunMigrationsUnreachableDB(t *testing.T) {
 	testDSN(t)
 
 	dsn := "host=127.0.0.1 port=1 user=nobody password=nope dbname=none sslmode=disable connect_timeout=1"
-	err := RunMigrations("pgx", dsn)
+	err := RunMigrations(context.Background(), "pgx", dsn)
 	if err == nil {
 		t.Fatal("RunMigrations against unreachable db: want error, got nil")
 	}

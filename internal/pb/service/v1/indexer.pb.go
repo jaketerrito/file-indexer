@@ -166,7 +166,7 @@ const file_service_v1_indexer_proto_rawDesc = "" +
 	"\rIndexResponse\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status2P\n" +
 	"\x0eIndexerService\x12>\n" +
-	"\x05Index\x12\x18.service.v1.IndexRequest\x1a\x19.service.v1.IndexResponse\"\x00B\x1aZ\x18file-indexer/internal/pbb\x06proto3"
+	"\x05Index\x12\x18.service.v1.IndexRequest\x1a\x19.service.v1.IndexResponse\"\x00B(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
 
 var (
 	file_service_v1_indexer_proto_rawDescOnce sync.Once
