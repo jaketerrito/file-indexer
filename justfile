@@ -61,7 +61,7 @@ up: cluster-up tilt-up
 down: tilt-down cluster-down
 
 # Deploy everything with auto_init=True (all services, postgres, MinIO,
-# secrets, lint/test local resources) and run the full test suite + coverage
+# secrets, the lint local resource) and run the full test suite + coverage
 # gate via the test-integration Tilt resource. Verifies real rollouts of every
 # service, not just manifest validity. This is what CI runs; reproduce locally
 # with `just cluster-up && just ci`.
