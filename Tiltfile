@@ -14,7 +14,10 @@ local_resource('test',
    deps=['internal/', 'cmd/'],
 )
 
-k8s_context('microk8s')
+# Guard against accidentally deploying to a non-dev cluster. (k8s_context()
+# takes no arguments; it returns the current context.)
+if k8s_context() != 'microk8s':
+    fail('expected k8s context "microk8s", got "%s"' % k8s_context())
 default_registry('localhost:32000')
 
 docker_build('migrate', '.', build_args={'BUILD_TARGET': './cmd/migrate'})
@@ -32,6 +35,16 @@ k8s_resource(
     ],
 )
 k8s_resource('postgres', port_forwards=5432)
+
+# Full test suite (unit + integration) against the port-forwarded postgres and
+# MinIO above, including the coverage threshold check. Runs once on `tilt up`;
+# re-run manually from the UI (deliberately not on every file save).
+local_resource('test-integration',
+   cmd='just test-integration',
+   resource_deps=['postgres', 'local-s3'],
+   trigger_mode=TRIGGER_MODE_MANUAL,
+   auto_init=True,
+)
 k8s_resource('migrate', resource_deps=['postgres'])
 k8s_resource('indexer', resource_deps=['postgres', 'migrate'], port_forwards=50051)
 k8s_resource('files', resource_deps=['postgres', 'migrate'], port_forwards=50052)

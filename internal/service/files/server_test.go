@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"file-indexer/internal/db"
+	"net"
 	"testing"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestNew(t *testing.T) {
@@ -219,5 +222,79 @@ func TestGetDownloadURLStorageError(t *testing.T) {
 	_, err := srv.GetDownloadURL(context.Background(), &pb.GetDownloadURLRequest{Ids: []int64{1}})
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+// freeAddr reserves an ephemeral port and returns its address. There is a
+// small window between closing the probe listener and Serve re-binding it,
+// which is acceptable for tests.
+func freeAddr(t *testing.T) string {
+	t.Helper()
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve port: %v", err)
+	}
+	addr := lis.Addr().String()
+	if err := lis.Close(); err != nil {
+		t.Fatalf("release port: %v", err)
+	}
+	return addr
+}
+
+func TestServe(t *testing.T) {
+	now := time.Now()
+	file := db.File{
+		ID: 7, Key: "obj-key",
+		ContentType: pgtype.Text{String: "text/plain", Valid: true},
+		SizeBytes:   pgtype.Int8{Int64: 100, Valid: true},
+		CreatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
+		UpdatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
+	}
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFile(mock.Anything, int64(7)).Return(file, nil)
+
+	store := NewMockObjectStore(t)
+
+	addr := freeAddr(t)
+	srv := New(addr, store, queries)
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- srv.Serve() }()
+
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("grpc.NewClient: %v", err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Errorf("close conn: %v", err)
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client := pb.NewFilesServiceClient(conn)
+	resp, err := client.GetFileInfo(ctx, &pb.GetFileInfoRequest{Id: 7},
+		grpc.WaitForReady(true))
+	if err != nil {
+		t.Fatalf("GetFileInfo over gRPC: %v", err)
+	}
+	if resp.GetFile().GetId() != 7 || resp.GetFile().GetKey() != "obj-key" {
+		t.Errorf("GetFileInfo = %+v, want id=7 key=obj-key", resp.GetFile())
+	}
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("Serve exited unexpectedly: %v", err)
+	default:
+	}
+}
+
+func TestServeBadAddr(t *testing.T) {
+	srv := New("256.256.256.256:0", NewMockObjectStore(t), NewMockFileIndex(t))
+	if err := srv.Serve(); err == nil {
+		t.Fatal("Serve with bad addr: want error, got nil")
 	}
 }

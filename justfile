@@ -46,19 +46,25 @@ down:
     tilt down
     pkill tilt 2>/dev/null; true
 
-# Run unit tests with race detector, generate coverage profile, and check
-# thresholds (exclusions and thresholds defined in .testcoverage.yml).
+# Run unit tests with race detector and write a coverage profile. Integration
+# tests are excluded (build-tag gated); coverage thresholds are only checked by
+# test-integration, since unit tests alone cannot reach them.
 test:
     go test -race ./... -coverprofile=coverage.out -covermode=atomic -coverpkg=./...
-    go tool go-test-coverage --config=.testcoverage.yml
 
 # Run Go tests with race detector and verbose output
 test-verbose:
     go test -race -v ./...
 
-# Run integration tests (requires DB/S3; build-tag gated)
+# Run the full test suite (unit + integration) against the local Tilt services
+# (postgres on localhost:5432, MinIO on localhost:9000), then check coverage
+# thresholds from .testcoverage.yml. Requires `just up` (or equivalent
+# port-forwards). Integration tests fail hard if the services are unreachable.
 test-integration:
-    go test -tags=integration -race ./...
+    DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=mysecretpassword DB_NAME=postgres \
+    S3_ENDPOINT=localhost:9000 S3_ACCESS_ID=user S3_SECRET=password S3_BUCKET=test \
+    go test -tags=integration -race ./... -coverprofile=coverage.out -covermode=atomic -coverpkg=./...
+    go tool go-test-coverage --config=.testcoverage.yml
 
 # Connect to the project postgres database
 psql:

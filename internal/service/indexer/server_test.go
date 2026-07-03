@@ -5,12 +5,15 @@ import (
 	"errors"
 	"file-indexer/internal/db"
 	"file-indexer/internal/storage"
+	"net"
 	"testing"
 	"time"
 
 	pb "file-indexer/internal/pb/service/v1"
 
 	"github.com/stretchr/testify/mock"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestNew(t *testing.T) {
@@ -100,5 +103,73 @@ func TestIndexCreateFileError(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+// freeAddr reserves an ephemeral port and returns its address. There is a
+// small window between closing the probe listener and Serve re-binding it,
+// which is acceptable for tests.
+func freeAddr(t *testing.T) string {
+	t.Helper()
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve port: %v", err)
+	}
+	addr := lis.Addr().String()
+	if err := lis.Close(); err != nil {
+		t.Fatalf("release port: %v", err)
+	}
+	return addr
+}
+
+func TestServe(t *testing.T) {
+	info := storage.ObjectInfo{Key: "obj-key", Size: 1, ContentType: "text/plain", LastModified: time.Now()}
+
+	store := NewMockObjectStore(t)
+	store.EXPECT().Stat(mock.Anything, "obj-key").Return(info, nil)
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().CreateFile(mock.Anything, mock.Anything).Return(db.File{ID: 1, Key: "obj-key"}, nil)
+
+	addr := freeAddr(t)
+	srv := New(addr, store, queries)
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- srv.Serve() }()
+
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("grpc.NewClient: %v", err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Errorf("close conn: %v", err)
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client := pb.NewIndexerServiceClient(conn)
+	resp, err := client.Index(ctx, &pb.IndexRequest{Ref: &pb.FileRef{Key: "obj-key"}},
+		grpc.WaitForReady(true))
+	if err != nil {
+		t.Fatalf("Index over gRPC: %v", err)
+	}
+	if resp.GetStatus() != "OK" {
+		t.Errorf("Status = %q, want %q", resp.GetStatus(), "OK")
+	}
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("Serve exited unexpectedly: %v", err)
+	default:
+	}
+}
+
+func TestServeBadAddr(t *testing.T) {
+	srv := New("256.256.256.256:0", NewMockObjectStore(t), NewMockFileIndex(t))
+	if err := srv.Serve(); err == nil {
+		t.Fatal("Serve with bad addr: want error, got nil")
 	}
 }
