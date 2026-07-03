@@ -14,8 +14,11 @@ local_resource('test',
    deps=['internal/', 'cmd/'],
 )
 
-k8s_context('microk8s')
-default_registry('localhost:32000')
+# Guard against accidentally deploying to a non-dev cluster. Local clusters
+# are created by ctlptl (see ctlptl.yaml), which also provides the image
+# registry that Tilt auto-detects; run `just cluster-up`.
+if not k8s_context().startswith('kind-'):
+    fail('expected a kind k8s context (see `just cluster-up`), got "%s"' % k8s_context())
 
 docker_build('migrate', '.', build_args={'BUILD_TARGET': './cmd/migrate'})
 docker_build('indexer', '.', build_args={'BUILD_TARGET': './cmd/indexer'})
@@ -32,6 +35,16 @@ k8s_resource(
     ],
 )
 k8s_resource('postgres', port_forwards=5432)
+
+# Full test suite (unit + integration) against the port-forwarded postgres and
+# MinIO above, including the coverage threshold check. Runs once on `tilt up`;
+# re-run manually from the UI (deliberately not on every file save).
+local_resource('test-integration',
+   cmd='just test-integration',
+   resource_deps=['postgres', 'local-s3'],
+   trigger_mode=TRIGGER_MODE_MANUAL,
+   auto_init=True,
+)
 k8s_resource('migrate', resource_deps=['postgres'])
 k8s_resource('indexer', resource_deps=['postgres', 'migrate'], port_forwards=50051)
 k8s_resource('files', resource_deps=['postgres', 'migrate'], port_forwards=50052)

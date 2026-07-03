@@ -6,6 +6,20 @@
   ],
   "minimumReleaseAge": "7 days",
   "internalChecksFilter": "strict",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^\\.github/workflows/test\\.yml$"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n\\s+[A-Z_]+_VERSION: \"?(?<currentValue>[^\"\\s]+)\"?\\s*"
+      ],
+      "extractVersion": "^v?(?<version>.*)$",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "kubernetes": {
+    "fileMatch": ["deploy/.+\\.yaml$"]
+  },
   "packageRules": [
     {
       "matchManagers": ["dockerfile", "docker-compose"],

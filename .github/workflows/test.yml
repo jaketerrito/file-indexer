@@ -7,6 +7,10 @@ on:
       - "go.mod"
       - "go.sum"
       - ".testcoverage.yml"
+      - "Tiltfile"
+      - "justfile"
+      - "ctlptl.yaml"
+      - "deploy/**"
       - ".github/workflows/test.yml"
   pull_request:
     branches: [main]
@@ -15,24 +19,104 @@ on:
       - "go.mod"
       - "go.sum"
       - ".testcoverage.yml"
+      - "Tiltfile"
+      - "justfile"
+      - "ctlptl.yaml"
+      - "deploy/**"
       - ".github/workflows/test.yml"
 
 permissions:
   contents: read
 
 jobs:
-  test:
-    name: test
+  # Fast feedback: unit tests only. Coverage thresholds are checked by the
+  # integration job, since unit tests alone cannot reach them.
+  unit:
+    name: unit
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           go-version-file: go.mod
-          cache: true
-      - name: Run tests and generate coverage profile
-        run: go test -race ./... -coverprofile=coverage.out -covermode=atomic -coverpkg=./...
-      - name: Check coverage thresholds
-        uses: vladopajic/go-test-coverage@a93b868a4cbcbf18dc3781650fad241f0020e609 # v2.18.8
+          # Disabled because setup-go's cache key is shared across all Go
+          # jobs (hash of go.sum), so jobs with different needs poison each
+          # other's caches. Use a job-specific cache instead.
+          cache: false
+      - name: Cache Go modules and build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          config: ./.testcoverage.yml
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: test-unit-go-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            test-unit-go-${{ runner.os }}-
+      - name: Run unit tests
+        run: go test -race ./... -coverprofile=coverage.out -covermode=atomic -coverpkg=./...
+
+  # Full suite: provisions the same kind cluster + postgres/MinIO as local dev
+  # (ctlptl.yaml + deploy/ manifests) and runs `tilt ci`, which executes the
+  # test-integration Tilt resource (unit + integration tests + coverage
+  # thresholds from .testcoverage.yml).
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # renovate: datasource=github-releases depName=casey/just
+      JUST_VERSION: "1.55.1"
+      # renovate: datasource=github-releases depName=kubernetes-sigs/kind
+      KIND_VERSION: "0.32.0"
+      # renovate: datasource=github-releases depName=tilt-dev/ctlptl
+      CTLPTL_VERSION: "0.9.4"
+      # renovate: datasource=github-releases depName=tilt-dev/tilt
+      TILT_VERSION: "0.37.5"
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version-file: go.mod
+          # Disabled because setup-go's cache key is shared across all Go
+          # jobs (hash of go.sum), so jobs with different needs poison each
+          # other's caches. Use a job-specific cache instead. Note: most
+          # builds here happen inside Docker via tilt, so this only covers
+          # host-side go usage (e.g. go-test-coverage).
+          cache: false
+      - name: Cache Go modules and build cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: test-integration-go-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            test-integration-go-${{ runner.os }}-
+      - name: Cache tool binaries
+        id: tools-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.tools
+          key: tools-${{ env.JUST_VERSION }}-${{ env.KIND_VERSION }}-${{ env.CTLPTL_VERSION }}-${{ env.TILT_VERSION }}
+      - name: Install just, kind, ctlptl, tilt
+        if: steps.tools-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.tools
+          curl -fsSL "https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" | tar -xz -C ~/.tools just
+          curl -fsSLo ~/.tools/kind "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-linux-amd64"
+          chmod +x ~/.tools/kind
+          curl -fsSL "https://github.com/tilt-dev/ctlptl/releases/download/v${CTLPTL_VERSION}/ctlptl.${CTLPTL_VERSION}.linux.x86_64.tar.gz" | tar -xz -C ~/.tools ctlptl
+          curl -fsSL "https://github.com/tilt-dev/tilt/releases/download/v${TILT_VERSION}/tilt.${TILT_VERSION}.linux.x86_64.tar.gz" | tar -xz -C ~/.tools tilt
+      - name: Add tools to PATH
+        run: echo "$HOME/.tools" >> "$GITHUB_PATH"
+      - name: Create kind cluster
+        run: just cluster-up
+      - name: Run integration tests via tilt ci
+        run: just ci
+      - name: Upload coverage profile
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage
+          path: coverage.out
+          if-no-files-found: ignore
