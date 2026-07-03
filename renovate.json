@@ -14,7 +14,7 @@
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n\\s+[A-Z_]+_VERSION: \"?(?<currentValue>[^\"\\s]+)\"?\\s*",
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n\\s+version: \"?(?<currentValue>[^\"\\s]+)\"?\\s*"
       ],
-      "extractVersion": "^v?(?<version>.*)$",
+      "extractVersionTemplate": "^v?(?<version>.*)$",
       "versioningTemplate": "semver"
     }
   ],
