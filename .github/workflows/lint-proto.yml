@@ -24,6 +24,7 @@ jobs:
       - uses: bufbuild/buf-action@fd21066df7214747548607aaa45548ba2b9bc1ff # v1
         with:
           input: proto
+          # renovate: datasource=github-releases depName=bufbuild/buf
           version: 1.70.0
           lint: true
           format: true
