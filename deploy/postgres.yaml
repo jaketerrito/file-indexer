@@ -40,6 +40,17 @@ spec:
           ports:
             - containerPort: 5432
               name: postgres
+          # Force TCP (-h 127.0.0.1): during initdb the entrypoint runs a
+          # temporary server that only listens on the unix socket, which would
+          # otherwise report ready prematurely.
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - pg_isready -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+            initialDelaySeconds: 5
+            periodSeconds: 5
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

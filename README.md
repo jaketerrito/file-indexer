@@ -22,47 +22,36 @@ SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) i
 - [psql](https://www.postgresql.org/docs/current/app-psql.html)
 - [tilt](https://docs.tilt.dev/index.html)
 - [golangci-lint](https://golangci-lint.run)
-- local k8s cluster ([microk8s](https://docs.tilt.dev/choosing_clusters.html#microk8s))
-    - `microk8s enable registry`
-    - `microk8s enable hostpath-storage`
-    - `microk8s enable dns`
+- [docker](https://docs.docker.com/engine/install/)
+- [kind](https://kind.sigs.k8s.io)
+- [ctlptl](https://github.com/tilt-dev/ctlptl)
 
-### Commands
-To see available commands: `just`
+### Components
+- kind cluster provisioned with ctlptl
+- tilt
+  - Manages development resources in k8s cluster
+  - Automatically generates code
+  - Automatically rebuilds containers
 
-Start and stop dev servers
-`just up`
-`just down`
+### Getting started
+Run `just` to see all available commands.
 
-protoc and sqldc commands are run automatically via tilt to generate code.
-
-crawler gets run through tilt too now
-
-just file to handle development commads
-micro k8s is out of scope of this project, devs can use whatever cluster they want.
-
-
-### Tilt
-Manages development resources in k8s cluster
-Automatically generates code
-Automatically rebuilds containers
+`just up` — Launches local kind cluster and usese Tilt to provision resources, runs DB migrations, builds and deploys the app containers (indexer, files), and keeps them live-reloading on code changes. Code generation (sqlc, protobuf) runs automatically. Opens the Tilt web UI at http://localhost:10350.
 
 ### Testing
+`just test` runs unit tests only
 
-Run all unit tests:
-`just test`
-
-`just test` also generates a coverage profile (`coverage.out`) and checks it against the thresholds in `.testcoverage.yml`.
-
-Run with race detector + verbose output:
-`just test-verbose`
-
-Run integration tests (requires DB/S3):
+Run the full suite (unit + integration, requires the Tilt dev environment) and
+check coverage thresholds from `.testcoverage.yml`:
 `just test-integration`
 
-#### Conventions
+Integration tests fail hard if postgres/MinIO are unreachable; they never skip.
 
+### CI caching
+
+`setup-go`'s built-in caching is disabled in CI because its cache key (a hash of `go.sum`) is shared across all Go jobs. Jobs with different module or build-cache needs end up poisoning each other's caches. Instead, each job uses `actions/cache` with its own unique key prefix.
+
+#### Conventions
 - **Table-driven tests with standard `testing` package.** No external assertion libraries.
 - **Consumer-side interfaces for fakes.** Each service defines a narrow `Store` interface listing only the queries it uses. Tests pass hand-written `fakeStore`/`fakeStorage` structs; no mocking framework needed.
 - **Integration tests** use `//go:build integration` and are excluded from `go test ./...`. Only add them when you need real DB or S3 interactions.
-Automatically runs build checks
