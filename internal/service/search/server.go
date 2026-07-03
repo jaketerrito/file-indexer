@@ -65,8 +65,11 @@ func (s *SearchServer) ListFiles(ctx context.Context, req *pb.ListFilesRequest) 
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, "invalid page_token")
 		}
-		if c.SortField != sortField || c.SortOrder != sortOrder {
-			return nil, status.Error(codes.InvalidArgument, "page_token was issued for a different sort")
+		// AIP-158: all arguments other than page_size and page_token must
+		// match the call that produced the token.
+		if c.GetSortField() != sortField || c.GetSortOrder() != sortOrder ||
+			c.GetPrefix() != req.GetPrefix() || c.GetContentType() != req.GetContentType() {
+			return nil, status.Error(codes.InvalidArgument, "page_token was issued for a different query")
 		}
 		cur = c
 	}
@@ -80,7 +83,7 @@ func (s *SearchServer) ListFiles(ctx context.Context, req *pb.ListFilesRequest) 
 	var nextPageToken string
 	if len(files) > limit {
 		files = files[:limit]
-		nextPageToken = encodeCursor(newCursor(sortField, sortOrder, files[len(files)-1]))
+		nextPageToken = encodeCursor(newCursor(sortField, sortOrder, req.GetPrefix(), req.GetContentType(), files[len(files)-1]))
 	}
 
 	infos := make([]*pb.FileInfo, 0, len(files))
@@ -103,8 +106,8 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 				KeyPattern:         keyPattern,
 				ContentTypePattern: contentTypePattern,
 				HasCursor:          cur != nil,
-				LastKey:            cur.lastKey(),
-				LastID:             cur.lastID(),
+				LastKey:            cur.GetKey(),
+				LastID:             cur.GetLastId(),
 				PageLimit:          int32(limit),
 			})
 		}
@@ -112,8 +115,8 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 			KeyPattern:         keyPattern,
 			ContentTypePattern: contentTypePattern,
 			HasCursor:          cur != nil,
-			LastKey:            cur.lastKey(),
-			LastID:             cur.lastID(),
+			LastKey:            cur.GetKey(),
+			LastID:             cur.GetLastId(),
 			PageLimit:          int32(limit),
 		})
 	case pb.SortField_SORT_FIELD_CREATED_AT:
@@ -122,8 +125,8 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 				KeyPattern:         keyPattern,
 				ContentTypePattern: contentTypePattern,
 				HasCursor:          cur != nil,
-				LastCreatedAt:      cur.lastCreatedAt(),
-				LastID:             cur.lastID(),
+				LastCreatedAt:      lastCreatedAt(cur),
+				LastID:             cur.GetLastId(),
 				PageLimit:          int32(limit),
 			})
 		}
@@ -131,8 +134,8 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 			KeyPattern:         keyPattern,
 			ContentTypePattern: contentTypePattern,
 			HasCursor:          cur != nil,
-			LastCreatedAt:      cur.lastCreatedAt(),
-			LastID:             cur.lastID(),
+			LastCreatedAt:      lastCreatedAt(cur),
+			LastID:             cur.GetLastId(),
 			PageLimit:          int32(limit),
 		})
 	case pb.SortField_SORT_FIELD_SIZE:
@@ -141,8 +144,8 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 				KeyPattern:         keyPattern,
 				ContentTypePattern: contentTypePattern,
 				HasCursor:          cur != nil,
-				LastSize:           cur.lastSize(),
-				LastID:             cur.lastID(),
+				LastSize:           cur.GetSize(),
+				LastID:             cur.GetLastId(),
 				PageLimit:          int32(limit),
 			})
 		}
@@ -150,8 +153,8 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 			KeyPattern:         keyPattern,
 			ContentTypePattern: contentTypePattern,
 			HasCursor:          cur != nil,
-			LastSize:           cur.lastSize(),
-			LastID:             cur.lastID(),
+			LastSize:           cur.GetSize(),
+			LastID:             cur.GetLastId(),
 			PageLimit:          int32(limit),
 		})
 	default:

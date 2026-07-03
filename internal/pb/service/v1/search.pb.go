@@ -128,8 +128,12 @@ type ListFilesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Maximum number of files to return. Defaults to 50, clamped to 200.
 	PageSize int32 `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
-	// Opaque keyset cursor from a previous response's next_page_token.
-	// Sort and order must match the request that produced the token.
+	// A page token, received from a previous ListFiles call's next_page_token.
+	// Provide this to retrieve the subsequent page.
+	//
+	// When paginating, all other parameters provided to ListFiles (except
+	// page_size) must match the call that provided the page token; otherwise
+	// the request fails with INVALID_ARGUMENT.
 	PageToken string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Only return files whose key starts with this prefix.
 	Prefix string `protobuf:"bytes,3,opt,name=prefix,proto3" json:"prefix,omitempty"`
@@ -296,7 +300,7 @@ const file_service_v1_search_proto_rawDesc = "" +
 	"\x0eSORT_ORDER_ASC\x10\x01\x12\x13\n" +
 	"\x0fSORT_ORDER_DESC\x10\x022Y\n" +
 	"\rSearchService\x12H\n" +
-	"\tListFiles\x12\x1c.service.v1.ListFilesRequest\x1a\x1d.service.v1.ListFilesResponseB\x1aZ\x18file-indexer/internal/pbb\x06proto3"
+	"\tListFiles\x12\x1c.service.v1.ListFilesRequest\x1a\x1d.service.v1.ListFilesResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
 
 var (
 	file_service_v1_search_proto_rawDescOnce sync.Once

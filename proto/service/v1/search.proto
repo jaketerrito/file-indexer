@@ -4,7 +4,7 @@ package service.v1;
 
 import "service/v1/files.proto";
 
-option go_package = "file-indexer/internal/pb";
+option go_package = "file-indexer/internal/pb/service/v1;pb";
 
 service SearchService {
   rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
@@ -28,8 +28,12 @@ enum SortOrder {
 message ListFilesRequest {
   // Maximum number of files to return. Defaults to 50, clamped to 200.
   int32 page_size = 1;
-  // Opaque keyset cursor from a previous response's next_page_token.
-  // Sort and order must match the request that produced the token.
+  // A page token, received from a previous ListFiles call's next_page_token.
+  // Provide this to retrieve the subsequent page.
+  //
+  // When paginating, all other parameters provided to ListFiles (except
+  // page_size) must match the call that provided the page token; otherwise
+  // the request fails with INVALID_ARGUMENT.
   string page_token = 2;
   // Only return files whose key starts with this prefix.
   string prefix = 3;

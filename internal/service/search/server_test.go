@@ -230,8 +230,8 @@ func TestListFilesPagination(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decodeCursor: %v", err)
 	}
-	if cur.LastID != 2 || cur.Key != "b" {
-		t.Errorf("cursor = %+v, want LastID=2 Key=b", cur)
+	if cur.GetLastId() != 2 || cur.GetKey() != "b" {
+		t.Errorf("cursor = %+v, want LastId=2 Key=b", cur)
 	}
 
 	// Second page: the cursor must be passed through to the query.
@@ -267,17 +267,64 @@ func TestListFilesInvalidPageToken(t *testing.T) {
 	}
 }
 
-func TestListFilesPageTokenSortMismatch(t *testing.T) {
-	token := encodeCursor(newCursor(pb.SortField_SORT_FIELD_KEY, pb.SortOrder_SORT_ORDER_ASC, testFile(1, "a")))
+func TestListFilesPageTokenQueryMismatch(t *testing.T) {
+	// AIP-158: all arguments other than page_size must match the call that
+	// produced the token.
+	token := encodeCursor(newCursor(pb.SortField_SORT_FIELD_KEY, pb.SortOrder_SORT_ORDER_ASC, "docs/", "image/", testFile(1, "a")))
 
-	srv := SearchServer{queries: NewMockFileIndex(t)}
+	tests := []struct {
+		name string
+		req  *pb.ListFilesRequest
+	}{
+		{"sort_field changed", &pb.ListFilesRequest{
+			PageToken: token, SortField: pb.SortField_SORT_FIELD_SIZE, Prefix: "docs/", ContentType: "image/",
+		}},
+		{"sort_order changed", &pb.ListFilesRequest{
+			PageToken: token, SortOrder: pb.SortOrder_SORT_ORDER_DESC, Prefix: "docs/", ContentType: "image/",
+		}},
+		{"prefix changed", &pb.ListFilesRequest{
+			PageToken: token, Prefix: "other/", ContentType: "image/",
+		}},
+		{"content_type changed", &pb.ListFilesRequest{
+			PageToken: token, Prefix: "docs/", ContentType: "video/",
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := SearchServer{queries: NewMockFileIndex(t)}
+
+			_, err := srv.ListFiles(context.Background(), tt.req)
+			if status.Code(err) != codes.InvalidArgument {
+				t.Fatalf("error = %v, want InvalidArgument", err)
+			}
+		})
+	}
+}
+
+func TestListFilesPageTokenCarriesFilters(t *testing.T) {
+	// A token minted with filters is accepted when the request repeats them,
+	// and the filters keep applying to the next page.
+	token := encodeCursor(newCursor(pb.SortField_SORT_FIELD_KEY, pb.SortOrder_SORT_ORDER_ASC, "docs/", "image/", testFile(1, "docs/a")))
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
+		KeyPattern:         "docs/%",
+		ContentTypePattern: "image/%",
+		HasCursor:          true,
+		LastKey:            "docs/a",
+		LastID:             1,
+		PageLimit:          defaultPageSize + 1,
+	}).Return(nil, nil)
+
+	srv := SearchServer{queries: queries}
 
 	_, err := srv.ListFiles(context.Background(), &pb.ListFilesRequest{
-		PageToken: token,
-		SortField: pb.SortField_SORT_FIELD_SIZE,
+		PageToken:   token,
+		Prefix:      "docs/",
+		ContentType: "image/",
 	})
-	if status.Code(err) != codes.InvalidArgument {
-		t.Fatalf("error = %v, want InvalidArgument", err)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
