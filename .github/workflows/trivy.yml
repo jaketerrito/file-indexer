@@ -30,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [./cmd/indexer, ./cmd/migrate]
+        target: [./cmd/indexer, ./cmd/migrate, ./cmd/files, ./cmd/search, ./cmd/crawler]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Build image
