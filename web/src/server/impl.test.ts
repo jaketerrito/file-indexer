@@ -9,7 +9,12 @@ import {
   type FilesService,
   GetDownloadURLResponseSchema,
 } from '../gen/service/v1/files_pb'
-import { ListFilesResponseSchema, type SearchService } from '../gen/service/v1/search_pb'
+import {
+  ListFilesResponseSchema,
+  type SearchService,
+  SortField,
+  SortOrder,
+} from '../gen/service/v1/search_pb'
 import {
   deleteFileImpl,
   getDownloadUrlImpl,
@@ -63,6 +68,32 @@ describe('validateListFilesInput', () => {
     })
   })
 
+  it('accepts filter and sort fields', () => {
+    expect(
+      validateListFilesInput({
+        prefix: 'docs/',
+        contentType: 'image/',
+        sortField: 'size',
+        sortOrder: 'desc',
+      }),
+    ).toEqual({
+      prefix: 'docs/',
+      contentType: 'image/',
+      sortField: 'size',
+      sortOrder: 'desc',
+    })
+  })
+
+  it.each([
+    [{ prefix: 42 }, /prefix/],
+    [{ contentType: 42 }, /contentType/],
+    [{ sortField: 'bogus' }, /sortField/],
+    [{ sortField: 1 }, /sortField/],
+    [{ sortOrder: 'up' }, /sortOrder/],
+  ] as const)('rejects invalid filter input %j', (input, want) => {
+    expect(() => validateListFilesInput(input)).toThrow(want)
+  })
+
   it.each([
     [{ pageSize: 0 }],
     [{ pageSize: -1 }],
@@ -105,9 +136,39 @@ describe('listFilesImpl', () => {
 
     const result = await listFilesImpl(client, { pageSize: 25, pageToken: 'token-1' })
 
-    expect(listFiles).toHaveBeenCalledWith({ pageSize: 25, pageToken: 'token-1' })
+    expect(listFiles).toHaveBeenCalledWith({
+      pageSize: 25,
+      pageToken: 'token-1',
+      prefix: '',
+      contentType: '',
+      sortField: SortField.KEY,
+      sortOrder: SortOrder.ASC,
+    })
     expect(result.files.map((f) => f.id)).toEqual(['1', '2'])
     expect(result.nextPageToken).toBe('token-2')
+  })
+
+  it('maps filter and sort params onto the request', async () => {
+    const listFiles = vi
+      .fn()
+      .mockResolvedValue(create(ListFilesResponseSchema, { files: [], nextPageToken: '' }))
+    const client = { listFiles } as unknown as Client<typeof SearchService>
+
+    await listFilesImpl(client, {
+      prefix: 'docs/',
+      contentType: 'image/',
+      sortField: 'size',
+      sortOrder: 'desc',
+    })
+
+    expect(listFiles).toHaveBeenCalledWith({
+      pageSize: 0,
+      pageToken: '',
+      prefix: 'docs/',
+      contentType: 'image/',
+      sortField: SortField.SIZE,
+      sortOrder: SortOrder.DESC,
+    })
   })
 
   it('defaults pageSize/pageToken and reports the end of pagination', async () => {
@@ -118,7 +179,14 @@ describe('listFilesImpl', () => {
 
     const result = await listFilesImpl(client, {})
 
-    expect(listFiles).toHaveBeenCalledWith({ pageSize: 0, pageToken: '' })
+    expect(listFiles).toHaveBeenCalledWith({
+      pageSize: 0,
+      pageToken: '',
+      prefix: '',
+      contentType: '',
+      sortField: SortField.KEY,
+      sortOrder: SortOrder.ASC,
+    })
     expect(result).toEqual({ files: [], nextPageToken: '' })
   })
 

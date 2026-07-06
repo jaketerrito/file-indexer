@@ -1,7 +1,7 @@
 import { timestampDate } from '@bufbuild/protobuf/wkt'
 import type { Client } from '@connectrpc/connect'
 import type { FileInfo, FilesService } from '../gen/service/v1/files_pb'
-import type { SearchService } from '../gen/service/v1/search_pb'
+import { type SearchService, SortField, SortOrder } from '../gen/service/v1/search_pb'
 
 // Pure request/response logic for the server functions in files.ts, kept
 // separate (with clients injected) so it can be unit tested without the
@@ -20,9 +20,32 @@ export interface FileDto {
   createdAt: string | null
 }
 
+export const SORT_FIELDS = ['key', 'createdAt', 'size'] as const
+export type SortFieldInput = (typeof SORT_FIELDS)[number]
+
+export const SORT_ORDERS = ['asc', 'desc'] as const
+export type SortOrderInput = (typeof SORT_ORDERS)[number]
+
+const SORT_FIELD_PB: Record<SortFieldInput, SortField> = {
+  key: SortField.KEY,
+  createdAt: SortField.CREATED_AT,
+  size: SortField.SIZE,
+}
+
+const SORT_ORDER_PB: Record<SortOrderInput, SortOrder> = {
+  asc: SortOrder.ASC,
+  desc: SortOrder.DESC,
+}
+
 export interface ListFilesInput {
   pageSize?: number
   pageToken?: string
+  /** Only return files whose key starts with this prefix. */
+  prefix?: string
+  /** Exact MIME type ("image/png") or category prefix ("image/"). */
+  contentType?: string
+  sortField?: SortFieldInput
+  sortOrder?: SortOrderInput
 }
 
 export interface ListFilesResult {
@@ -59,6 +82,30 @@ export function validateListFilesInput(input: unknown): ListFilesInput {
     }
     out.pageToken = data.pageToken
   }
+  if (data.prefix !== undefined) {
+    if (typeof data.prefix !== 'string') {
+      throw new Error('prefix must be a string')
+    }
+    out.prefix = data.prefix
+  }
+  if (data.contentType !== undefined) {
+    if (typeof data.contentType !== 'string') {
+      throw new Error('contentType must be a string')
+    }
+    out.contentType = data.contentType
+  }
+  if (data.sortField !== undefined) {
+    if (!SORT_FIELDS.includes(data.sortField as SortFieldInput)) {
+      throw new Error(`sortField must be one of ${SORT_FIELDS.join(', ')}`)
+    }
+    out.sortField = data.sortField as SortFieldInput
+  }
+  if (data.sortOrder !== undefined) {
+    if (!SORT_ORDERS.includes(data.sortOrder as SortOrderInput)) {
+      throw new Error(`sortOrder must be one of ${SORT_ORDERS.join(', ')}`)
+    }
+    out.sortOrder = data.sortOrder as SortOrderInput
+  }
   return out
 }
 
@@ -77,6 +124,11 @@ export async function listFilesImpl(
   const res = await client.listFiles({
     pageSize: input.pageSize ?? 0,
     pageToken: input.pageToken ?? '',
+    prefix: input.prefix ?? '',
+    contentType: input.contentType ?? '',
+    // Explicit defaults match the server's (KEY ascending).
+    sortField: SORT_FIELD_PB[input.sortField ?? 'key'],
+    sortOrder: SORT_ORDER_PB[input.sortOrder ?? 'asc'],
   })
   return {
     files: res.files.map(toFileDto),
