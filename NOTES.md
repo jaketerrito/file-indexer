@@ -34,3 +34,8 @@
 
 7/5/26
 - The crawler process needs to clean up files in the db that don't exist in s3. Should also do something instead of error when it finds file that already exists in db... perhaps upsert?
+- e2e/integration tests with playwright against the tilt environment (slot into the existing test-integration flow); unit tests only for now
+- styling/design system — UI is intentionally bare semantic HTML
+- content-type filter dropdown is hardcoded (image/, video/, ...); should be populated from the backend, e.g. a SearchService RPC returning distinct content-type categories (TODO in FileList.tsx)
+- SSR data fetching: the file list fetches client-side after hydration. consider router loader + react-query SSR integration so the first page renders server-side
+- tilt web dev loop does a full image rebuild per change (no live_update); iterate with `pnpm dev` against the 50052/50053 port-forwards instead. consider live_update or a tilt-managed dev server later

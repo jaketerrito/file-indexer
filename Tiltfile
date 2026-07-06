@@ -21,10 +21,11 @@ local_resource('lint',
 if not k8s_context().startswith('kind-'):
     fail('expected a kind k8s context (see `just cluster-up`), got "%s"' % k8s_context())
 
-# Web frontend unit tests (Vitest); the Go test suite is covered by
-# test-integration below.
+# Web frontend unit tests (Vitest) with the coverage gate from
+# web/vitest.config.ts; the Go test suite is covered by test-integration
+# below.
 local_resource('test-web',
-   cmd='pnpm --dir web install --frozen-lockfile && pnpm --dir web test',
+   cmd='pnpm --dir web install --frozen-lockfile && pnpm --dir web test:coverage',
    deps=['web/src', 'web/package.json', 'web/vitest.config.ts'],
 )
 
