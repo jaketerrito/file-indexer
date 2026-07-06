@@ -32,5 +32,5 @@
 - trivy image scan job currently rebuilds images for indexer + migrate from scratch. Should instead scan images already built by test.yml's `tilt ci` — either by exporting as artifacts across jobs (same workflow) or pushing to a registry first.
 - tilt ci should only be relied on for integration tests (set it up to only run minimum necessary changes for that)
 
-TODO:
-- Frontend
+7/5/26
+- The crawler process needs to clean up files in the db that don't exist in s3. Should also do something instead of error when it finds file that already exists in db... perhaps upsert?

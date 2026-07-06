@@ -2,12 +2,15 @@
 help:
     @just --list
 
-# Regenerate all generated code (sqlc, protobuf) via go generate
+# Regenerate all generated code (sqlc, protobuf, web TS clients). The web
+# codegen requires pnpm: protoc-gen-es comes from web/node_modules.
 generate:
     go generate ./...
+    pnpm --dir web install --frozen-lockfile
+    go tool buf generate --template proto/buf.gen.web.yaml proto
 
-# Run all linters (Go + Kubernetes manifests + protobuf)
-lint: lint-go lint-k8s lint-proto
+# Run all linters (Go + Kubernetes manifests + protobuf + web TS)
+lint: lint-go lint-k8s lint-proto lint-web
 
 # Run golangci-lint checks on all Go code
 lint-go:
@@ -21,8 +24,13 @@ lint-k8s:
 lint-proto:
     go tool buf lint proto
 
-# Auto-format all code (Go + YAML + protobuf)
-fmt: fmt-go fmt-yaml fmt-proto
+# Lint + format-check web TypeScript with Biome
+lint-web:
+    pnpm --dir web install --frozen-lockfile
+    pnpm --dir web lint
+
+# Auto-format all code (Go + YAML + protobuf + web TS)
+fmt: fmt-go fmt-yaml fmt-proto fmt-web
 
 # Auto-format Go code with golangci-lint
 fmt-go:
@@ -35,6 +43,11 @@ fmt-yaml:
 # Auto-format protobuf files with buf
 fmt-proto:
     go tool buf format -w proto
+
+# Auto-format (and apply safe lint fixes to) web TypeScript with Biome
+fmt-web:
+    pnpm --dir web install --frozen-lockfile
+    pnpm --dir web fmt
 
 # Create (or update) the local kind cluster and image registry via ctlptl
 cluster-up:

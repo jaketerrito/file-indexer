@@ -19,7 +19,11 @@ func (d DatabaseConfig) URL() string {
 }
 
 type S3Config struct {
-	Endpoint        string
+	Endpoint string
+	// PublicEndpoint, when set, is the endpoint presigned URLs are signed
+	// against so they are reachable by clients outside the cluster network
+	// (e.g. browsers). Empty means presign against Endpoint.
+	PublicEndpoint  string
 	AccessKeyID     string
 	SecretAccessKey string
 	Bucket          string
@@ -50,6 +54,7 @@ func Load() *Config {
 		},
 		S3: S3Config{
 			Endpoint:        os.Getenv("S3_ENDPOINT"),
+			PublicEndpoint:  os.Getenv("S3_PUBLIC_ENDPOINT"),
 			AccessKeyID:     os.Getenv("S3_ACCESS_ID"),
 			SecretAccessKey: os.Getenv("S3_SECRET"),
 			Bucket:          os.Getenv("S3_BUCKET"),

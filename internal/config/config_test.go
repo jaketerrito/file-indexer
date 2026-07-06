@@ -20,6 +20,7 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("DB_PASSWORD", "pw")
 	t.Setenv("DB_NAME", "n")
 	t.Setenv("S3_ENDPOINT", "e")
+	t.Setenv("S3_PUBLIC_ENDPOINT", "pub")
 	t.Setenv("S3_ACCESS_ID", "id")
 	t.Setenv("S3_SECRET", "secret")
 	t.Setenv("S3_BUCKET", "b")
@@ -33,6 +34,9 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.S3.Endpoint != "e" {
 		t.Errorf("S3 Endpoint = %q, want %q", cfg.S3.Endpoint, "e")
+	}
+	if cfg.S3.PublicEndpoint != "pub" {
+		t.Errorf("S3 PublicEndpoint = %q, want %q", cfg.S3.PublicEndpoint, "pub")
 	}
 }
 
