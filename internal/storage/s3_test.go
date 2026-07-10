@@ -11,7 +11,7 @@ import (
 // bucket-location lookup), so these tests need no running object store.
 
 func TestGetURLSignsAgainstPublicEndpoint(t *testing.T) {
-	s, err := NewWithPublicEndpoint("internal:9000", "public.example.com:9000", "id", "secret", false, "bkt")
+	s, err := NewWithPublicEndpoint("internal:9000", "public.example.com:9000", "id", "secret", false, "bkt", "us-east-1")
 	if err != nil {
 		t.Fatalf("NewWithPublicEndpoint: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestGetURLSignsAgainstPublicEndpoint(t *testing.T) {
 }
 
 func TestNewWithPublicEndpointRejectsInvalidEndpoint(t *testing.T) {
-	if _, err := NewWithPublicEndpoint("internal:9000", "http://has-a-scheme:9000", "id", "secret", false, "bkt"); err == nil {
+	if _, err := NewWithPublicEndpoint("internal:9000", "http://has-a-scheme:9000", "id", "secret", false, "bkt", "us-east-1"); err == nil {
 		t.Error("expected error for public endpoint with scheme, got nil")
 	}
 }

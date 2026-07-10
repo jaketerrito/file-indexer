@@ -24,6 +24,7 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("S3_ACCESS_ID", "id")
 	t.Setenv("S3_SECRET", "secret")
 	t.Setenv("S3_BUCKET", "b")
+	t.Setenv("S3_REGION", "eu-west-2")
 
 	cfg := Load()
 	if cfg.GrpcAddr != ":9999" {
@@ -37,6 +38,9 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.S3.PublicEndpoint != "pub" {
 		t.Errorf("S3 PublicEndpoint = %q, want %q", cfg.S3.PublicEndpoint, "pub")
+	}
+	if cfg.S3.Region != "eu-west-2" {
+		t.Errorf("S3 Region = %q, want %q", cfg.S3.Region, "eu-west-2")
 	}
 }
 

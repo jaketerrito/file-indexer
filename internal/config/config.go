@@ -27,6 +27,9 @@ type S3Config struct {
 	AccessKeyID     string
 	SecretAccessKey string
 	Bucket          string
+	// Region is used for SigV4 request signing. When empty, the minio
+	// client falls back to its default ("us-east-1").
+	Region string
 }
 
 type Config struct {
@@ -58,6 +61,7 @@ func Load() *Config {
 			AccessKeyID:     os.Getenv("S3_ACCESS_ID"),
 			SecretAccessKey: os.Getenv("S3_SECRET"),
 			Bucket:          os.Getenv("S3_BUCKET"),
+			Region:          os.Getenv("S3_REGION"),
 		},
 	}
 }
