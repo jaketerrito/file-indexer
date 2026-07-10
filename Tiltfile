@@ -1,7 +1,7 @@
 # The web resources (lint, test-web, and the web image) and codegen need npm,
-# which ships with Node; install Node >= 26.5 (see README).
+# which ships with Node; install Node >= 24 (see README).
 if not str(local('command -v npm || true', quiet=True, echo_off=True)).strip():
-    fail('npm not found on PATH; install Node >= 26.5 (https://nodejs.org) and restart tilt')
+    fail('npm not found on PATH; install Node >= 24 (https://nodejs.org) and restart tilt')
 
 local_resource('generate',
    cmd='just generate',

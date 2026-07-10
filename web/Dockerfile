@@ -1,5 +1,5 @@
 # Build stage: install all deps, build client + SSR server bundles.
-FROM node:26.5-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -10,10 +10,12 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 # Runtime stage: static client assets + SSR fetch handler served by srvx.
-FROM node:26.5-alpine
-# npm is build-time only; it vendors a vulnerable undici (CVE-2026-12151),
-# so remove it from the runtime image entirely. Only `node` is needed to
-# run srvx.
+# npm is build-time only and vendors its own deps (undici et al) that image
+# scanners flag, so strip it from the runtime image; only `node` is needed.
+# TODO: move to gcr.io/distroless/nodejs26 once it exists (Node 26 goes LTS
+# 2026-10) and its base has current openssl; distroless nodejs24 currently
+# ships a stale libssl3 that fails the trivy gate.
+FROM node:24-alpine
 RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app
 ENV NODE_ENV=production
@@ -22,4 +24,6 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 USER 10001:10001
 EXPOSE 3000
-CMD ["./node_modules/.bin/srvx", "serve", "--prod", "--dir=.", "--static=dist/client", "--entry=dist/server/server.js"]
+# Invoke the srvx entry module with node directly rather than the
+# node_modules/.bin/srvx shebang wrapper.
+CMD ["node", "node_modules/srvx/bin/srvx.mjs", "serve", "--prod", "--dir=.", "--static=dist/client", "--entry=dist/server/server.js"]
