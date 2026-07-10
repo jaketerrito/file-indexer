@@ -34,6 +34,7 @@ type s3Env struct {
 	endpoint string
 	accessID string
 	secret   string
+	region   string
 }
 
 func testEnv(t *testing.T) s3Env {
@@ -45,6 +46,7 @@ func testEnv(t *testing.T) s3Env {
 		endpoint: os.Getenv("S3_ENDPOINT"),
 		accessID: os.Getenv("S3_ACCESS_ID"),
 		secret:   os.Getenv("S3_SECRET"),
+		region:   os.Getenv("S3_REGION"),
 	}
 }
 
@@ -84,7 +86,7 @@ func setupBucket(t *testing.T) (Storage, *minio.Client, string) {
 		}
 	})
 
-	s, err := New(env.endpoint, env.accessID, env.secret, false, bucket)
+	s, err := New(env.endpoint, env.accessID, env.secret, false, bucket, env.region)
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -104,7 +106,7 @@ func putObject(t *testing.T, client *minio.Client, bucket, key, content, content
 func TestNewInvalidEndpoint(t *testing.T) {
 	testEnv(t)
 
-	if _, err := New("localhost:9000/not-just-a-host", "id", "secret", false, "bucket"); err == nil {
+	if _, err := New("localhost:9000/not-just-a-host", "id", "secret", false, "bucket", "us-east-1"); err == nil {
 		t.Fatal("New with invalid endpoint: want error, got nil")
 	}
 }

@@ -24,7 +24,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	s3, err := storage.New(cfg.S3.Endpoint, cfg.S3.AccessKeyID, cfg.S3.SecretAccessKey, false, cfg.S3.Bucket)
+	s3, err := storage.New(cfg.S3.Endpoint, cfg.S3.AccessKeyID, cfg.S3.SecretAccessKey, false, cfg.S3.Bucket, cfg.S3.Region)
 	if err != nil {
 		slog.Error("storage init failed", "error", err)
 		os.Exit(1)

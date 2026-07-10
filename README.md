@@ -25,6 +25,7 @@ SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) i
 - [docker](https://docs.docker.com/engine/install/)
 - [kind](https://kind.sigs.k8s.io)
 - [ctlptl](https://github.com/tilt-dev/ctlptl)
+- [Node.js](https://nodejs.org) >= 24 (current LTS; npm ships with it; used for the web frontend)
 
 ### Components
 - kind cluster provisioned with ctlptl
