@@ -5,6 +5,7 @@
   "engines": {
     "node": ">=24"
   },
+  "//": "The start script args are duplicated in the Dockerfile CMD (which invokes node_modules/srvx/bin/srvx.mjs directly; no npm in the runtime image). Keep both in sync.",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
