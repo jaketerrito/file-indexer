@@ -6,4 +6,3 @@ formatter:
   include_document_start: false
 exclude:
   - web/node_modules
-  - web/pnpm-lock.yaml

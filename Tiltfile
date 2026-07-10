@@ -1,8 +1,7 @@
-# The web resources (lint, test-web, and the web image) need pnpm. Node
-# itself is auto-managed by pnpm via devEngines in web/package.json, so a
-# standalone pnpm install is the only requirement (see README).
-if not str(local('command -v pnpm || true', quiet=True, echo_off=True)).strip():
-    fail('pnpm not found on PATH; install it (https://pnpm.io/installation) and restart tilt')
+# The web resources (lint, test-web, and the web image) and codegen need npm,
+# which ships with Node; install Node >= 26.5 (see README).
+if not str(local('command -v npm || true', quiet=True, echo_off=True)).strip():
+    fail('npm not found on PATH; install Node >= 26.5 (https://nodejs.org) and restart tilt')
 
 local_resource('generate',
    cmd='just generate',
@@ -15,19 +14,22 @@ local_resource('lint',
    deps=['internal/', 'web/src', 'web/biome.json'],
 )
 
+local_resource('test-web',
+   cmd='just test-web',
+   deps=['web/src', 'web/package.json', 'web/vitest.config.ts'],
+)
+
+local_resource('test-integration',
+   cmd='just test-integration',
+   deps=['internal/', 'cmd/'],
+   resource_deps=['postgres', 'local-s3', 'migrate'],
+)
+
 # Guard against accidentally deploying to a non-dev cluster. Local clusters
 # are created by ctlptl (see ctlptl.yaml), which also provides the image
 # registry that Tilt auto-detects; run `just cluster-up`.
 if not k8s_context().startswith('kind-'):
     fail('expected a kind k8s context (see `just cluster-up`), got "%s"' % k8s_context())
-
-# Web frontend unit tests (Vitest) with the coverage gate from
-# web/vitest.config.ts; the Go test suite is covered by test-integration
-# below.
-local_resource('test-web',
-   cmd='just test-web',
-   deps=['web/src', 'web/package.json', 'web/vitest.config.ts'],
-)
 
 docker_build('migrate', '.', build_args={'BUILD_TARGET': './cmd/migrate'})
 docker_build('indexer', '.', build_args={'BUILD_TARGET': './cmd/indexer'})
@@ -47,16 +49,6 @@ k8s_resource(
 )
 k8s_resource('postgres', port_forwards=5432)
 
-# Full test suite (unit + integration) against the port-forwarded postgres and
-# MinIO above, including the coverage threshold check. Runs on `tilt up` and on
-# every Go file change. Waits for the migrate Job so the schema is already in
-# place (the tests also run migrations themselves, guarded by a session lock,
-# so they stay runnable against a bare postgres).
-local_resource('test-integration',
-   cmd='just test-integration',
-   deps=['internal/', 'cmd/'],
-   resource_deps=['postgres', 'local-s3', 'migrate'],
-)
 k8s_resource('migrate', resource_deps=['postgres'])
 k8s_resource('indexer', resource_deps=['postgres', 'migrate', 'local-s3'], port_forwards=50051)
 k8s_resource('files', resource_deps=['postgres', 'migrate', 'local-s3'], port_forwards='50052:50051')

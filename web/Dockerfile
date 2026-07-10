@@ -1,17 +1,16 @@
 # Build stage: install all deps, build client + SSR server bundles.
-FROM node:22-alpine AS build
+FROM node:26.5-alpine AS build
 WORKDIR /app
-RUN corepack enable pnpm
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+COPY package.json package-lock.json ./
+RUN npm ci
 COPY . .
-RUN pnpm build
+RUN npm run build
 # Drop devDependencies; dist/server externalizes runtime deps (react, srvx,
 # connect, ...) so production node_modules must ship in the final image.
-RUN pnpm prune --prod
+RUN npm prune --omit=dev
 
 # Runtime stage: static client assets + SSR fetch handler served by srvx.
-FROM node:22-alpine
+FROM node:26.5-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/package.json ./package.json

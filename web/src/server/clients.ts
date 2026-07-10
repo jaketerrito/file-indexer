@@ -4,7 +4,7 @@ import { FilesService } from '../gen/service/v1/files_pb'
 import { SearchService } from '../gen/service/v1/search_pb'
 
 // Server-only module: dials the Go gRPC services directly. Defaults match the
-// Tilt port-forwards (files 50052, search 50053) so `pnpm dev` works against
+// Tilt port-forwards (files 50052, search 50053) so `npm run dev` works against
 // a running `just up` environment; in-cluster the deployment sets
 // FILES_ADDR/SEARCH_ADDR to the k8s service DNS names.
 

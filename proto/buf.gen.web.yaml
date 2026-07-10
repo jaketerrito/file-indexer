@@ -2,7 +2,7 @@
 #   go tool buf generate --template proto/buf.gen.web.yaml proto
 # (part of `just generate`)
 #
-# protoc-gen-es comes from web/node_modules, so `pnpm install` must have run
+# protoc-gen-es comes from web/node_modules, so `npm install` must have run
 # in web/ first. It generates message types and service descriptors consumed
 # by @connectrpc/connect in TanStack Start server functions.
 version: v2

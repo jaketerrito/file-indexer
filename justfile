@@ -3,10 +3,10 @@ help:
     @just --list
 
 # Regenerate all generated code (sqlc, protobuf, web TS clients). The web
-# codegen requires pnpm: protoc-gen-es comes from web/node_modules.
+# codegen requires npm: protoc-gen-es comes from web/node_modules.
 generate:
     go generate ./...
-    pnpm --dir web install --frozen-lockfile
+    npm --prefix web ci
     go tool buf generate --template proto/buf.gen.web.yaml proto
 
 # Run all linters (Go + Kubernetes manifests + protobuf + web TS)
@@ -26,8 +26,8 @@ lint-proto:
 
 # Lint + format-check web TypeScript with Biome
 lint-web:
-    pnpm --dir web install --frozen-lockfile
-    pnpm --dir web lint
+    npm --prefix web ci
+    npm --prefix web run lint
 
 # Auto-format all code (Go + YAML + protobuf + web TS)
 fmt: fmt-go fmt-yaml fmt-proto fmt-web
@@ -46,8 +46,8 @@ fmt-proto:
 
 # Auto-format (and apply safe lint fixes to) web TypeScript with Biome
 fmt-web:
-    pnpm --dir web install --frozen-lockfile
-    pnpm --dir web fmt
+    npm --prefix web ci
+    npm --prefix web run fmt
 
 # Create (or update) the local kind cluster and image registry via ctlptl
 cluster-up:
@@ -103,8 +103,8 @@ test-integration:
 
 # Run web frontend unit tests with Vitest (coverage gate from web/vitest.config.ts)
 test-web:
-    pnpm --dir web install --frozen-lockfile
-    pnpm --dir web test:coverage
+    npm --prefix web ci
+    npm --prefix web run test:coverage
 
 # Connect to the project postgres database
 psql:

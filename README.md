@@ -25,9 +25,7 @@ SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) i
 - [docker](https://docs.docker.com/engine/install/)
 - [kind](https://kind.sigs.k8s.io)
 - [ctlptl](https://github.com/tilt-dev/ctlptl)
-- [pnpm](https://pnpm.io/installation) (standalone install is enough — Node itself is
-  auto-downloaded by pnpm via `devEngines` in `web/package.json`, so no system Node or
-  version manager is required)
+- [Node.js](https://nodejs.org) >= 26.5 (npm ships with it; used for the web frontend)
 
 ### Components
 - kind cluster provisioned with ctlptl
