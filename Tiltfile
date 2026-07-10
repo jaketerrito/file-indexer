@@ -1,3 +1,8 @@
+# The web resources (lint, test-web, and the web image) and codegen need npm,
+# which ships with Node; install Node >= 24 (see README).
+if not str(local('command -v npm || true', quiet=True, echo_off=True)).strip():
+    fail('npm not found on PATH; install Node >= 24 (https://nodejs.org) and restart tilt')
+
 local_resource('generate',
    cmd='just generate',
    deps=['internal/db/queries', 'internal/db/migrations', 'proto'],
@@ -6,7 +11,18 @@ local_resource('generate',
 
 local_resource('lint',
    cmd='just lint',
-   deps=['internal/'],
+   deps=['internal/', 'web/src', 'web/biome.json'],
+)
+
+local_resource('test-web',
+   cmd='just test-web',
+   deps=['web/src', 'web/package.json', 'web/vitest.config.ts'],
+)
+
+local_resource('test-integration',
+   cmd='just test-integration',
+   deps=['internal/', 'cmd/'],
+   resource_deps=['postgres', 'local-s3', 'migrate'],
 )
 
 # Guard against accidentally deploying to a non-dev cluster. Local clusters
@@ -20,6 +36,7 @@ docker_build('indexer', '.', build_args={'BUILD_TARGET': './cmd/indexer'})
 docker_build('files', '.', build_args={'BUILD_TARGET': './cmd/files'})
 docker_build('search', '.', build_args={'BUILD_TARGET': './cmd/search'})
 docker_build('crawler', '.', build_args={'BUILD_TARGET': './cmd/crawler'})
+docker_build('web', 'web')
 
 k8s_yaml(kustomize('deploy'))
 
@@ -32,20 +49,15 @@ k8s_resource(
 )
 k8s_resource('postgres', port_forwards=5432)
 
-# Full test suite (unit + integration) against the port-forwarded postgres and
-# MinIO above, including the coverage threshold check. Runs on `tilt up` and on
-# every Go file change. Waits for the migrate Job so the schema is already in
-# place (the tests also run migrations themselves, guarded by a session lock,
-# so they stay runnable against a bare postgres).
-local_resource('test-integration',
-   cmd='just test-integration',
-   deps=['internal/', 'cmd/'],
-   resource_deps=['postgres', 'local-s3', 'migrate'],
-)
 k8s_resource('migrate', resource_deps=['postgres'])
 k8s_resource('indexer', resource_deps=['postgres', 'migrate', 'local-s3'], port_forwards=50051)
 k8s_resource('files', resource_deps=['postgres', 'migrate', 'local-s3'], port_forwards='50052:50051')
 k8s_resource('search', resource_deps=['postgres', 'migrate'], port_forwards='50053:50051')
+k8s_resource(
+    'web',
+    resource_deps=['files', 'search'],
+    port_forwards=port_forward(local_port=3000, container_port=3000, name='Web UI'),
+)
 k8s_resource(
     'crawler',
     resource_deps=['indexer', 'local-s3'],

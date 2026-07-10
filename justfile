@@ -2,12 +2,15 @@
 help:
     @just --list
 
-# Regenerate all generated code (sqlc, protobuf) via go generate
+# Regenerate all generated code (sqlc, protobuf, web TS clients). The web
+# codegen requires npm: protoc-gen-es comes from web/node_modules.
 generate:
     go generate ./...
+    npm --prefix web ci
+    go tool buf generate --template proto/buf.gen.web.yaml proto
 
-# Run all linters (Go + Kubernetes manifests + protobuf)
-lint: lint-go lint-k8s lint-proto
+# Run all linters (Go + Kubernetes manifests + protobuf + web TS)
+lint: lint-go lint-k8s lint-proto lint-web
 
 # Run golangci-lint checks on all Go code
 lint-go:
@@ -21,8 +24,13 @@ lint-k8s:
 lint-proto:
     go tool buf lint proto
 
-# Auto-format all code (Go + YAML + protobuf)
-fmt: fmt-go fmt-yaml fmt-proto
+# Lint + format-check web TypeScript with Biome
+lint-web:
+    npm --prefix web ci
+    npm --prefix web run lint
+
+# Auto-format all code (Go + YAML + protobuf + web TS)
+fmt: fmt-go fmt-yaml fmt-proto fmt-web
 
 # Auto-format Go code with golangci-lint
 fmt-go:
@@ -35,6 +43,11 @@ fmt-yaml:
 # Auto-format protobuf files with buf
 fmt-proto:
     go tool buf format -w proto
+
+# Auto-format (and apply safe lint fixes to) web TypeScript with Biome
+fmt-web:
+    npm --prefix web ci
+    npm --prefix web run fmt
 
 # Create (or update) the local kind cluster and image registry via ctlptl
 cluster-up:
@@ -84,9 +97,14 @@ test-verbose:
 # port-forwards). Integration tests fail hard if the services are unreachable.
 test-integration:
     DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=mysecretpassword DB_NAME=postgres \
-    S3_ENDPOINT=localhost:9000 S3_ACCESS_ID=user S3_SECRET=password S3_BUCKET=test \
-    go test -tags=integration -race ./... -coverprofile=coverage.out -covermode=atomic -coverpkg=./...
+    S3_ENDPOINT=localhost:9000 S3_ACCESS_ID=user S3_SECRET=password S3_BUCKET=test S3_REGION=us-east-1 \
+    go test -tags=integration -race -count=1 ./... -coverprofile=coverage.out -covermode=atomic -coverpkg=./...
     go tool go-test-coverage --config=.testcoverage.yml
+
+# Run web frontend unit tests with Vitest (coverage gate from web/vitest.config.ts)
+test-web:
+    npm --prefix web ci
+    npm --prefix web run test:coverage
 
 # Connect to the project postgres database
 psql:
