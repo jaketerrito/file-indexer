@@ -101,6 +101,11 @@ test-integration:
     go test -tags=integration -race ./... -coverprofile=coverage.out -covermode=atomic -coverpkg=./...
     go tool go-test-coverage --config=.testcoverage.yml
 
+# Run web frontend unit tests with Vitest (coverage gate from web/vitest.config.ts)
+test-web:
+    pnpm --dir web install --frozen-lockfile
+    pnpm --dir web test:coverage
+
 # Connect to the project postgres database
 psql:
     psql -h localhost -U postgres -d postgres
