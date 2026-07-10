@@ -11,6 +11,10 @@ RUN npm prune --omit=dev
 
 # Runtime stage: static client assets + SSR fetch handler served by srvx.
 FROM node:26.5-alpine
+# npm is build-time only; it vendors a vulnerable undici (CVE-2026-12151),
+# so remove it from the runtime image entirely. Only `node` is needed to
+# run srvx.
+RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/package.json ./package.json
