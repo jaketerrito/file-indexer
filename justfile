@@ -98,7 +98,7 @@ test-verbose:
 test-integration:
     DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=mysecretpassword DB_NAME=postgres \
     S3_ENDPOINT=localhost:9000 S3_ACCESS_ID=user S3_SECRET=password S3_BUCKET=test S3_REGION=us-east-1 \
-    go test -tags=integration -race ./... -coverprofile=coverage.out -covermode=atomic -coverpkg=./...
+    go test -tags=integration -race -count=1 ./... -coverprofile=coverage.out -covermode=atomic -coverpkg=./...
     go tool go-test-coverage --config=.testcoverage.yml
 
 # Run web frontend unit tests with Vitest (coverage gate from web/vitest.config.ts)
