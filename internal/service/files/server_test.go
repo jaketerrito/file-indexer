@@ -35,12 +35,12 @@ func TestNew(t *testing.T) {
 
 func TestGetFileInfo(t *testing.T) {
 	now := time.Now()
-	want := db.File{
+	want := db.FileInfo{
 		ID: 1, Key: "obj-key",
-		ContentType: pgtype.Text{String: "text/plain", Valid: true},
-		SizeBytes:   pgtype.Int8{Int64: 100, Valid: true},
-		CreatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
+		ContentType:  pgtype.Text{String: "text/plain", Valid: true},
+		SizeBytes:    pgtype.Int8{Int64: 100, Valid: true},
+		CreatedAt:    pgtype.Timestamptz{Time: now, Valid: true},
+		LastModified: pgtype.Timestamptz{Time: now, Valid: true},
 	}
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(want, nil)
@@ -58,7 +58,7 @@ func TestGetFileInfo(t *testing.T) {
 
 func TestGetFileInfoNotFound(t *testing.T) {
 	queries := NewMockFileIndex(t)
-	queries.EXPECT().GetFile(mock.Anything, int64(99)).Return(db.File{}, errors.New("not found"))
+	queries.EXPECT().GetFile(mock.Anything, int64(99)).Return(db.FileInfo{}, errors.New("not found"))
 
 	srv := FilesServer{queries: queries}
 
@@ -69,11 +69,9 @@ func TestGetFileInfoNotFound(t *testing.T) {
 }
 
 func TestDeleteFile(t *testing.T) {
-	file := db.File{ID: 1, Key: "obj-key"}
-
 	queries := NewMockFileIndex(t)
-	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(file, nil)
-	queries.EXPECT().DeleteFile(mock.Anything, int64(1)).Return(file, nil)
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "obj-key"}, nil)
+	queries.EXPECT().DeleteFile(mock.Anything, int64(1)).Return(db.File{ID: 1, Key: "obj-key"}, nil)
 
 	storage := NewMockObjectStore(t)
 	storage.EXPECT().Delete(mock.Anything, "obj-key").Return(nil)
@@ -87,10 +85,8 @@ func TestDeleteFile(t *testing.T) {
 }
 
 func TestDeleteFileStorageError(t *testing.T) {
-	file := db.File{ID: 1, Key: "obj-key"}
-
 	queries := NewMockFileIndex(t)
-	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(file, nil)
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "obj-key"}, nil)
 	// DeleteFile must never be called when storage deletion fails.
 
 	storage := NewMockObjectStore(t)
@@ -107,7 +103,7 @@ func TestDeleteFileStorageError(t *testing.T) {
 
 func TestDeleteFileGetFileError(t *testing.T) {
 	queries := NewMockFileIndex(t)
-	queries.EXPECT().GetFile(mock.Anything, int64(7)).Return(db.File{}, errors.New("not found"))
+	queries.EXPECT().GetFile(mock.Anything, int64(7)).Return(db.FileInfo{}, errors.New("not found"))
 
 	storage := NewMockObjectStore(t)
 
@@ -121,10 +117,8 @@ func TestDeleteFileGetFileError(t *testing.T) {
 }
 
 func TestDeleteFileDBDeleteError(t *testing.T) {
-	file := db.File{ID: 1, Key: "obj-key"}
-
 	queries := NewMockFileIndex(t)
-	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(file, nil)
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "obj-key"}, nil)
 	queries.EXPECT().DeleteFile(mock.Anything, int64(1)).Return(db.File{}, errors.New("db error"))
 
 	storage := NewMockObjectStore(t)
@@ -140,12 +134,12 @@ func TestDeleteFileDBDeleteError(t *testing.T) {
 
 func TestDbFileToProto(t *testing.T) {
 	now := time.Now()
-	f := db.File{
+	f := db.FileInfo{
 		ID: 1, Key: "k",
-		ContentType: pgtype.Text{String: "image/png", Valid: true},
-		SizeBytes:   pgtype.Int8{Int64: 200, Valid: true},
-		CreatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
+		ContentType:  pgtype.Text{String: "image/png", Valid: true},
+		SizeBytes:    pgtype.Int8{Int64: 200, Valid: true},
+		CreatedAt:    pgtype.Timestamptz{Time: now, Valid: true},
+		LastModified: pgtype.Timestamptz{Time: now, Valid: true},
 	}
 	pf := dbFileToProto(f)
 	if pf.Id != 1 || pf.Key != "k" || pf.ContentType != "image/png" || pf.SizeBytes != 200 {
@@ -160,17 +154,20 @@ func TestDbFileToProto(t *testing.T) {
 }
 
 func TestDbFileToProtoNullFields(t *testing.T) {
-	f := db.File{
+	f := db.FileInfo{
 		ID: 2, Key: "nulls",
 	}
 	pf := dbFileToProto(f)
 	if pf.Id != 2 || pf.ContentType != "" || pf.SizeBytes != 0 {
 		t.Errorf("dbFileToProto = %+v", pf)
 	}
+	if pf.CreatedAt != nil || pf.UpdatedAt != nil {
+		t.Errorf("timestamps = (%v, %v), want unset for NULLs", pf.CreatedAt, pf.UpdatedAt)
+	}
 }
 
 func TestGetDownloadURL(t *testing.T) {
-	files := []db.File{
+	files := []db.FileInfo{
 		{ID: 1, Key: "obj-1"},
 		{ID: 2, Key: "obj-2"},
 	}
@@ -209,7 +206,7 @@ func TestGetDownloadURLQueryError(t *testing.T) {
 }
 
 func TestGetDownloadURLStorageError(t *testing.T) {
-	files := []db.File{{ID: 1, Key: "obj-1"}}
+	files := []db.FileInfo{{ID: 1, Key: "obj-1"}}
 
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().GetFilesByIDs(mock.Anything, []int64{1}).Return(files, nil)
@@ -243,12 +240,12 @@ func freeAddr(t *testing.T) string {
 
 func TestServe(t *testing.T) {
 	now := time.Now()
-	file := db.File{
+	file := db.FileInfo{
 		ID: 7, Key: "obj-key",
-		ContentType: pgtype.Text{String: "text/plain", Valid: true},
-		SizeBytes:   pgtype.Int8{Int64: 100, Valid: true},
-		CreatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
+		ContentType:  pgtype.Text{String: "text/plain", Valid: true},
+		SizeBytes:    pgtype.Int8{Int64: 100, Valid: true},
+		CreatedAt:    pgtype.Timestamptz{Time: now, Valid: true},
+		LastModified: pgtype.Timestamptz{Time: now, Valid: true},
 	}
 
 	queries := NewMockFileIndex(t)

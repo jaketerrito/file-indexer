@@ -24,9 +24,11 @@ type Job struct {
 	Attempts int32
 }
 
-// Queue is the persistence adapter for one index type's job table. All
-// methods must be safe for concurrent use.
-type Queue interface {
+// Queue is the persistence adapter for one index type's job table. R is the
+// result type the index type produces; Complete persists it together with
+// the done status in one atomic write. All methods must be safe for
+// concurrent use.
+type Queue[R any] interface {
 	// Seed enqueues files that are not yet known to this index type and
 	// returns how many were added.
 	Seed(ctx context.Context) (int64, error)
@@ -36,23 +38,23 @@ type Queue interface {
 	// Release returns a claimed-but-unstarted job to pending without
 	// consuming an attempt (pool shutdown between claim and dispatch).
 	Release(ctx context.Context, fileID int64) error
-	// Complete marks a job done.
-	Complete(ctx context.Context, fileID int64) error
+	// Complete marks a job done and records its result.
+	Complete(ctx context.Context, fileID int64, result R) error
 	// Fail records a failed attempt. When exhausted is false the job becomes
 	// claimable again at nextAttempt; otherwise it is parked as an error.
 	Fail(ctx context.Context, fileID int64, cause string, nextAttempt time.Time, exhausted bool) error
 }
 
-// Handler performs the indexing work for one job. A nil return marks the job
-// done; an error triggers the retry policy.
-type Handler interface {
-	Handle(ctx context.Context, job Job) error
+// Handler performs the indexing work for one job and returns the result to
+// persist. An error triggers the retry policy and the result is discarded.
+type Handler[R any] interface {
+	Handle(ctx context.Context, job Job) (R, error)
 }
 
 // HandlerFunc adapts a function to the Handler interface.
-type HandlerFunc func(ctx context.Context, job Job) error
+type HandlerFunc[R any] func(ctx context.Context, job Job) (R, error)
 
-func (f HandlerFunc) Handle(ctx context.Context, job Job) error { return f(ctx, job) }
+func (f HandlerFunc[R]) Handle(ctx context.Context, job Job) (R, error) { return f(ctx, job) }
 
 // Config carries the pool's tuning knobs. Zero values are replaced by the
 // defaults below in New.
@@ -120,10 +122,10 @@ const (
 
 // Pool polls a Queue and fans claimed jobs out to a fixed set of worker
 // goroutines running the Handler.
-type Pool struct {
+type Pool[R any] struct {
 	cfg     Config
-	queue   Queue
-	handler Handler
+	queue   Queue[R]
+	handler Handler[R]
 	name    string
 	// now and retryDelay are stubbed in tests.
 	now        func() time.Time
@@ -132,8 +134,8 @@ type Pool struct {
 
 // New constructs a Pool. name labels log lines (e.g. "stat"). It does no
 // I/O; call Run to start.
-func New(name string, cfg Config, queue Queue, handler Handler) *Pool {
-	return &Pool{
+func New[R any](name string, cfg Config, queue Queue[R], handler Handler[R]) *Pool[R] {
+	return &Pool[R]{
 		cfg:        cfg.withDefaults(),
 		queue:      queue,
 		handler:    handler,
@@ -146,7 +148,7 @@ func New(name string, cfg Config, queue Queue, handler Handler) *Pool {
 // Run seeds, polls, and executes jobs until ctx is cancelled, then waits for
 // in-flight jobs to finish and returns nil. Queue errors are logged and
 // retried on the next tick rather than aborting the pool.
-func (p *Pool) Run(ctx context.Context) error {
+func (p *Pool[R]) Run(ctx context.Context) error {
 	slog.Info("worker pool starting", "pool", p.name,
 		"workers", p.cfg.Workers, "pollInterval", p.cfg.PollInterval, "batchSize", p.cfg.BatchSize)
 
@@ -171,7 +173,7 @@ func (p *Pool) Run(ctx context.Context) error {
 // dispatch is the single dispatcher loop: it seeds on SeedInterval and
 // otherwise claims batches and hands them to workers, blocking (and thereby
 // applying backpressure) when all workers are busy.
-func (p *Pool) dispatch(ctx context.Context, jobs chan<- Job) {
+func (p *Pool[R]) dispatch(ctx context.Context, jobs chan<- Job) {
 	p.seed(ctx)
 	seedTick := time.NewTicker(p.cfg.SeedInterval)
 	defer seedTick.Stop()
@@ -213,7 +215,7 @@ func (p *Pool) dispatch(ctx context.Context, jobs chan<- Job) {
 }
 
 // release returns undispatched claims to pending during shutdown.
-func (p *Pool) release(ctx context.Context, jobs []Job) {
+func (p *Pool[R]) release(ctx context.Context, jobs []Job) {
 	for _, job := range jobs {
 		err := p.statusWrite(ctx, "release", job, func(c context.Context) error {
 			return p.queue.Release(c, job.FileID)
@@ -230,7 +232,7 @@ func (p *Pool) release(ctx context.Context, jobs []Job) {
 
 // statusWrite runs one queue status mutation with a per-try timeout and a
 // small retry budget.
-func (p *Pool) statusWrite(ctx context.Context, op string, job Job, fn func(ctx context.Context) error) error {
+func (p *Pool[R]) statusWrite(ctx context.Context, op string, job Job, fn func(ctx context.Context) error) error {
 	var err error
 	for try := 1; try <= statusWriteTries; try++ {
 		tryCtx, cancel := context.WithTimeout(ctx, statusWriteTimeout)
@@ -248,7 +250,7 @@ func (p *Pool) statusWrite(ctx context.Context, op string, job Job, fn func(ctx 
 	return err
 }
 
-func (p *Pool) seed(ctx context.Context) {
+func (p *Pool[R]) seed(ctx context.Context) {
 	n, err := p.queue.Seed(ctx)
 	if err != nil {
 		if ctx.Err() == nil {
@@ -264,15 +266,16 @@ func (p *Pool) seed(ctx context.Context) {
 // work executes jobs until the jobs channel closes. Status writes use a
 // context detached from cancellation so a job finishing during shutdown
 // still records its outcome instead of leaving a claim to expire.
-func (p *Pool) work(ctx context.Context, jobs <-chan Job) {
+func (p *Pool[R]) work(ctx context.Context, jobs <-chan Job) {
 	for job := range jobs {
 		statusCtx := context.WithoutCancel(ctx)
-		if err := p.handler.Handle(ctx, job); err != nil {
+		result, err := p.handler.Handle(ctx, job)
+		if err != nil {
 			p.fail(statusCtx, job, err)
 			continue
 		}
-		err := p.statusWrite(statusCtx, "complete", job, func(c context.Context) error {
-			return p.queue.Complete(c, job.FileID)
+		err = p.statusWrite(statusCtx, "complete", job, func(c context.Context) error {
+			return p.queue.Complete(c, job.FileID, result)
 		})
 		if err != nil {
 			// The row stays claimed and will be reclaimed after the TTL;
@@ -284,7 +287,7 @@ func (p *Pool) work(ctx context.Context, jobs <-chan Job) {
 	}
 }
 
-func (p *Pool) fail(ctx context.Context, job Job, cause error) {
+func (p *Pool[R]) fail(ctx context.Context, job Job, cause error) {
 	exhausted := job.Attempts >= p.cfg.MaxAttempts
 	nextAttempt := p.now().Add(p.backoff(job.Attempts))
 	err := p.statusWrite(ctx, "fail", job, func(c context.Context) error {
@@ -300,7 +303,7 @@ func (p *Pool) fail(ctx context.Context, job Job, cause error) {
 
 // backoff returns the delay before the next retry: BackoffBase doubled per
 // completed attempt, capped at BackoffMax.
-func (p *Pool) backoff(attempts int32) time.Duration {
+func (p *Pool[R]) backoff(attempts int32) time.Duration {
 	d := p.cfg.BackoffBase
 	for i := int32(1); i < attempts; i++ {
 		d *= 2

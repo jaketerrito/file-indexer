@@ -70,12 +70,33 @@ func (q *Queries) ClaimIndexStat(ctx context.Context, arg ClaimIndexStatParams) 
 
 const completeIndexStat = `-- name: CompleteIndexStat :exec
 UPDATE index_stat
-SET status = 'done', last_error = NULL, updated_at = now()
-WHERE file_id = $1
+SET status = 'done',
+    last_error = NULL,
+    updated_at = now(),
+    content_type = $1,
+    size_bytes = $2,
+    last_modified = date_trunc('second', $3::timestamptz)
+WHERE file_id = $4
 `
 
-func (q *Queries) CompleteIndexStat(ctx context.Context, fileID int64) error {
-	_, err := q.db.Exec(ctx, completeIndexStat, fileID)
+type CompleteIndexStatParams struct {
+	ContentType  pgtype.Text
+	SizeBytes    pgtype.Int8
+	LastModified pgtype.Timestamptz
+	FileID       int64
+}
+
+// Record a successful run: status flip and stat results in one atomic
+// UPDATE. last_modified is truncated to whole seconds to match the
+// precision the crawler's change detection compares against (HTTP
+// Last-Modified is second-precision; listings are sub-second).
+func (q *Queries) CompleteIndexStat(ctx context.Context, arg CompleteIndexStatParams) error {
+	_, err := q.db.Exec(ctx, completeIndexStat,
+		arg.ContentType,
+		arg.SizeBytes,
+		arg.LastModified,
+		arg.FileID,
+	)
 	return err
 }
 
@@ -127,21 +148,34 @@ func (q *Queries) ReleaseIndexStat(ctx context.Context, fileID int64) error {
 	return err
 }
 
-const resetIndexStat = `-- name: ResetIndexStat :execrows
-UPDATE index_stat
+const resetChangedIndexStat = `-- name: ResetChangedIndexStat :execrows
+UPDATE index_stat s
 SET status = 'pending', attempts = 0, next_attempt_at = now(), last_error = NULL, updated_at = now()
-WHERE file_id = ANY ($1::bigint[])
-  AND (status <> 'pending' OR attempts > 0 OR next_attempt_at > now())
+FROM files f,
+     (SELECT unnest($1::text[])                  AS key,
+             unnest($2::bigint[])               AS size_bytes,
+             unnest($3::timestamptz[]) AS last_modified) t
+WHERE f.key = t.key
+  AND s.file_id = f.id
+  AND s.status = 'done'
+  AND (s.size_bytes IS DISTINCT FROM t.size_bytes
+    OR s.last_modified IS DISTINCT FROM date_trunc('second', t.last_modified))
 `
 
-// Re-enqueue specific files (e.g. the crawler detected the object changed in
-// S3). Done/error/claimed rows all return to pending; attempts restart since
-// this is logically a new piece of work. Rows already pending are still
-// reset when they carry failure state (attempts or a backoff delay), so a
-// changed file mid-retry is re-indexed promptly instead of inheriting the
-// old failure's backoff.
-func (q *Queries) ResetIndexStat(ctx context.Context, fileIds []int64) (int64, error) {
-	result, err := q.db.Exec(ctx, resetIndexStat, fileIds)
+type ResetChangedIndexStatParams struct {
+	Keys          []string
+	Sizes         []int64
+	LastModifieds []pgtype.Timestamptz
+}
+
+// Crawler change detection: given the bucket listing (key, size,
+// last-modified triples), re-enqueue done rows whose stored stat results no
+// longer match the listing. Attempts restart since this is logically a new
+// piece of work. Only done rows are comparable — pending/claimed rows are
+// already queued and error rows have no results to compare (they stay
+// parked until manually reset).
+func (q *Queries) ResetChangedIndexStat(ctx context.Context, arg ResetChangedIndexStatParams) (int64, error) {
+	result, err := q.db.Exec(ctx, resetChangedIndexStat, arg.Keys, arg.Sizes, arg.LastModifieds)
 	if err != nil {
 		return 0, err
 	}

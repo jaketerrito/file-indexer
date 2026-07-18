@@ -25,12 +25,12 @@ const (
 // FileIndex is the database surface the search service depends on: one list
 // query per (sort field, direction), all keyset-paginated on (value, id).
 type FileIndex interface {
-	ListFilesByKeyAsc(ctx context.Context, arg db.ListFilesByKeyAscParams) ([]db.File, error)
-	ListFilesByKeyDesc(ctx context.Context, arg db.ListFilesByKeyDescParams) ([]db.File, error)
-	ListFilesByCreatedAtAsc(ctx context.Context, arg db.ListFilesByCreatedAtAscParams) ([]db.File, error)
-	ListFilesByCreatedAtDesc(ctx context.Context, arg db.ListFilesByCreatedAtDescParams) ([]db.File, error)
-	ListFilesBySizeAsc(ctx context.Context, arg db.ListFilesBySizeAscParams) ([]db.File, error)
-	ListFilesBySizeDesc(ctx context.Context, arg db.ListFilesBySizeDescParams) ([]db.File, error)
+	ListFilesByKeyAsc(ctx context.Context, arg db.ListFilesByKeyAscParams) ([]db.FileInfo, error)
+	ListFilesByKeyDesc(ctx context.Context, arg db.ListFilesByKeyDescParams) ([]db.FileInfo, error)
+	ListFilesByLastModifiedAsc(ctx context.Context, arg db.ListFilesByLastModifiedAscParams) ([]db.FileInfo, error)
+	ListFilesByLastModifiedDesc(ctx context.Context, arg db.ListFilesByLastModifiedDescParams) ([]db.FileInfo, error)
+	ListFilesBySizeAsc(ctx context.Context, arg db.ListFilesBySizeAscParams) ([]db.FileInfo, error)
+	ListFilesBySizeDesc(ctx context.Context, arg db.ListFilesBySizeDescParams) ([]db.FileInfo, error)
 }
 
 type SearchServer struct {
@@ -94,7 +94,7 @@ func (s *SearchServer) ListFiles(ctx context.Context, req *pb.ListFilesRequest) 
 }
 
 // listFiles dispatches to the sqlc query matching the requested sort.
-func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, sortOrder pb.SortOrder, prefix, contentType string, cur *cursor, limit int) ([]db.File, error) {
+func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, sortOrder pb.SortOrder, prefix, contentType string, cur *cursor, limit int) ([]db.FileInfo, error) {
 	keyPattern := escapeLike(prefix) + "%"
 	contentTypePattern := contentTypeToPattern(contentType)
 	asc := sortOrder == pb.SortOrder_SORT_ORDER_ASC
@@ -119,22 +119,22 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 			LastID:             cur.GetLastId(),
 			PageLimit:          int32(limit),
 		})
-	case pb.SortField_SORT_FIELD_CREATED_AT:
+	case pb.SortField_SORT_FIELD_LAST_MODIFIED:
 		if asc {
-			return s.queries.ListFilesByCreatedAtAsc(ctx, db.ListFilesByCreatedAtAscParams{
+			return s.queries.ListFilesByLastModifiedAsc(ctx, db.ListFilesByLastModifiedAscParams{
 				KeyPattern:         keyPattern,
 				ContentTypePattern: contentTypePattern,
 				HasCursor:          cur != nil,
-				LastCreatedAt:      lastCreatedAt(cur),
+				CursorLastModified: lastModifiedCursor(cur),
 				LastID:             cur.GetLastId(),
 				PageLimit:          int32(limit),
 			})
 		}
-		return s.queries.ListFilesByCreatedAtDesc(ctx, db.ListFilesByCreatedAtDescParams{
+		return s.queries.ListFilesByLastModifiedDesc(ctx, db.ListFilesByLastModifiedDescParams{
 			KeyPattern:         keyPattern,
 			ContentTypePattern: contentTypePattern,
 			HasCursor:          cur != nil,
-			LastCreatedAt:      lastCreatedAt(cur),
+			CursorLastModified: lastModifiedCursor(cur),
 			LastID:             cur.GetLastId(),
 			PageLimit:          int32(limit),
 		})
@@ -180,7 +180,7 @@ func normalizeSort(field pb.SortField, order pb.SortOrder) (pb.SortField, pb.Sor
 	switch field {
 	case pb.SortField_SORT_FIELD_UNSPECIFIED:
 		field = pb.SortField_SORT_FIELD_KEY
-	case pb.SortField_SORT_FIELD_KEY, pb.SortField_SORT_FIELD_CREATED_AT, pb.SortField_SORT_FIELD_SIZE:
+	case pb.SortField_SORT_FIELD_KEY, pb.SortField_SORT_FIELD_LAST_MODIFIED, pb.SortField_SORT_FIELD_SIZE:
 	default:
 		return 0, 0, status.Errorf(codes.InvalidArgument, "unknown sort_field %d", field)
 	}
@@ -228,13 +228,22 @@ func escapeLike(s string) string {
 	return r.Replace(s)
 }
 
-func dbFileToProto(f db.File) *pb.FileInfo {
-	return &pb.FileInfo{
+// dbFileToProto maps the file_infos read model to the API shape. Metadata
+// fields are NULL until a file is stat-indexed; timestamps stay unset (nil)
+// rather than encoding the zero time. created_at is discovery time and
+// updated_at is the object's last-modified time from the stat index.
+func dbFileToProto(f db.FileInfo) *pb.FileInfo {
+	info := &pb.FileInfo{
 		Id:          f.ID,
 		Key:         f.Key,
 		ContentType: f.ContentType.String,
 		SizeBytes:   f.SizeBytes.Int64,
-		CreatedAt:   timestamppb.New(f.CreatedAt.Time),
-		UpdatedAt:   timestamppb.New(f.UpdatedAt.Time),
 	}
+	if f.CreatedAt.Valid {
+		info.CreatedAt = timestamppb.New(f.CreatedAt.Time)
+	}
+	if f.LastModified.Valid {
+		info.UpdatedAt = timestamppb.New(f.LastModified.Time)
+	}
+	return info
 }

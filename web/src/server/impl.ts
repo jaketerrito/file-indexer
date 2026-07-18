@@ -20,7 +20,7 @@ export interface FileDto {
   createdAt: string | null
 }
 
-export const SORT_FIELDS = ['key', 'createdAt', 'size'] as const
+export const SORT_FIELDS = ['key', 'lastModified', 'size'] as const
 export type SortFieldInput = (typeof SORT_FIELDS)[number]
 
 export const SORT_ORDERS = ['asc', 'desc'] as const
@@ -28,7 +28,7 @@ export type SortOrderInput = (typeof SORT_ORDERS)[number]
 
 const SORT_FIELD_PB: Record<SortFieldInput, SortField> = {
   key: SortField.KEY,
-  createdAt: SortField.CREATED_AT,
+  lastModified: SortField.LAST_MODIFIED,
   size: SortField.SIZE,
 }
 

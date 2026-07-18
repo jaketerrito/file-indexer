@@ -14,7 +14,7 @@ type StatQueries interface {
 	SeedIndexStat(ctx context.Context) (int64, error)
 	ClaimIndexStat(ctx context.Context, arg db.ClaimIndexStatParams) ([]db.ClaimIndexStatRow, error)
 	ReleaseIndexStat(ctx context.Context, fileID int64) error
-	CompleteIndexStat(ctx context.Context, fileID int64) error
+	CompleteIndexStat(ctx context.Context, arg db.CompleteIndexStatParams) error
 	FailIndexStat(ctx context.Context, arg db.FailIndexStatParams) error
 }
 
@@ -30,7 +30,7 @@ func NewStatQueue(queries StatQueries) *StatQueue {
 	return &StatQueue{queries: queries}
 }
 
-var _ worker.Queue = (*StatQueue)(nil)
+var _ worker.Queue[StatResult] = (*StatQueue)(nil)
 
 func (q *StatQueue) Seed(ctx context.Context) (int64, error) {
 	return q.queries.SeedIndexStat(ctx)
@@ -56,8 +56,13 @@ func (q *StatQueue) Release(ctx context.Context, fileID int64) error {
 	return q.queries.ReleaseIndexStat(ctx, fileID)
 }
 
-func (q *StatQueue) Complete(ctx context.Context, fileID int64) error {
-	return q.queries.CompleteIndexStat(ctx, fileID)
+func (q *StatQueue) Complete(ctx context.Context, fileID int64, result StatResult) error {
+	return q.queries.CompleteIndexStat(ctx, db.CompleteIndexStatParams{
+		FileID:       fileID,
+		ContentType:  pgtype.Text{String: result.ContentType, Valid: true},
+		SizeBytes:    pgtype.Int8{Int64: result.SizeBytes, Valid: true},
+		LastModified: pgtype.Timestamptz{Time: result.LastModified, Valid: true},
+	})
 }
 
 func (q *StatQueue) Fail(ctx context.Context, fileID int64, cause string, nextAttempt time.Time, exhausted bool) error {

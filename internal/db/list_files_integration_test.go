@@ -6,44 +6,20 @@ import (
 	"context"
 	"testing"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// createListFile inserts a file row with explicit content type, size, and
-// created_at so list ordering and filtering can be asserted, using the
-// production write paths (crawler upsert + stat indexer metadata update). A
-// zero size stores NULL to exercise the COALESCE(size_bytes, 0) sort
-// behaviour.
-func createListFile(t *testing.T, q *Queries, key, contentType string, size int64, createdAt time.Time) File {
+// createListFile inserts a file and stat-indexes it with explicit content
+// type, size, and last-modified so list ordering and filtering can be
+// asserted, using the production write paths (crawler insert + worker
+// complete). A zero size stores NULL to exercise the COALESCE(size_bytes, 0)
+// sort behaviour.
+func createListFile(t *testing.T, q *Queries, key, contentType string, size int64, lastModified time.Time) FileInfo {
 	t.Helper()
-	ctx := context.Background()
 
-	ids, err := q.UpsertFiles(ctx, UpsertFilesParams{
-		Keys:          []string{key},
-		Sizes:         []int64{size},
-		LastModifieds: []pgtype.Timestamptz{{Time: createdAt, Valid: true}},
-	})
-	if err != nil {
-		t.Fatalf("UpsertFiles: %v", err)
-	}
-	if len(ids) != 1 {
-		t.Fatalf("UpsertFiles returned %d ids, want 1", len(ids))
-	}
-	t.Cleanup(func() {
-		_, _ = q.DeleteFile(context.Background(), ids[0])
-	})
+	id := insertTestFile(t, q, key)
+	indexTestFile(t, q, id, contentType, size, lastModified)
 
-	if err := q.UpdateFileMetadata(ctx, UpdateFileMetadataParams{
-		ID:          ids[0],
-		ContentType: pgtype.Text{String: contentType, Valid: contentType != ""},
-		SizeBytes:   pgtype.Int8{Int64: size, Valid: size != 0},
-		UpdatedAt:   pgtype.Timestamptz{Time: createdAt, Valid: true},
-	}); err != nil {
-		t.Fatalf("UpdateFileMetadata: %v", err)
-	}
-
-	file, err := q.GetFile(ctx, ids[0])
+	file, err := q.GetFile(context.Background(), id)
 	if err != nil {
 		t.Fatalf("GetFile: %v", err)
 	}
@@ -66,7 +42,7 @@ func seedListFiles(t *testing.T, q *Queries) string {
 	return prefix
 }
 
-func keysOf(files []File) []string {
+func keysOf(files []FileInfo) []string {
 	keys := make([]string, 0, len(files))
 	for _, f := range files {
 		keys = append(keys, f.Key)
@@ -74,7 +50,7 @@ func keysOf(files []File) []string {
 	return keys
 }
 
-func assertKeys(t *testing.T, got []File, want ...string) {
+func assertKeys(t *testing.T, got []FileInfo, want ...string) {
 	t.Helper()
 	if len(got) != len(want) {
 		t.Fatalf("got %d files %v, want %d %v", len(got), keysOf(got), len(want), want)
@@ -111,27 +87,27 @@ func TestListFilesByKeyOrder(t *testing.T) {
 	assertKeys(t, desc, prefix+"c.jpg", prefix+"b.png", prefix+"a.txt")
 }
 
-func TestListFilesByCreatedAtOrder(t *testing.T) {
+func TestListFilesByLastModifiedOrder(t *testing.T) {
 	conn := testConn(t)
 	q := New(conn)
 	ctx := context.Background()
 	prefix := seedListFiles(t, q)
 
-	asc, err := q.ListFilesByCreatedAtAsc(ctx, ListFilesByCreatedAtAscParams{
+	asc, err := q.ListFilesByLastModifiedAsc(ctx, ListFilesByLastModifiedAscParams{
 		KeyPattern: prefix + "%",
 		PageLimit:  10,
 	})
 	if err != nil {
-		t.Fatalf("ListFilesByCreatedAtAsc: %v", err)
+		t.Fatalf("ListFilesByLastModifiedAsc: %v", err)
 	}
 	assertKeys(t, asc, prefix+"c.jpg", prefix+"a.txt", prefix+"b.png")
 
-	desc, err := q.ListFilesByCreatedAtDesc(ctx, ListFilesByCreatedAtDescParams{
+	desc, err := q.ListFilesByLastModifiedDesc(ctx, ListFilesByLastModifiedDescParams{
 		KeyPattern: prefix + "%",
 		PageLimit:  10,
 	})
 	if err != nil {
-		t.Fatalf("ListFilesByCreatedAtDesc: %v", err)
+		t.Fatalf("ListFilesByLastModifiedDesc: %v", err)
 	}
 	assertKeys(t, desc, prefix+"b.png", prefix+"a.txt", prefix+"c.jpg")
 }

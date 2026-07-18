@@ -14,63 +14,56 @@ import (
 const deleteFile = `-- name: DeleteFile :one
 DELETE FROM files
 WHERE id = $1
-RETURNING id, key, content_type, size_bytes, created_at, updated_at
+RETURNING id, key, created_at
 `
 
 func (q *Queries) DeleteFile(ctx context.Context, id int64) (File, error) {
 	row := q.db.QueryRow(ctx, deleteFile, id)
 	var i File
-	err := row.Scan(
-		&i.ID,
-		&i.Key,
-		&i.ContentType,
-		&i.SizeBytes,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
+	err := row.Scan(&i.ID, &i.Key, &i.CreatedAt)
 	return i, err
 }
 
 const getFile = `-- name: GetFile :one
-SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
+SELECT id, key, created_at, content_type, size_bytes, last_modified FROM file_infos
 WHERE id = $1
 `
 
-func (q *Queries) GetFile(ctx context.Context, id int64) (File, error) {
+func (q *Queries) GetFile(ctx context.Context, id int64) (FileInfo, error) {
 	row := q.db.QueryRow(ctx, getFile, id)
-	var i File
+	var i FileInfo
 	err := row.Scan(
 		&i.ID,
 		&i.Key,
+		&i.CreatedAt,
 		&i.ContentType,
 		&i.SizeBytes,
-		&i.CreatedAt,
-		&i.UpdatedAt,
+		&i.LastModified,
 	)
 	return i, err
 }
 
 const getFilesByIDs = `-- name: GetFilesByIDs :many
-SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
+SELECT id, key, created_at, content_type, size_bytes, last_modified FROM file_infos
 WHERE id = ANY($1::bigint[])
 `
 
-func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []int64) ([]File, error) {
+func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []int64) ([]FileInfo, error) {
 	rows, err := q.db.Query(ctx, getFilesByIDs, dollar_1)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []File
+	var items []FileInfo
 	for rows.Next() {
-		var i File
+		var i FileInfo
 		if err := rows.Scan(
 			&i.ID,
 			&i.Key,
+			&i.CreatedAt,
 			&i.ContentType,
 			&i.SizeBytes,
-			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.LastModified,
 		); err != nil {
 			return nil, err
 		}
@@ -82,103 +75,30 @@ func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []int64) ([]File, 
 	return items, nil
 }
 
-const listFilesByCreatedAtAsc = `-- name: ListFilesByCreatedAtAsc :many
-SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
-WHERE key LIKE $1
-  AND ($2::text = '' OR content_type LIKE $2)
-  AND (NOT $3::bool OR (created_at, id) > ($4::timestamptz, $5::bigint))
-ORDER BY created_at ASC, id ASC
-LIMIT $6
+const insertFiles = `-- name: InsertFiles :many
+INSERT INTO files (key)
+SELECT unnest($1::text[])
+ON CONFLICT (key) DO NOTHING
+RETURNING id
 `
 
-type ListFilesByCreatedAtAscParams struct {
-	KeyPattern         string
-	ContentTypePattern string
-	HasCursor          bool
-	LastCreatedAt      pgtype.Timestamptz
-	LastID             int64
-	PageLimit          int32
-}
-
-func (q *Queries) ListFilesByCreatedAtAsc(ctx context.Context, arg ListFilesByCreatedAtAscParams) ([]File, error) {
-	rows, err := q.db.Query(ctx, listFilesByCreatedAtAsc,
-		arg.KeyPattern,
-		arg.ContentTypePattern,
-		arg.HasCursor,
-		arg.LastCreatedAt,
-		arg.LastID,
-		arg.PageLimit,
-	)
+// Crawler ingest: register discovered objects by key only — identity, no
+// metadata. Idempotent; RETURNING yields the ids of rows that are actually
+// new (conflicts return nothing), which the crawler uses purely for
+// logging. New files are picked up by each index type's seed query.
+func (q *Queries) InsertFiles(ctx context.Context, keys []string) ([]int64, error) {
+	rows, err := q.db.Query(ctx, insertFiles, keys)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []File
+	var items []int64
 	for rows.Next() {
-		var i File
-		if err := rows.Scan(
-			&i.ID,
-			&i.Key,
-			&i.ContentType,
-			&i.SizeBytes,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listFilesByCreatedAtDesc = `-- name: ListFilesByCreatedAtDesc :many
-SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
-WHERE key LIKE $1
-  AND ($2::text = '' OR content_type LIKE $2)
-  AND (NOT $3::bool OR (created_at, id) < ($4::timestamptz, $5::bigint))
-ORDER BY created_at DESC, id DESC
-LIMIT $6
-`
-
-type ListFilesByCreatedAtDescParams struct {
-	KeyPattern         string
-	ContentTypePattern string
-	HasCursor          bool
-	LastCreatedAt      pgtype.Timestamptz
-	LastID             int64
-	PageLimit          int32
-}
-
-func (q *Queries) ListFilesByCreatedAtDesc(ctx context.Context, arg ListFilesByCreatedAtDescParams) ([]File, error) {
-	rows, err := q.db.Query(ctx, listFilesByCreatedAtDesc,
-		arg.KeyPattern,
-		arg.ContentTypePattern,
-		arg.HasCursor,
-		arg.LastCreatedAt,
-		arg.LastID,
-		arg.PageLimit,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []File
-	for rows.Next() {
-		var i File
-		if err := rows.Scan(
-			&i.ID,
-			&i.Key,
-			&i.ContentType,
-			&i.SizeBytes,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
+		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -188,7 +108,7 @@ func (q *Queries) ListFilesByCreatedAtDesc(ctx context.Context, arg ListFilesByC
 
 const listFilesByKeyAsc = `-- name: ListFilesByKeyAsc :many
 
-SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
+SELECT id, key, created_at, content_type, size_bytes, last_modified FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR content_type LIKE $2)
   AND (NOT $3::bool OR (key, id) > ($4::text, $5::bigint))
@@ -210,8 +130,10 @@ type ListFilesByKeyAscParams struct {
 // so cursors are stable. key_pattern and content_type_pattern are LIKE
 // patterns built (and escaped) by the caller; an empty content_type_pattern
 // disables the content type filter. When has_cursor is false the last_*
-// arguments are ignored.
-func (q *Queries) ListFilesByKeyAsc(ctx context.Context, arg ListFilesByKeyAscParams) ([]File, error) {
+// arguments are ignored. Metadata columns come from the stat index via the
+// file_infos view and are NULL until a file is indexed; sorts fall back via
+// COALESCE so unindexed files group together instead of disappearing.
+func (q *Queries) ListFilesByKeyAsc(ctx context.Context, arg ListFilesByKeyAscParams) ([]FileInfo, error) {
 	rows, err := q.db.Query(ctx, listFilesByKeyAsc,
 		arg.KeyPattern,
 		arg.ContentTypePattern,
@@ -224,16 +146,16 @@ func (q *Queries) ListFilesByKeyAsc(ctx context.Context, arg ListFilesByKeyAscPa
 		return nil, err
 	}
 	defer rows.Close()
-	var items []File
+	var items []FileInfo
 	for rows.Next() {
-		var i File
+		var i FileInfo
 		if err := rows.Scan(
 			&i.ID,
 			&i.Key,
+			&i.CreatedAt,
 			&i.ContentType,
 			&i.SizeBytes,
-			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.LastModified,
 		); err != nil {
 			return nil, err
 		}
@@ -246,7 +168,7 @@ func (q *Queries) ListFilesByKeyAsc(ctx context.Context, arg ListFilesByKeyAscPa
 }
 
 const listFilesByKeyDesc = `-- name: ListFilesByKeyDesc :many
-SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
+SELECT id, key, created_at, content_type, size_bytes, last_modified FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR content_type LIKE $2)
   AND (NOT $3::bool OR (key, id) < ($4::text, $5::bigint))
@@ -263,7 +185,7 @@ type ListFilesByKeyDescParams struct {
 	PageLimit          int32
 }
 
-func (q *Queries) ListFilesByKeyDesc(ctx context.Context, arg ListFilesByKeyDescParams) ([]File, error) {
+func (q *Queries) ListFilesByKeyDesc(ctx context.Context, arg ListFilesByKeyDescParams) ([]FileInfo, error) {
 	rows, err := q.db.Query(ctx, listFilesByKeyDesc,
 		arg.KeyPattern,
 		arg.ContentTypePattern,
@@ -276,16 +198,120 @@ func (q *Queries) ListFilesByKeyDesc(ctx context.Context, arg ListFilesByKeyDesc
 		return nil, err
 	}
 	defer rows.Close()
-	var items []File
+	var items []FileInfo
 	for rows.Next() {
-		var i File
+		var i FileInfo
 		if err := rows.Scan(
 			&i.ID,
 			&i.Key,
+			&i.CreatedAt,
 			&i.ContentType,
 			&i.SizeBytes,
+			&i.LastModified,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFilesByLastModifiedAsc = `-- name: ListFilesByLastModifiedAsc :many
+SELECT id, key, created_at, content_type, size_bytes, last_modified FROM file_infos
+WHERE key LIKE $1
+  AND ($2::text = '' OR content_type LIKE $2)
+  AND (NOT $3::bool OR (COALESCE(last_modified, 'epoch'::timestamptz), id) > ($4::timestamptz, $5::bigint))
+ORDER BY COALESCE(last_modified, 'epoch'::timestamptz) ASC, id ASC
+LIMIT $6
+`
+
+type ListFilesByLastModifiedAscParams struct {
+	KeyPattern         string
+	ContentTypePattern string
+	HasCursor          bool
+	CursorLastModified pgtype.Timestamptz
+	LastID             int64
+	PageLimit          int32
+}
+
+func (q *Queries) ListFilesByLastModifiedAsc(ctx context.Context, arg ListFilesByLastModifiedAscParams) ([]FileInfo, error) {
+	rows, err := q.db.Query(ctx, listFilesByLastModifiedAsc,
+		arg.KeyPattern,
+		arg.ContentTypePattern,
+		arg.HasCursor,
+		arg.CursorLastModified,
+		arg.LastID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FileInfo
+	for rows.Next() {
+		var i FileInfo
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
 			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.LastModified,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFilesByLastModifiedDesc = `-- name: ListFilesByLastModifiedDesc :many
+SELECT id, key, created_at, content_type, size_bytes, last_modified FROM file_infos
+WHERE key LIKE $1
+  AND ($2::text = '' OR content_type LIKE $2)
+  AND (NOT $3::bool OR (COALESCE(last_modified, 'epoch'::timestamptz), id) < ($4::timestamptz, $5::bigint))
+ORDER BY COALESCE(last_modified, 'epoch'::timestamptz) DESC, id DESC
+LIMIT $6
+`
+
+type ListFilesByLastModifiedDescParams struct {
+	KeyPattern         string
+	ContentTypePattern string
+	HasCursor          bool
+	CursorLastModified pgtype.Timestamptz
+	LastID             int64
+	PageLimit          int32
+}
+
+func (q *Queries) ListFilesByLastModifiedDesc(ctx context.Context, arg ListFilesByLastModifiedDescParams) ([]FileInfo, error) {
+	rows, err := q.db.Query(ctx, listFilesByLastModifiedDesc,
+		arg.KeyPattern,
+		arg.ContentTypePattern,
+		arg.HasCursor,
+		arg.CursorLastModified,
+		arg.LastID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []FileInfo
+	for rows.Next() {
+		var i FileInfo
+		if err := rows.Scan(
+			&i.ID,
+			&i.Key,
+			&i.CreatedAt,
+			&i.ContentType,
+			&i.SizeBytes,
+			&i.LastModified,
 		); err != nil {
 			return nil, err
 		}
@@ -298,7 +324,7 @@ func (q *Queries) ListFilesByKeyDesc(ctx context.Context, arg ListFilesByKeyDesc
 }
 
 const listFilesBySizeAsc = `-- name: ListFilesBySizeAsc :many
-SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
+SELECT id, key, created_at, content_type, size_bytes, last_modified FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR content_type LIKE $2)
   AND (NOT $3::bool OR (COALESCE(size_bytes, 0), id) > ($4::bigint, $5::bigint))
@@ -315,7 +341,7 @@ type ListFilesBySizeAscParams struct {
 	PageLimit          int32
 }
 
-func (q *Queries) ListFilesBySizeAsc(ctx context.Context, arg ListFilesBySizeAscParams) ([]File, error) {
+func (q *Queries) ListFilesBySizeAsc(ctx context.Context, arg ListFilesBySizeAscParams) ([]FileInfo, error) {
 	rows, err := q.db.Query(ctx, listFilesBySizeAsc,
 		arg.KeyPattern,
 		arg.ContentTypePattern,
@@ -328,16 +354,16 @@ func (q *Queries) ListFilesBySizeAsc(ctx context.Context, arg ListFilesBySizeAsc
 		return nil, err
 	}
 	defer rows.Close()
-	var items []File
+	var items []FileInfo
 	for rows.Next() {
-		var i File
+		var i FileInfo
 		if err := rows.Scan(
 			&i.ID,
 			&i.Key,
+			&i.CreatedAt,
 			&i.ContentType,
 			&i.SizeBytes,
-			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.LastModified,
 		); err != nil {
 			return nil, err
 		}
@@ -350,7 +376,7 @@ func (q *Queries) ListFilesBySizeAsc(ctx context.Context, arg ListFilesBySizeAsc
 }
 
 const listFilesBySizeDesc = `-- name: ListFilesBySizeDesc :many
-SELECT id, key, content_type, size_bytes, created_at, updated_at FROM files
+SELECT id, key, created_at, content_type, size_bytes, last_modified FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR content_type LIKE $2)
   AND (NOT $3::bool OR (COALESCE(size_bytes, 0), id) < ($4::bigint, $5::bigint))
@@ -367,7 +393,7 @@ type ListFilesBySizeDescParams struct {
 	PageLimit          int32
 }
 
-func (q *Queries) ListFilesBySizeDesc(ctx context.Context, arg ListFilesBySizeDescParams) ([]File, error) {
+func (q *Queries) ListFilesBySizeDesc(ctx context.Context, arg ListFilesBySizeDescParams) ([]FileInfo, error) {
 	rows, err := q.db.Query(ctx, listFilesBySizeDesc,
 		arg.KeyPattern,
 		arg.ContentTypePattern,
@@ -380,103 +406,20 @@ func (q *Queries) ListFilesBySizeDesc(ctx context.Context, arg ListFilesBySizeDe
 		return nil, err
 	}
 	defer rows.Close()
-	var items []File
+	var items []FileInfo
 	for rows.Next() {
-		var i File
+		var i FileInfo
 		if err := rows.Scan(
 			&i.ID,
 			&i.Key,
+			&i.CreatedAt,
 			&i.ContentType,
 			&i.SizeBytes,
-			&i.CreatedAt,
-			&i.UpdatedAt,
+			&i.LastModified,
 		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const updateFileMetadata = `-- name: UpdateFileMetadata :exec
-UPDATE files
-SET content_type = $2,
-    size_bytes = $3,
-    updated_at = date_trunc('second', $4::timestamptz)
-WHERE id = $1
-`
-
-type UpdateFileMetadataParams struct {
-	ID          int64
-	ContentType pgtype.Text
-	SizeBytes   pgtype.Int8
-	UpdatedAt   pgtype.Timestamptz
-}
-
-// Stat indexer result write: metadata the S3 listing cannot provide (content
-// type) plus authoritative size/mtime from StatObject. updated_at is
-// truncated to whole seconds to match UpsertFiles (see the comment there);
-// otherwise the crawler's change detection would flag every indexed file.
-func (q *Queries) UpdateFileMetadata(ctx context.Context, arg UpdateFileMetadataParams) error {
-	_, err := q.db.Exec(ctx, updateFileMetadata,
-		arg.ID,
-		arg.ContentType,
-		arg.SizeBytes,
-		arg.UpdatedAt,
-	)
-	return err
-}
-
-const upsertFiles = `-- name: UpsertFiles :many
-INSERT INTO files (key, size_bytes, created_at, updated_at)
-SELECT t.key, t.size_bytes, date_trunc('second', t.last_modified), date_trunc('second', t.last_modified)
-FROM (
-    SELECT unnest($1::text[])                  AS key,
-           unnest($2::bigint[])               AS size_bytes,
-           unnest($3::timestamptz[]) AS last_modified
-) AS t
-ON CONFLICT (key) DO UPDATE
-SET size_bytes = EXCLUDED.size_bytes,
-    updated_at = EXCLUDED.updated_at
-WHERE files.size_bytes IS DISTINCT FROM EXCLUDED.size_bytes
-   OR files.updated_at IS DISTINCT FROM EXCLUDED.updated_at
-RETURNING id
-`
-
-type UpsertFilesParams struct {
-	Keys          []string
-	Sizes         []int64
-	LastModifieds []pgtype.Timestamptz
-}
-
-// Crawler ingest: register discovered objects idempotently. created_at and
-// updated_at both start as the object's S3 last-modified time. On re-crawl,
-// the row is only touched when size or last-modified actually changed, so
-// RETURNING yields exactly the new + changed file ids; the crawler feeds
-// those into ResetIndexStat to trigger re-indexing (new files have no
-// index_stat row yet and are picked up by SeedIndexStat instead).
-//
-// Timestamps are truncated to whole seconds: the stat indexer also writes
-// updated_at, and its source (the HTTP Last-Modified header) only has second
-// precision while listings carry sub-second precision. Truncating on every
-// write keeps the change comparison below from false-flagging files whose
-// updated_at was last written by the indexer.
-func (q *Queries) UpsertFiles(ctx context.Context, arg UpsertFilesParams) ([]int64, error) {
-	rows, err := q.db.Query(ctx, upsertFiles, arg.Keys, arg.Sizes, arg.LastModifieds)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

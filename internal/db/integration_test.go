@@ -68,41 +68,55 @@ func uniqueKey(t *testing.T) string {
 	return fmt.Sprintf("it/%s/%d", t.Name(), time.Now().UnixNano())
 }
 
-// createTestFile inserts a file row through the production write paths
-// (crawler upsert + stat indexer metadata update) and registers cleanup to
-// remove it.
-func createTestFile(t *testing.T, q *Queries, key string) File {
+// insertTestFile registers a file key through the crawler's write path and
+// registers cleanup to remove it (index_stat rows cascade). Returns the new
+// file id.
+func insertTestFile(t *testing.T, q *Queries, key string) int64 {
 	t.Helper()
-	ctx := context.Background()
-	// UpsertFiles stores timestamps truncated to whole seconds.
-	now := time.Now().UTC().Truncate(time.Second)
 
-	ids, err := q.UpsertFiles(ctx, UpsertFilesParams{
-		Keys:          []string{key},
-		Sizes:         []int64{42},
-		LastModifieds: []pgtype.Timestamptz{{Time: now, Valid: true}},
-	})
+	ids, err := q.InsertFiles(context.Background(), []string{key})
 	if err != nil {
-		t.Fatalf("UpsertFiles: %v", err)
+		t.Fatalf("InsertFiles: %v", err)
 	}
 	if len(ids) != 1 {
-		t.Fatalf("UpsertFiles returned %d ids, want 1", len(ids))
+		t.Fatalf("InsertFiles returned %d ids, want 1", len(ids))
 	}
 	t.Cleanup(func() {
 		// Best effort: the row may already be deleted by the test itself.
 		_, _ = q.DeleteFile(context.Background(), ids[0])
 	})
+	return ids[0]
+}
 
-	if err := q.UpdateFileMetadata(ctx, UpdateFileMetadataParams{
-		ID:          ids[0],
-		ContentType: pgtype.Text{String: "text/plain", Valid: true},
-		SizeBytes:   pgtype.Int8{Int64: 42, Valid: true},
-		UpdatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
-	}); err != nil {
-		t.Fatalf("UpdateFileMetadata: %v", err)
+// indexTestFile records stat results for a file through the worker's write
+// path (seed + complete), making its file_infos row fully populated.
+// last_modified is stored truncated to whole seconds.
+func indexTestFile(t *testing.T, q *Queries, fileID int64, contentType string, size int64, lastModified time.Time) {
+	t.Helper()
+	ctx := context.Background()
+
+	if _, err := q.SeedIndexStat(ctx); err != nil {
+		t.Fatalf("SeedIndexStat: %v", err)
 	}
+	if err := q.CompleteIndexStat(ctx, CompleteIndexStatParams{
+		FileID:       fileID,
+		ContentType:  pgtype.Text{String: contentType, Valid: contentType != ""},
+		SizeBytes:    pgtype.Int8{Int64: size, Valid: size != 0},
+		LastModified: pgtype.Timestamptz{Time: lastModified, Valid: true},
+	}); err != nil {
+		t.Fatalf("CompleteIndexStat: %v", err)
+	}
+}
 
-	file, err := q.GetFile(ctx, ids[0])
+// createTestFile inserts a file and stat-indexes it with fixed metadata,
+// returning the file_infos read-model row.
+func createTestFile(t *testing.T, q *Queries, key string) FileInfo {
+	t.Helper()
+
+	id := insertTestFile(t, q, key)
+	indexTestFile(t, q, id, "text/plain", 42, time.Now().UTC().Truncate(time.Second))
+
+	file, err := q.GetFile(context.Background(), id)
 	if err != nil {
 		t.Fatalf("GetFile: %v", err)
 	}
@@ -194,7 +208,7 @@ func TestGetFilesByIDs(t *testing.T) {
 	if len(files) != 2 {
 		t.Fatalf("GetFilesByIDs returned %d files, want 2", len(files))
 	}
-	got := map[int64]File{files[0].ID: files[0], files[1].ID: files[1]}
+	got := map[int64]FileInfo{files[0].ID: files[0], files[1].ID: files[1]}
 	if got[a.ID] != a || got[b.ID] != b {
 		t.Errorf("GetFilesByIDs = %+v, want %+v and %+v", files, a, b)
 	}
@@ -220,8 +234,9 @@ func TestDeleteFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteFile: %v", err)
 	}
-	if deleted != created {
-		t.Errorf("DeleteFile = %+v, want %+v", deleted, created)
+	// DeleteFile returns the files row (identity), not the read model.
+	if deleted.ID != created.ID || deleted.Key != created.Key {
+		t.Errorf("DeleteFile = %+v, want id %d key %q", deleted, created.ID, created.Key)
 	}
 
 	if _, err := q.GetFile(ctx, created.ID); !errors.Is(err, pgx.ErrNoRows) {
@@ -244,17 +259,12 @@ func TestWithTxRollback(t *testing.T) {
 	}
 
 	key := uniqueKey(t)
-	now := time.Now().UTC().Truncate(time.Second)
-	ids, err := q.WithTx(tx).UpsertFiles(ctx, UpsertFilesParams{
-		Keys:          []string{key},
-		Sizes:         []int64{1},
-		LastModifieds: []pgtype.Timestamptz{{Time: now, Valid: true}},
-	})
+	ids, err := q.WithTx(tx).InsertFiles(ctx, []string{key})
 	if err != nil {
-		t.Fatalf("UpsertFiles in tx: %v", err)
+		t.Fatalf("InsertFiles in tx: %v", err)
 	}
 	if len(ids) != 1 {
-		t.Fatalf("UpsertFiles in tx returned %d ids, want 1", len(ids))
+		t.Fatalf("InsertFiles in tx returned %d ids, want 1", len(ids))
 	}
 
 	if err := tx.Rollback(ctx); err != nil {

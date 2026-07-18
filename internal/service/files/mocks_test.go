@@ -255,22 +255,22 @@ func (_c *MockFileIndex_DeleteFile_Call) RunAndReturn(run func(ctx context.Conte
 }
 
 // GetFile provides a mock function for the type MockFileIndex
-func (_mock *MockFileIndex) GetFile(ctx context.Context, id int64) (db.File, error) {
+func (_mock *MockFileIndex) GetFile(ctx context.Context, id int64) (db.FileInfo, error) {
 	ret := _mock.Called(ctx, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFile")
 	}
 
-	var r0 db.File
+	var r0 db.FileInfo
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) (db.File, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) (db.FileInfo, error)); ok {
 		return returnFunc(ctx, id)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) db.File); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) db.FileInfo); ok {
 		r0 = returnFunc(ctx, id)
 	} else {
-		r0 = ret.Get(0).(db.File)
+		r0 = ret.Get(0).(db.FileInfo)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, int64) error); ok {
 		r1 = returnFunc(ctx, id)
@@ -310,34 +310,34 @@ func (_c *MockFileIndex_GetFile_Call) Run(run func(ctx context.Context, id int64
 	return _c
 }
 
-func (_c *MockFileIndex_GetFile_Call) Return(file db.File, err error) *MockFileIndex_GetFile_Call {
-	_c.Call.Return(file, err)
+func (_c *MockFileIndex_GetFile_Call) Return(fileInfo db.FileInfo, err error) *MockFileIndex_GetFile_Call {
+	_c.Call.Return(fileInfo, err)
 	return _c
 }
 
-func (_c *MockFileIndex_GetFile_Call) RunAndReturn(run func(ctx context.Context, id int64) (db.File, error)) *MockFileIndex_GetFile_Call {
+func (_c *MockFileIndex_GetFile_Call) RunAndReturn(run func(ctx context.Context, id int64) (db.FileInfo, error)) *MockFileIndex_GetFile_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetFilesByIDs provides a mock function for the type MockFileIndex
-func (_mock *MockFileIndex) GetFilesByIDs(ctx context.Context, ids []int64) ([]db.File, error) {
+func (_mock *MockFileIndex) GetFilesByIDs(ctx context.Context, ids []int64) ([]db.FileInfo, error) {
 	ret := _mock.Called(ctx, ids)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFilesByIDs")
 	}
 
-	var r0 []db.File
+	var r0 []db.FileInfo
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) ([]db.File, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) ([]db.FileInfo, error)); ok {
 		return returnFunc(ctx, ids)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) []db.File); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) []db.FileInfo); ok {
 		r0 = returnFunc(ctx, ids)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]db.File)
+			r0 = ret.Get(0).([]db.FileInfo)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, []int64) error); ok {
@@ -378,12 +378,12 @@ func (_c *MockFileIndex_GetFilesByIDs_Call) Run(run func(ctx context.Context, id
 	return _c
 }
 
-func (_c *MockFileIndex_GetFilesByIDs_Call) Return(files []db.File, err error) *MockFileIndex_GetFilesByIDs_Call {
-	_c.Call.Return(files, err)
+func (_c *MockFileIndex_GetFilesByIDs_Call) Return(fileInfos []db.FileInfo, err error) *MockFileIndex_GetFilesByIDs_Call {
+	_c.Call.Return(fileInfos, err)
 	return _c
 }
 
-func (_c *MockFileIndex_GetFilesByIDs_Call) RunAndReturn(run func(ctx context.Context, ids []int64) ([]db.File, error)) *MockFileIndex_GetFilesByIDs_Call {
+func (_c *MockFileIndex_GetFilesByIDs_Call) RunAndReturn(run func(ctx context.Context, ids []int64) ([]db.FileInfo, error)) *MockFileIndex_GetFilesByIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }

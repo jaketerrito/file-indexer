@@ -51,7 +51,7 @@ func main() {
 			ClaimTTL:     cfg.Worker.ClaimTTL,
 		},
 		indexer.NewStatQueue(queries),
-		indexer.NewStatIndexer(s3, queries),
+		indexer.NewStatIndexer(s3),
 	)
 
 	if err := statPool.Run(ctx); err != nil {

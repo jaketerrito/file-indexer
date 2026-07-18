@@ -76,10 +76,20 @@ func TestStatQueueRelease(t *testing.T) {
 }
 
 func TestStatQueueComplete(t *testing.T) {
-	queries := NewMockStatQueries(t)
-	queries.EXPECT().CompleteIndexStat(mock.Anything, int64(9)).Return(nil)
+	lm := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
 
-	if err := NewStatQueue(queries).Complete(context.Background(), 9); err != nil {
+	queries := NewMockStatQueries(t)
+	queries.EXPECT().
+		CompleteIndexStat(mock.Anything, db.CompleteIndexStatParams{
+			FileID:       9,
+			ContentType:  pgtype.Text{String: "image/png", Valid: true},
+			SizeBytes:    pgtype.Int8{Int64: 512, Valid: true},
+			LastModified: pgtype.Timestamptz{Time: lm, Valid: true},
+		}).
+		Return(nil)
+
+	result := StatResult{ContentType: "image/png", SizeBytes: 512, LastModified: lm}
+	if err := NewStatQueue(queries).Complete(context.Background(), 9, result); err != nil {
 		t.Fatal(err)
 	}
 }

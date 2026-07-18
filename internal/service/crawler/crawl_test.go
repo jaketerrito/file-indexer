@@ -36,12 +36,12 @@ func TestRun(t *testing.T) {
 		RunAndReturn(walkOver(objectInfo("a", 1), objectInfo("b", 2)))
 
 	files := NewMockFileStore(t)
-	files.EXPECT().UpsertFiles(mock.Anything, mock.MatchedBy(func(arg db.UpsertFilesParams) bool {
+	files.EXPECT().InsertFiles(mock.Anything, []string{"a", "b"}).Return([]int64{10, 11}, nil)
+	files.EXPECT().ResetChangedIndexStat(mock.Anything, mock.MatchedBy(func(arg db.ResetChangedIndexStatParams) bool {
 		return len(arg.Keys) == 2 && arg.Keys[0] == "a" && arg.Keys[1] == "b" &&
 			arg.Sizes[0] == 1 && arg.Sizes[1] == 2 &&
 			arg.LastModifieds[0].Valid && arg.LastModifieds[1].Valid
-	})).Return([]int64{10, 11}, nil)
-	files.EXPECT().ResetIndexStat(mock.Anything, []int64{10, 11}).Return(2, nil)
+	})).Return(0, nil)
 
 	c := New(store, files)
 	if err := c.Run(context.Background()); err != nil {
@@ -57,14 +57,14 @@ func TestRunFlushesFullBatches(t *testing.T) {
 		RunAndReturn(walkOver(objectInfo("a", 1), objectInfo("b", 2), objectInfo("c", 3)))
 
 	files := NewMockFileStore(t)
-	files.EXPECT().UpsertFiles(mock.Anything, mock.MatchedBy(func(arg db.UpsertFilesParams) bool {
-		return len(arg.Keys) == 2 && arg.Keys[0] == "a" && arg.Keys[1] == "b"
-	})).Return([]int64{1, 2}, nil)
-	files.EXPECT().UpsertFiles(mock.Anything, mock.MatchedBy(func(arg db.UpsertFilesParams) bool {
+	files.EXPECT().InsertFiles(mock.Anything, []string{"a", "b"}).Return([]int64{1, 2}, nil)
+	files.EXPECT().InsertFiles(mock.Anything, []string{"c"}).Return([]int64{3}, nil)
+	files.EXPECT().ResetChangedIndexStat(mock.Anything, mock.MatchedBy(func(arg db.ResetChangedIndexStatParams) bool {
+		return len(arg.Keys) == 2
+	})).Return(0, nil)
+	files.EXPECT().ResetChangedIndexStat(mock.Anything, mock.MatchedBy(func(arg db.ResetChangedIndexStatParams) bool {
 		return len(arg.Keys) == 1 && arg.Keys[0] == "c"
-	})).Return([]int64{3}, nil)
-	files.EXPECT().ResetIndexStat(mock.Anything, []int64{1, 2}).Return(2, nil)
-	files.EXPECT().ResetIndexStat(mock.Anything, []int64{3}).Return(1, nil)
+	})).Return(0, nil)
 
 	c := New(store, files)
 	c.batchSize = 2
@@ -73,20 +73,21 @@ func TestRunFlushesFullBatches(t *testing.T) {
 	}
 }
 
-func TestRunUnchangedFilesSkipReset(t *testing.T) {
-	// Upsert reporting no new/changed ids must not call ResetIndexStat.
+func TestRunDeduplicatesKeysWithinBatch(t *testing.T) {
 	store := NewMockObjectStore(t)
 	store.EXPECT().Walk(mock.Anything, mock.Anything).
-		RunAndReturn(walkOver(objectInfo("a", 1)))
+		RunAndReturn(walkOver(objectInfo("a", 1), objectInfo("a", 1), objectInfo("b", 2)))
 
 	files := NewMockFileStore(t)
-	files.EXPECT().UpsertFiles(mock.Anything, mock.Anything).Return(nil, nil)
+	files.EXPECT().InsertFiles(mock.Anything, []string{"a", "b"}).Return([]int64{1, 2}, nil)
+	files.EXPECT().ResetChangedIndexStat(mock.Anything, mock.MatchedBy(func(arg db.ResetChangedIndexStatParams) bool {
+		return len(arg.Keys) == 2
+	})).Return(0, nil)
 
 	c := New(store, files)
 	if err := c.Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	files.AssertNotCalled(t, "ResetIndexStat", mock.Anything, mock.Anything)
 }
 
 func TestRunEmptyBucket(t *testing.T) {
@@ -99,16 +100,16 @@ func TestRunEmptyBucket(t *testing.T) {
 	if err := c.Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	files.AssertNotCalled(t, "UpsertFiles", mock.Anything, mock.Anything)
+	files.AssertNotCalled(t, "InsertFiles", mock.Anything, mock.Anything)
 }
 
-func TestRunUpsertError(t *testing.T) {
+func TestRunInsertError(t *testing.T) {
 	store := NewMockObjectStore(t)
 	store.EXPECT().Walk(mock.Anything, mock.Anything).
 		RunAndReturn(walkOver(objectInfo("a", 1)))
 
 	files := NewMockFileStore(t)
-	files.EXPECT().UpsertFiles(mock.Anything, mock.Anything).Return(nil, errors.New("upsert failed"))
+	files.EXPECT().InsertFiles(mock.Anything, mock.Anything).Return(nil, errors.New("insert failed"))
 
 	c := New(store, files)
 	if err := c.Run(context.Background()); err == nil {
@@ -122,8 +123,8 @@ func TestRunResetError(t *testing.T) {
 		RunAndReturn(walkOver(objectInfo("a", 1)))
 
 	files := NewMockFileStore(t)
-	files.EXPECT().UpsertFiles(mock.Anything, mock.Anything).Return([]int64{1}, nil)
-	files.EXPECT().ResetIndexStat(mock.Anything, []int64{1}).Return(0, errors.New("reset failed"))
+	files.EXPECT().InsertFiles(mock.Anything, mock.Anything).Return([]int64{1}, nil)
+	files.EXPECT().ResetChangedIndexStat(mock.Anything, mock.Anything).Return(0, errors.New("reset failed"))
 
 	c := New(store, files)
 	if err := c.Run(context.Background()); err == nil {
@@ -142,5 +143,5 @@ func TestRunWalkError(t *testing.T) {
 	if err := c.Run(context.Background()); err == nil {
 		t.Fatal("expected error")
 	}
-	files.AssertNotCalled(t, "UpsertFiles", mock.Anything, mock.Anything)
+	files.AssertNotCalled(t, "InsertFiles", mock.Anything, mock.Anything)
 }

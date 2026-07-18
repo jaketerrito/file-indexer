@@ -9,12 +9,18 @@ import (
 )
 
 type File struct {
-	ID          int64
-	Key         string
-	ContentType pgtype.Text
-	SizeBytes   pgtype.Int8
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
+	ID        int64
+	Key       string
+	CreatedAt pgtype.Timestamptz
+}
+
+type FileInfo struct {
+	ID           int64
+	Key          string
+	CreatedAt    pgtype.Timestamptz
+	ContentType  pgtype.Text
+	SizeBytes    pgtype.Int8
+	LastModified pgtype.Timestamptz
 }
 
 type IndexStat struct {
@@ -25,4 +31,7 @@ type IndexStat struct {
 	ClaimedAt     pgtype.Timestamptz
 	LastError     pgtype.Text
 	UpdatedAt     pgtype.Timestamptz
+	ContentType   pgtype.Text
+	SizeBytes     pgtype.Int8
+	LastModified  pgtype.Timestamptz
 }

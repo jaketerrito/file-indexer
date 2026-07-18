@@ -20,18 +20,21 @@ type ObjectStore interface {
 
 // FileStore is the slice of db.Queries the crawler depends on.
 type FileStore interface {
-	// UpsertFiles registers discovered objects and returns the ids of files
-	// that are new or whose size/last-modified changed.
-	UpsertFiles(ctx context.Context, arg db.UpsertFilesParams) ([]int64, error)
-	// ResetIndexStat re-enqueues the given files for stat indexing.
-	ResetIndexStat(ctx context.Context, fileIds []int64) (int64, error)
+	// InsertFiles registers discovered keys (identity only) and returns the
+	// ids of files that are new.
+	InsertFiles(ctx context.Context, keys []string) ([]int64, error)
+	// ResetChangedIndexStat re-enqueues stat indexing for files whose
+	// listing size/last-modified no longer matches the stored stat results,
+	// returning how many were reset.
+	ResetChangedIndexStat(ctx context.Context, arg db.ResetChangedIndexStatParams) (int64, error)
 }
 
 // Crawler reconciles the object store with the database: it walks the S3
-// listing and upserts a files row per object. Indexing itself is not
-// triggered here — the indexer worker pools discover new files by seeding
-// from the files table; the crawler only resets index state for files whose
-// content changed so they get re-indexed.
+// listing and registers each object's key — identity only, no metadata.
+// Indexing is not triggered here; the indexer worker pools discover new
+// files by seeding from the files table. The crawler's only other job is
+// change detection: comparing the listing's size/last-modified against the
+// stat index's stored results and re-enqueueing files that changed.
 type Crawler struct {
 	store     ObjectStore
 	files     FileStore
@@ -48,9 +51,9 @@ func New(store ObjectStore, files FileStore) *Crawler {
 func (c *Crawler) Run(ctx context.Context) error {
 	slog.Info("crawl starting", "batchSize", c.batchSize)
 
-	var discovered, changed int64
-	batch := db.UpsertFilesParams{}
-	// inBatch guards against duplicate keys within one flush: UpsertFiles is
+	var discovered, added, changed int64
+	batch := db.ResetChangedIndexStatParams{}
+	// inBatch guards against duplicate keys within one flush: InsertFiles is
 	// a single INSERT ... ON CONFLICT statement, and postgres rejects a
 	// statement that touches the same row twice ("cannot affect row a second
 	// time"). S3 listings should never repeat a key, but a dropped duplicate
@@ -61,13 +64,14 @@ func (c *Crawler) Run(ctx context.Context) error {
 		if len(batch.Keys) == 0 {
 			return nil
 		}
-		n, err := c.flush(ctx, batch)
+		newIDs, reset, err := c.flush(ctx, batch)
 		if err != nil {
 			return err
 		}
 		discovered += int64(len(batch.Keys))
-		changed += n
-		batch = db.UpsertFilesParams{}
+		added += newIDs
+		changed += reset
+		batch = db.ResetChangedIndexStatParams{}
 		clear(inBatch)
 		return nil
 	}
@@ -95,24 +99,23 @@ func (c *Crawler) Run(ctx context.Context) error {
 		return err
 	}
 
-	slog.Info("crawl finished", "discovered", discovered, "newOrChanged", changed)
+	slog.Info("crawl finished", "discovered", discovered, "new", added, "changed", changed)
 	return nil
 }
 
-// flush upserts one batch and re-enqueues stat indexing for files that were
-// new or changed. UpsertFiles returns ids for both; resetting a file that
-// has no index_stat row yet is a harmless no-op (seeding will enqueue it).
-func (c *Crawler) flush(ctx context.Context, batch db.UpsertFilesParams) (int64, error) {
-	ids, err := c.files.UpsertFiles(ctx, batch)
+// flush registers one batch of keys and re-enqueues stat indexing for files
+// the listing shows as changed. The two statements are deliberately
+// independent: newly inserted files have no index_stat row yet and are
+// enqueued by the stat worker's seeding, not here.
+func (c *Crawler) flush(ctx context.Context, batch db.ResetChangedIndexStatParams) (newIDs, reset int64, err error) {
+	ids, err := c.files.InsertFiles(ctx, batch.Keys)
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	if len(ids) == 0 {
-		return 0, nil
+	reset, err = c.files.ResetChangedIndexStat(ctx, batch)
+	if err != nil {
+		return 0, 0, err
 	}
-	if _, err := c.files.ResetIndexStat(ctx, ids); err != nil {
-		return 0, err
-	}
-	slog.Info("registered files", "batch", len(batch.Keys), "newOrChanged", len(ids))
-	return int64(len(ids)), nil
+	slog.Info("registered files", "batch", len(batch.Keys), "new", len(ids), "changed", reset)
+	return int64(len(ids)), reset, nil
 }
