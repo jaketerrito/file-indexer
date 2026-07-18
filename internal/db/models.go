@@ -16,3 +16,13 @@ type File struct {
 	CreatedAt   pgtype.Timestamptz
 	UpdatedAt   pgtype.Timestamptz
 }
+
+type IndexStat struct {
+	FileID        int64
+	Status        string
+	Attempts      int32
+	NextAttemptAt pgtype.Timestamptz
+	ClaimedAt     pgtype.Timestamptz
+	LastError     pgtype.Text
+	UpdatedAt     pgtype.Timestamptz
+}

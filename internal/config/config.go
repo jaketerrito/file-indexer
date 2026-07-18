@@ -2,7 +2,10 @@ package config
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
+	"strconv"
+	"time"
 )
 
 type DatabaseConfig struct {
@@ -32,10 +35,29 @@ type S3Config struct {
 	Region string
 }
 
+// WorkerConfig tunes the indexer worker pool. Zero values fall back to the
+// worker package defaults, so only the knobs that matter need to be set.
+type WorkerConfig struct {
+	// Workers is the number of concurrent job executors.
+	Workers int
+	// PollInterval is the sleep between polls when the queue is empty.
+	PollInterval time.Duration
+	// SeedInterval is how often new files are discovered and enqueued.
+	SeedInterval time.Duration
+	// BatchSize is the maximum number of jobs claimed per poll.
+	BatchSize int
+	// MaxAttempts is the number of tries before a job is parked as an error.
+	MaxAttempts int
+	// ClaimTTL is how long a claim may be held before it is presumed
+	// abandoned (crashed worker) and re-claimed.
+	ClaimTTL time.Duration
+}
+
 type Config struct {
 	GrpcAddr string
 	Database DatabaseConfig
 	S3       S3Config
+	Worker   WorkerConfig
 }
 
 func getEnvDefault(key, def string) string {
@@ -43,6 +65,37 @@ func getEnvDefault(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// getEnvInt parses key as an int. Unset returns 0 (caller-side default);
+// malformed values are logged and treated as unset rather than aborting.
+func getEnvInt(key string) int {
+	v := os.Getenv(key)
+	if v == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		slog.Warn("invalid int in environment, using default", "key", key, "value", v)
+		return 0
+	}
+	return n
+}
+
+// getEnvDuration parses key as a time.Duration (e.g. "5s", "10m"). Unset
+// returns 0 (caller-side default); malformed values are logged and treated
+// as unset rather than aborting.
+func getEnvDuration(key string) time.Duration {
+	v := os.Getenv(key)
+	if v == "" {
+		return 0
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		slog.Warn("invalid duration in environment, using default", "key", key, "value", v)
+		return 0
+	}
+	return d
 }
 
 func Load() *Config {
@@ -62,6 +115,14 @@ func Load() *Config {
 			SecretAccessKey: os.Getenv("S3_SECRET"),
 			Bucket:          os.Getenv("S3_BUCKET"),
 			Region:          os.Getenv("S3_REGION"),
+		},
+		Worker: WorkerConfig{
+			Workers:      getEnvInt("WORKER_COUNT"),
+			PollInterval: getEnvDuration("WORKER_POLL_INTERVAL"),
+			SeedInterval: getEnvDuration("WORKER_SEED_INTERVAL"),
+			BatchSize:    getEnvInt("WORKER_BATCH_SIZE"),
+			MaxAttempts:  getEnvInt("WORKER_MAX_ATTEMPTS"),
+			ClaimTTL:     getEnvDuration("WORKER_CLAIM_TTL"),
 		},
 	}
 }

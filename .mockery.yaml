@@ -12,10 +12,11 @@ packages:
     interfaces:
       ObjectStore:
       FileIndex:
+      StatQueries:
   file-indexer/internal/service/crawler:
     interfaces:
       ObjectStore:
-      Indexer:
+      FileStore:
   file-indexer/internal/service/search:
     interfaces:
       FileIndex:

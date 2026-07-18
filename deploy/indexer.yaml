@@ -21,9 +21,6 @@ spec:
       containers:
         - name: indexer
           image: indexer
-          ports:
-            - name: grpc
-              containerPort: 50051
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -45,15 +42,3 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: indexer
-spec:
-  selector:
-    app: indexer
-  ports:
-    - name: grpc
-      port: 50051
-      targetPort: grpc

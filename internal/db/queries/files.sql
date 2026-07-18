@@ -3,6 +3,44 @@ INSERT INTO files (key, content_type, size_bytes, created_at, updated_at)
 VALUES ($1, $2, $3, $4, $5)
 RETURNING *;
 
+-- name: UpsertFiles :many
+-- Crawler ingest: register discovered objects idempotently. created_at and
+-- updated_at both start as the object's S3 last-modified time. On re-crawl,
+-- the row is only touched when size or last-modified actually changed, so
+-- RETURNING yields exactly the new + changed file ids; the crawler feeds
+-- those into ResetIndexStat to trigger re-indexing (new files have no
+-- index_stat row yet and are picked up by SeedIndexStat instead).
+--
+-- Timestamps are truncated to whole seconds: the stat indexer also writes
+-- updated_at, and its source (the HTTP Last-Modified header) only has second
+-- precision while listings carry sub-second precision. Truncating on every
+-- write keeps the change comparison below from false-flagging files whose
+-- updated_at was last written by the indexer.
+INSERT INTO files (key, size_bytes, created_at, updated_at)
+SELECT t.key, t.size_bytes, date_trunc('second', t.last_modified), date_trunc('second', t.last_modified)
+FROM (
+    SELECT unnest(sqlc.arg(keys)::text[])                  AS key,
+           unnest(sqlc.arg(sizes)::bigint[])               AS size_bytes,
+           unnest(sqlc.arg(last_modifieds)::timestamptz[]) AS last_modified
+) AS t
+ON CONFLICT (key) DO UPDATE
+SET size_bytes = EXCLUDED.size_bytes,
+    updated_at = EXCLUDED.updated_at
+WHERE files.size_bytes IS DISTINCT FROM EXCLUDED.size_bytes
+   OR files.updated_at IS DISTINCT FROM EXCLUDED.updated_at
+RETURNING id;
+
+-- name: UpdateFileMetadata :exec
+-- Stat indexer result write: metadata the S3 listing cannot provide (content
+-- type) plus authoritative size/mtime from StatObject. updated_at is
+-- truncated to whole seconds to match UpsertFiles (see the comment there);
+-- otherwise the crawler's change detection would flag every indexed file.
+UPDATE files
+SET content_type = $2,
+    size_bytes = $3,
+    updated_at = date_trunc('second', sqlc.arg(updated_at)::timestamptz)
+WHERE id = $1;
+
 -- name: GetFile :one
 SELECT * FROM files
 WHERE id = $1;

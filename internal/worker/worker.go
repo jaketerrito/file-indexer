@@ -1,0 +1,249 @@
+// Package worker implements a generic worker pool that drains a
+// postgres-backed job queue. The pool owns all timing and retry policy
+// (polling, seeding, claim TTL, backoff, max attempts); the Queue
+// implementation is a thin adapter over the per-index-type SQL queries and
+// the Handler performs the actual indexing work.
+//
+// Adding a new index type means providing a Queue (new status table +
+// queries) and a Handler; the pool is reused unchanged.
+package worker
+
+import (
+	"context"
+	"log/slog"
+	"sync"
+	"time"
+)
+
+// Job is one claimed unit of work: a file to index.
+type Job struct {
+	FileID int64
+	Key    string
+	// Attempts is the number of claims including this one; the pool uses it
+	// to compute backoff and decide when retries are exhausted.
+	Attempts int32
+}
+
+// Queue is the persistence adapter for one index type's job table. All
+// methods must be safe for concurrent use.
+type Queue interface {
+	// Seed enqueues files that are not yet known to this index type and
+	// returns how many were added.
+	Seed(ctx context.Context) (int64, error)
+	// Claim atomically claims up to limit jobs. Jobs claimed before
+	// staleBefore by other (presumed dead) workers may be re-claimed.
+	Claim(ctx context.Context, limit int32, staleBefore time.Time) ([]Job, error)
+	// Complete marks a job done.
+	Complete(ctx context.Context, fileID int64) error
+	// Fail records a failed attempt. When exhausted is false the job becomes
+	// claimable again at nextAttempt; otherwise it is parked as an error.
+	Fail(ctx context.Context, fileID int64, cause string, nextAttempt time.Time, exhausted bool) error
+}
+
+// Handler performs the indexing work for one job. A nil return marks the job
+// done; an error triggers the retry policy.
+type Handler interface {
+	Handle(ctx context.Context, job Job) error
+}
+
+// HandlerFunc adapts a function to the Handler interface.
+type HandlerFunc func(ctx context.Context, job Job) error
+
+func (f HandlerFunc) Handle(ctx context.Context, job Job) error { return f(ctx, job) }
+
+// Config carries the pool's tuning knobs. Zero values are replaced by the
+// defaults below in New.
+type Config struct {
+	// Workers is the number of concurrent job executors.
+	Workers int
+	// PollInterval is how long the dispatcher sleeps after finding the queue
+	// empty. A full batch triggers an immediate re-poll to drain backlogs.
+	PollInterval time.Duration
+	// SeedInterval is how often the queue discovers new files.
+	SeedInterval time.Duration
+	// BatchSize is the maximum number of jobs claimed per poll.
+	BatchSize int32
+	// MaxAttempts is the number of handler attempts before a job is parked
+	// as an error.
+	MaxAttempts int32
+	// ClaimTTL is how long a claim may be held before other workers treat it
+	// as abandoned and re-claim it. Must comfortably exceed the slowest
+	// expected handler run.
+	ClaimTTL time.Duration
+	// BackoffBase is the retry delay after the first failure; it doubles per
+	// attempt up to BackoffMax.
+	BackoffBase time.Duration
+	// BackoffMax caps the exponential retry delay.
+	BackoffMax time.Duration
+}
+
+func (c Config) withDefaults() Config {
+	if c.Workers <= 0 {
+		c.Workers = 4
+	}
+	if c.PollInterval <= 0 {
+		c.PollInterval = 5 * time.Second
+	}
+	if c.SeedInterval <= 0 {
+		c.SeedInterval = time.Minute
+	}
+	if c.BatchSize <= 0 {
+		c.BatchSize = 32
+	}
+	if c.MaxAttempts <= 0 {
+		c.MaxAttempts = 5
+	}
+	if c.ClaimTTL <= 0 {
+		c.ClaimTTL = 10 * time.Minute
+	}
+	if c.BackoffBase <= 0 {
+		c.BackoffBase = 10 * time.Second
+	}
+	if c.BackoffMax <= 0 {
+		c.BackoffMax = 10 * time.Minute
+	}
+	return c
+}
+
+// Pool polls a Queue and fans claimed jobs out to a fixed set of worker
+// goroutines running the Handler.
+type Pool struct {
+	cfg     Config
+	queue   Queue
+	handler Handler
+	name    string
+	// now is stubbed in tests.
+	now func() time.Time
+}
+
+// New constructs a Pool. name labels log lines (e.g. "stat"). It does no
+// I/O; call Run to start.
+func New(name string, cfg Config, queue Queue, handler Handler) *Pool {
+	return &Pool{
+		cfg:     cfg.withDefaults(),
+		queue:   queue,
+		handler: handler,
+		name:    name,
+		now:     time.Now,
+	}
+}
+
+// Run seeds, polls, and executes jobs until ctx is cancelled, then waits for
+// in-flight jobs to finish and returns nil. Queue errors are logged and
+// retried on the next tick rather than aborting the pool.
+func (p *Pool) Run(ctx context.Context) error {
+	slog.Info("worker pool starting", "pool", p.name,
+		"workers", p.cfg.Workers, "pollInterval", p.cfg.PollInterval, "batchSize", p.cfg.BatchSize)
+
+	jobs := make(chan Job)
+	var wg sync.WaitGroup
+	for range p.cfg.Workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			p.work(ctx, jobs)
+		}()
+	}
+
+	p.dispatch(ctx, jobs)
+	close(jobs)
+	wg.Wait()
+
+	slog.Info("worker pool stopped", "pool", p.name)
+	return nil
+}
+
+// dispatch is the single dispatcher loop: it seeds on SeedInterval and
+// otherwise claims batches and hands them to workers, blocking (and thereby
+// applying backpressure) when all workers are busy.
+func (p *Pool) dispatch(ctx context.Context, jobs chan<- Job) {
+	p.seed(ctx)
+	seedTick := time.NewTicker(p.cfg.SeedInterval)
+	defer seedTick.Stop()
+
+	for {
+		claimed, err := p.queue.Claim(ctx, p.cfg.BatchSize, p.now().Add(-p.cfg.ClaimTTL))
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			slog.Error("claim failed", "pool", p.name, "error", err)
+		}
+
+		for _, job := range claimed {
+			select {
+			case jobs <- job:
+			case <-ctx.Done():
+				return
+			}
+		}
+
+		// A full batch suggests a backlog: claim again immediately.
+		if int32(len(claimed)) >= p.cfg.BatchSize {
+			continue
+		}
+
+		select {
+		case <-ctx.Done():
+			return
+		case <-seedTick.C:
+			p.seed(ctx)
+		case <-time.After(p.cfg.PollInterval):
+		}
+	}
+}
+
+func (p *Pool) seed(ctx context.Context) {
+	n, err := p.queue.Seed(ctx)
+	if err != nil {
+		if ctx.Err() == nil {
+			slog.Error("seed failed", "pool", p.name, "error", err)
+		}
+		return
+	}
+	if n > 0 {
+		slog.Info("seeded jobs", "pool", p.name, "count", n)
+	}
+}
+
+// work executes jobs until the jobs channel closes. Status writes use a
+// context detached from cancellation so a job finishing during shutdown
+// still records its outcome instead of leaving a claim to expire.
+func (p *Pool) work(ctx context.Context, jobs <-chan Job) {
+	for job := range jobs {
+		statusCtx := context.WithoutCancel(ctx)
+		if err := p.handler.Handle(ctx, job); err != nil {
+			p.fail(statusCtx, job, err)
+			continue
+		}
+		if err := p.queue.Complete(statusCtx, job.FileID); err != nil {
+			slog.Error("complete failed", "pool", p.name, "key", job.Key, "error", err)
+			continue
+		}
+		slog.Info("job done", "pool", p.name, "key", job.Key)
+	}
+}
+
+func (p *Pool) fail(ctx context.Context, job Job, cause error) {
+	exhausted := job.Attempts >= p.cfg.MaxAttempts
+	nextAttempt := p.now().Add(p.backoff(job.Attempts))
+	if err := p.queue.Fail(ctx, job.FileID, cause.Error(), nextAttempt, exhausted); err != nil {
+		slog.Error("fail-mark failed", "pool", p.name, "key", job.Key, "error", err)
+		return
+	}
+	slog.Warn("job failed", "pool", p.name, "key", job.Key,
+		"attempts", job.Attempts, "exhausted", exhausted, "error", cause)
+}
+
+// backoff returns the delay before the next retry: BackoffBase doubled per
+// completed attempt, capped at BackoffMax.
+func (p *Pool) backoff(attempts int32) time.Duration {
+	d := p.cfg.BackoffBase
+	for i := int32(1); i < attempts; i++ {
+		d *= 2
+		if d >= p.cfg.BackoffMax {
+			return p.cfg.BackoffMax
+		}
+	}
+	return min(d, p.cfg.BackoffMax)
+}
