@@ -47,7 +47,7 @@ func TestIndex(t *testing.T) {
 
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().
-		CreateFile(mock.Anything, mock.MatchedBy(func(arg db.CreateFileParams) bool {
+		UpsertFile(mock.Anything, mock.MatchedBy(func(arg db.UpsertFileParams) bool {
 			return arg.Key == "obj-key" &&
 				arg.ContentType.String == "text/plain" && arg.ContentType.Valid &&
 				arg.SizeBytes.Int64 == 100 && arg.SizeBytes.Valid &&
@@ -74,7 +74,7 @@ func TestIndexStatError(t *testing.T) {
 	store.EXPECT().Stat(mock.Anything, "missing").Return(storage.ObjectInfo{}, errors.New("not found"))
 
 	queries := NewMockFileIndex(t)
-	// CreateFile must never be called when Stat fails.
+	// UpsertFile must never be called when Stat fails.
 
 	srv := IndexerServer{storage: store, queries: queries}
 
@@ -84,17 +84,17 @@ func TestIndexStatError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	queries.AssertNotCalled(t, "CreateFile", mock.Anything, mock.Anything)
+	queries.AssertNotCalled(t, "UpsertFile", mock.Anything, mock.Anything)
 }
 
-func TestIndexCreateFileError(t *testing.T) {
+func TestIndexUpsertFileError(t *testing.T) {
 	info := storage.ObjectInfo{Key: "obj-key", Size: 1, ContentType: "text/plain", LastModified: time.Now()}
 
 	store := NewMockObjectStore(t)
 	store.EXPECT().Stat(mock.Anything, "obj-key").Return(info, nil)
 
 	queries := NewMockFileIndex(t)
-	queries.EXPECT().CreateFile(mock.Anything, mock.Anything).Return(db.File{}, errors.New("db error"))
+	queries.EXPECT().UpsertFile(mock.Anything, mock.Anything).Return(db.File{}, errors.New("db error"))
 
 	srv := IndexerServer{storage: store, queries: queries}
 
@@ -129,7 +129,7 @@ func TestServe(t *testing.T) {
 	store.EXPECT().Stat(mock.Anything, "obj-key").Return(info, nil)
 
 	queries := NewMockFileIndex(t)
-	queries.EXPECT().CreateFile(mock.Anything, mock.Anything).Return(db.File{ID: 1, Key: "obj-key"}, nil)
+	queries.EXPECT().UpsertFile(mock.Anything, mock.Anything).Return(db.File{ID: 1, Key: "obj-key"}, nil)
 
 	addr := freeAddr(t)
 	srv := New(addr, store, queries)

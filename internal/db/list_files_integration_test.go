@@ -17,7 +17,7 @@ func createListFile(t *testing.T, q *Queries, key, contentType string, size int6
 	t.Helper()
 	ctx := context.Background()
 
-	file, err := q.CreateFile(ctx, CreateFileParams{
+	file, err := q.UpsertFile(ctx, UpsertFileParams{
 		Key:         key,
 		ContentType: pgtype.Text{String: contentType, Valid: contentType != ""},
 		SizeBytes:   pgtype.Int8{Int64: size, Valid: size != 0},
@@ -25,7 +25,7 @@ func createListFile(t *testing.T, q *Queries, key, contentType string, size int6
 		UpdatedAt:   pgtype.Timestamptz{Time: createdAt, Valid: true},
 	})
 	if err != nil {
-		t.Fatalf("CreateFile: %v", err)
+		t.Fatalf("UpsertFile: %v", err)
 	}
 	t.Cleanup(func() {
 		_, _ = q.DeleteFile(context.Background(), file.ID)

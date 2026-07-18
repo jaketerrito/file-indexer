@@ -18,7 +18,7 @@ type ObjectStore interface {
 }
 
 type FileIndex interface {
-	CreateFile(ctx context.Context, arg db.CreateFileParams) (db.File, error)
+	UpsertFile(ctx context.Context, arg db.UpsertFileParams) (db.File, error)
 }
 
 type IndexerServer struct {
@@ -47,7 +47,7 @@ func (s *IndexerServer) Index(ctx context.Context, req *pb.IndexRequest) (*pb.In
 		return nil, err
 	}
 
-	if _, err := s.queries.CreateFile(ctx, db.CreateFileParams{
+	if _, err := s.queries.UpsertFile(ctx, db.UpsertFileParams{
 		Key:         info.Key,
 		ContentType: pgtype.Text{String: info.ContentType, Valid: true},
 		SizeBytes:   pgtype.Int8{Int64: info.Size, Valid: true},

@@ -11,40 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createFile = `-- name: CreateFile :one
-INSERT INTO files (key, content_type, size_bytes, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, key, content_type, size_bytes, created_at, updated_at
-`
-
-type CreateFileParams struct {
-	Key         string
-	ContentType pgtype.Text
-	SizeBytes   pgtype.Int8
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
-}
-
-func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, error) {
-	row := q.db.QueryRow(ctx, createFile,
-		arg.Key,
-		arg.ContentType,
-		arg.SizeBytes,
-		arg.CreatedAt,
-		arg.UpdatedAt,
-	)
-	var i File
-	err := row.Scan(
-		&i.ID,
-		&i.Key,
-		&i.ContentType,
-		&i.SizeBytes,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const deleteFile = `-- name: DeleteFile :one
 DELETE FROM files
 WHERE id = $1
@@ -433,4 +399,42 @@ func (q *Queries) ListFilesBySizeDesc(ctx context.Context, arg ListFilesBySizeDe
 		return nil, err
 	}
 	return items, nil
+}
+
+const upsertFile = `-- name: UpsertFile :one
+INSERT INTO files (key, content_type, size_bytes, created_at, updated_at)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (key) DO UPDATE SET
+    content_type = EXCLUDED.content_type,
+    size_bytes   = EXCLUDED.size_bytes,
+    updated_at   = EXCLUDED.updated_at
+RETURNING id, key, content_type, size_bytes, created_at, updated_at
+`
+
+type UpsertFileParams struct {
+	Key         string
+	ContentType pgtype.Text
+	SizeBytes   pgtype.Int8
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+func (q *Queries) UpsertFile(ctx context.Context, arg UpsertFileParams) (File, error) {
+	row := q.db.QueryRow(ctx, upsertFile,
+		arg.Key,
+		arg.ContentType,
+		arg.SizeBytes,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	var i File
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.ContentType,
+		&i.SizeBytes,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

@@ -132,25 +132,25 @@ func (_m *MockFileIndex) EXPECT() *MockFileIndex_Expecter {
 	return &MockFileIndex_Expecter{mock: &_m.Mock}
 }
 
-// CreateFile provides a mock function for the type MockFileIndex
-func (_mock *MockFileIndex) CreateFile(ctx context.Context, arg db.CreateFileParams) (db.File, error) {
+// UpsertFile provides a mock function for the type MockFileIndex
+func (_mock *MockFileIndex) UpsertFile(ctx context.Context, arg db.UpsertFileParams) (db.File, error) {
 	ret := _mock.Called(ctx, arg)
 
 	if len(ret) == 0 {
-		panic("no return value specified for CreateFile")
+		panic("no return value specified for UpsertFile")
 	}
 
 	var r0 db.File
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, db.CreateFileParams) (db.File, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpsertFileParams) (db.File, error)); ok {
 		return returnFunc(ctx, arg)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, db.CreateFileParams) db.File); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpsertFileParams) db.File); ok {
 		r0 = returnFunc(ctx, arg)
 	} else {
 		r0 = ret.Get(0).(db.File)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, db.CreateFileParams) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.UpsertFileParams) error); ok {
 		r1 = returnFunc(ctx, arg)
 	} else {
 		r1 = ret.Error(1)
@@ -158,27 +158,27 @@ func (_mock *MockFileIndex) CreateFile(ctx context.Context, arg db.CreateFilePar
 	return r0, r1
 }
 
-// MockFileIndex_CreateFile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateFile'
-type MockFileIndex_CreateFile_Call struct {
+// MockFileIndex_UpsertFile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpsertFile'
+type MockFileIndex_UpsertFile_Call struct {
 	*mock.Call
 }
 
-// CreateFile is a helper method to define mock.On call
+// UpsertFile is a helper method to define mock.On call
 //   - ctx context.Context
-//   - arg db.CreateFileParams
-func (_e *MockFileIndex_Expecter) CreateFile(ctx any, arg any) *MockFileIndex_CreateFile_Call {
-	return &MockFileIndex_CreateFile_Call{Call: _e.mock.On("CreateFile", ctx, arg)}
+//   - arg db.UpsertFileParams
+func (_e *MockFileIndex_Expecter) UpsertFile(ctx any, arg any) *MockFileIndex_UpsertFile_Call {
+	return &MockFileIndex_UpsertFile_Call{Call: _e.mock.On("UpsertFile", ctx, arg)}
 }
 
-func (_c *MockFileIndex_CreateFile_Call) Run(run func(ctx context.Context, arg db.CreateFileParams)) *MockFileIndex_CreateFile_Call {
+func (_c *MockFileIndex_UpsertFile_Call) Run(run func(ctx context.Context, arg db.UpsertFileParams)) *MockFileIndex_UpsertFile_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 db.CreateFileParams
+		var arg1 db.UpsertFileParams
 		if args[1] != nil {
-			arg1 = args[1].(db.CreateFileParams)
+			arg1 = args[1].(db.UpsertFileParams)
 		}
 		run(
 			arg0,
@@ -188,12 +188,12 @@ func (_c *MockFileIndex_CreateFile_Call) Run(run func(ctx context.Context, arg d
 	return _c
 }
 
-func (_c *MockFileIndex_CreateFile_Call) Return(file db.File, err error) *MockFileIndex_CreateFile_Call {
+func (_c *MockFileIndex_UpsertFile_Call) Return(file db.File, err error) *MockFileIndex_UpsertFile_Call {
 	_c.Call.Return(file, err)
 	return _c
 }
 
-func (_c *MockFileIndex_CreateFile_Call) RunAndReturn(run func(ctx context.Context, arg db.CreateFileParams) (db.File, error)) *MockFileIndex_CreateFile_Call {
+func (_c *MockFileIndex_UpsertFile_Call) RunAndReturn(run func(ctx context.Context, arg db.UpsertFileParams) (db.File, error)) *MockFileIndex_UpsertFile_Call {
 	_c.Call.Return(run)
 	return _c
 }

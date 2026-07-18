@@ -74,7 +74,7 @@ func createTestFile(t *testing.T, q *Queries, key string) File {
 	ctx := context.Background()
 	now := time.Now().UTC().Truncate(time.Microsecond)
 
-	file, err := q.CreateFile(ctx, CreateFileParams{
+	file, err := q.UpsertFile(ctx, UpsertFileParams{
 		Key:         key,
 		ContentType: pgtype.Text{String: "text/plain", Valid: true},
 		SizeBytes:   pgtype.Int8{Int64: 42, Valid: true},
@@ -82,7 +82,7 @@ func createTestFile(t *testing.T, q *Queries, key string) File {
 		UpdatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
 	})
 	if err != nil {
-		t.Fatalf("CreateFile: %v", err)
+		t.Fatalf("UpsertFile: %v", err)
 	}
 	t.Cleanup(func() {
 		// Best effort: the row may already be deleted by the test itself.
@@ -130,7 +130,7 @@ func TestCreateAndGetFile(t *testing.T) {
 	created := createTestFile(t, q, key)
 
 	if created.ID == 0 {
-		t.Error("CreateFile returned zero ID")
+		t.Error("UpsertFile returned zero ID")
 	}
 	if created.Key != key {
 		t.Errorf("Key = %q, want %q", created.Key, key)
@@ -151,22 +151,40 @@ func TestCreateAndGetFile(t *testing.T) {
 	}
 }
 
-func TestCreateFileDuplicateKey(t *testing.T) {
+func TestUpsertFileDuplicateKey(t *testing.T) {
 	conn := testConn(t)
 	q := New(conn)
 	ctx := context.Background()
 
 	key := uniqueKey(t)
-	createTestFile(t, q, key)
+	created := createTestFile(t, q, key)
 
-	now := time.Now().UTC().Truncate(time.Microsecond)
-	_, err := q.CreateFile(ctx, CreateFileParams{
-		Key:       key,
-		CreatedAt: pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt: pgtype.Timestamptz{Time: now, Valid: true},
+	// Re-indexing the same key must update in place, not error.
+	later := time.Now().UTC().Truncate(time.Microsecond).Add(time.Hour)
+	updated, err := q.UpsertFile(ctx, UpsertFileParams{
+		Key:         key,
+		ContentType: pgtype.Text{String: "image/png", Valid: true},
+		SizeBytes:   pgtype.Int8{Int64: 99, Valid: true},
+		CreatedAt:   pgtype.Timestamptz{Time: later, Valid: true},
+		UpdatedAt:   pgtype.Timestamptz{Time: later, Valid: true},
 	})
-	if err == nil {
-		t.Fatal("CreateFile with duplicate key: want error, got nil")
+	if err != nil {
+		t.Fatalf("UpsertFile with duplicate key: %v", err)
+	}
+	if updated.ID != created.ID {
+		t.Errorf("ID = %d, want %d (same row updated)", updated.ID, created.ID)
+	}
+	if updated.ContentType.String != "image/png" || !updated.ContentType.Valid {
+		t.Errorf("ContentType = %+v, want image/png", updated.ContentType)
+	}
+	if updated.SizeBytes.Int64 != 99 || !updated.SizeBytes.Valid {
+		t.Errorf("SizeBytes = %+v, want 99", updated.SizeBytes)
+	}
+	if !updated.UpdatedAt.Time.Equal(later) {
+		t.Errorf("UpdatedAt = %v, want %v", updated.UpdatedAt.Time, later)
+	}
+	if !updated.CreatedAt.Time.Equal(created.CreatedAt.Time) {
+		t.Errorf("CreatedAt = %v, want original %v (preserved on conflict)", updated.CreatedAt.Time, created.CreatedAt.Time)
 	}
 }
 
@@ -246,13 +264,13 @@ func TestWithTxRollback(t *testing.T) {
 
 	key := uniqueKey(t)
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	created, err := q.WithTx(tx).CreateFile(ctx, CreateFileParams{
+	created, err := q.WithTx(tx).UpsertFile(ctx, UpsertFileParams{
 		Key:       key,
 		CreatedAt: pgtype.Timestamptz{Time: now, Valid: true},
 		UpdatedAt: pgtype.Timestamptz{Time: now, Valid: true},
 	})
 	if err != nil {
-		t.Fatalf("CreateFile in tx: %v", err)
+		t.Fatalf("UpsertFile in tx: %v", err)
 	}
 
 	if err := tx.Rollback(ctx); err != nil {

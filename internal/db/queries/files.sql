@@ -1,6 +1,10 @@
--- name: CreateFile :one
+-- name: UpsertFile :one
 INSERT INTO files (key, content_type, size_bytes, created_at, updated_at)
 VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (key) DO UPDATE SET
+    content_type = EXCLUDED.content_type,
+    size_bytes   = EXCLUDED.size_bytes,
+    updated_at   = EXCLUDED.updated_at
 RETURNING *;
 
 -- name: GetFile :one
