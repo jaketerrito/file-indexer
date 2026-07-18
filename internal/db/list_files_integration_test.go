@@ -11,25 +11,42 @@ import (
 )
 
 // createListFile inserts a file row with explicit content type, size, and
-// created_at so list ordering and filtering can be asserted. A zero size
-// stores NULL to exercise the COALESCE(size_bytes, 0) sort behaviour.
+// created_at so list ordering and filtering can be asserted, using the
+// production write paths (crawler upsert + stat indexer metadata update). A
+// zero size stores NULL to exercise the COALESCE(size_bytes, 0) sort
+// behaviour.
 func createListFile(t *testing.T, q *Queries, key, contentType string, size int64, createdAt time.Time) File {
 	t.Helper()
 	ctx := context.Background()
 
-	file, err := q.CreateFile(ctx, CreateFileParams{
-		Key:         key,
-		ContentType: pgtype.Text{String: contentType, Valid: contentType != ""},
-		SizeBytes:   pgtype.Int8{Int64: size, Valid: size != 0},
-		CreatedAt:   pgtype.Timestamptz{Time: createdAt, Valid: true},
-		UpdatedAt:   pgtype.Timestamptz{Time: createdAt, Valid: true},
+	ids, err := q.UpsertFiles(ctx, UpsertFilesParams{
+		Keys:          []string{key},
+		Sizes:         []int64{size},
+		LastModifieds: []pgtype.Timestamptz{{Time: createdAt, Valid: true}},
 	})
 	if err != nil {
-		t.Fatalf("CreateFile: %v", err)
+		t.Fatalf("UpsertFiles: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("UpsertFiles returned %d ids, want 1", len(ids))
 	}
 	t.Cleanup(func() {
-		_, _ = q.DeleteFile(context.Background(), file.ID)
+		_, _ = q.DeleteFile(context.Background(), ids[0])
 	})
+
+	if err := q.UpdateFileMetadata(ctx, UpdateFileMetadataParams{
+		ID:          ids[0],
+		ContentType: pgtype.Text{String: contentType, Valid: contentType != ""},
+		SizeBytes:   pgtype.Int8{Int64: size, Valid: size != 0},
+		UpdatedAt:   pgtype.Timestamptz{Time: createdAt, Valid: true},
+	}); err != nil {
+		t.Fatalf("UpdateFileMetadata: %v", err)
+	}
+
+	file, err := q.GetFile(ctx, ids[0])
+	if err != nil {
+		t.Fatalf("GetFile: %v", err)
+	}
 	return file
 }
 
@@ -39,7 +56,9 @@ func createListFile(t *testing.T, q *Queries, key, contentType string, size int6
 func seedListFiles(t *testing.T, q *Queries) string {
 	t.Helper()
 	prefix := uniqueKey(t) + "/"
-	base := time.Now().UTC().Truncate(time.Microsecond)
+	// UpsertFiles stores timestamps truncated to whole seconds; second
+	// offsets keep the fixture's created_at ordering distinct.
+	base := time.Now().UTC().Truncate(time.Second)
 
 	createListFile(t, q, prefix+"a.txt", "text/plain", 300, base.Add(2*time.Second))
 	createListFile(t, q, prefix+"b.png", "image/png", 100, base.Add(3*time.Second))

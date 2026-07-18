@@ -11,9 +11,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// claimBatch is large enough that a claim is guaranteed to include this
-// test's rows even if other tests (or leftovers from aborted runs) have
-// pending rows in the shared dev database.
+// claimBatch bounds one claim round trip; claimOurs keeps claiming batches
+// until it has found the caller's rows or the queue is drained, so the size
+// only affects round trips, not correctness.
 const claimBatch = 1000
 
 // noStale is a stale_before cutoff far in the past, so claims never reclaim
@@ -52,28 +52,36 @@ func indexStatRow(t *testing.T, conn *pgx.Conn, fileID int64) IndexStat {
 	return s
 }
 
-// claimAll claims a big batch and returns it; combined with claimOurs to
-// pick out this test's rows.
+// claimOurs claims batches until it has seen all of ids or the queue is
+// empty, returning only the rows belonging to this test. Looping (rather
+// than one huge batch) keeps the tests correct against a shared dev
+// database with an arbitrary pending backlog; rows claimed incidentally
+// stay claimed, which other tests tolerate because they also filter to
+// their own ids.
 func claimOurs(t *testing.T, q *Queries, staleBefore pgtype.Timestamptz, ids ...int64) []ClaimIndexStatRow {
 	t.Helper()
-	rows, err := q.ClaimIndexStat(context.Background(), ClaimIndexStatParams{
-		StaleBefore: staleBefore,
-		BatchSize:   claimBatch,
-	})
-	if err != nil {
-		t.Fatalf("ClaimIndexStat: %v", err)
-	}
 	want := map[int64]bool{}
 	for _, id := range ids {
 		want[id] = true
 	}
 	var ours []ClaimIndexStatRow
-	for _, row := range rows {
-		if want[row.FileID] {
-			ours = append(ours, row)
+	for {
+		rows, err := q.ClaimIndexStat(context.Background(), ClaimIndexStatParams{
+			StaleBefore: staleBefore,
+			BatchSize:   claimBatch,
+		})
+		if err != nil {
+			t.Fatalf("ClaimIndexStat: %v", err)
+		}
+		for _, row := range rows {
+			if want[row.FileID] {
+				ours = append(ours, row)
+			}
+		}
+		if len(rows) == 0 || len(ours) == len(ids) {
+			return ours
 		}
 	}
-	return ours
 }
 
 func ts(t time.Time) pgtype.Timestamptz {
@@ -220,6 +228,23 @@ func TestIndexStatLifecycle(t *testing.T) {
 		t.Errorf("claimed a backed-off row before next_attempt_at: %v", backedOff)
 	}
 
+	// Reset must also cover pending-with-backoff rows (the crawler saw the
+	// object change mid-retry): failure state clears and the row is
+	// claimable immediately instead of inheriting the old backoff.
+	n, err = q.ResetIndexStat(ctx, []int64{fileID})
+	if err != nil {
+		t.Fatalf("ResetIndexStat(backed-off): %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("ResetIndexStat(backed-off) reset %d rows, want 1", n)
+	}
+	if s := indexStatRow(t, conn, fileID); s.Status != "pending" || s.Attempts != 0 || s.LastError.Valid {
+		t.Fatalf("after reset of backed-off row: %+v, want clean pending", s)
+	}
+	if ours = claimOurs(t, q, noStale, fileID); len(ours) != 1 {
+		t.Fatalf("claim after backed-off reset: got %v, want our row", ours)
+	}
+
 	// Exhausted failure parks the row as error; never claimable.
 	if err := q.FailIndexStat(ctx, FailIndexStatParams{
 		FileID: fileID, LastError: pgtype.Text{String: "gave up", Valid: true},
@@ -232,6 +257,46 @@ func TestIndexStatLifecycle(t *testing.T) {
 	}
 	if parked := claimOurs(t, q, noStale, fileID); len(parked) != 0 {
 		t.Errorf("claimed an errored row: %v", parked)
+	}
+}
+
+func TestReleaseIndexStat(t *testing.T) {
+	conn := testConn(t)
+	q := New(conn)
+	ctx := context.Background()
+
+	key := uniqueKey(t)
+	ids := upsertTestFiles(t, q, UpsertFilesParams{
+		Keys: []string{key}, Sizes: []int64{1},
+		LastModifieds: []pgtype.Timestamptz{ts(time.Now().UTC().Truncate(time.Second))},
+	})
+	if _, err := q.SeedIndexStat(ctx); err != nil {
+		t.Fatalf("SeedIndexStat: %v", err)
+	}
+
+	if ours := claimOurs(t, q, noStale, ids[0]); len(ours) != 1 {
+		t.Fatalf("claim: got %v, want our row", ours)
+	}
+
+	// Release undoes the claim without consuming an attempt.
+	if err := q.ReleaseIndexStat(ctx, ids[0]); err != nil {
+		t.Fatalf("ReleaseIndexStat: %v", err)
+	}
+	s := indexStatRow(t, conn, ids[0])
+	if s.Status != "pending" || s.Attempts != 0 || s.ClaimedAt.Valid {
+		t.Fatalf("after release: %+v, want pending, 0 attempts, no claim", s)
+	}
+
+	// Releasing a non-claimed row is a no-op (guard against clobbering a
+	// row another worker already reclaimed and finished).
+	if err := q.CompleteIndexStat(ctx, ids[0]); err != nil {
+		t.Fatalf("CompleteIndexStat: %v", err)
+	}
+	if err := q.ReleaseIndexStat(ctx, ids[0]); err != nil {
+		t.Fatalf("ReleaseIndexStat(done row): %v", err)
+	}
+	if s := indexStatRow(t, conn, ids[0]); s.Status != "done" {
+		t.Fatalf("release clobbered a done row: %+v", s)
 	}
 }
 

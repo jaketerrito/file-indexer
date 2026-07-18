@@ -11,40 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createFile = `-- name: CreateFile :one
-INSERT INTO files (key, content_type, size_bytes, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING id, key, content_type, size_bytes, created_at, updated_at
-`
-
-type CreateFileParams struct {
-	Key         string
-	ContentType pgtype.Text
-	SizeBytes   pgtype.Int8
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
-}
-
-func (q *Queries) CreateFile(ctx context.Context, arg CreateFileParams) (File, error) {
-	row := q.db.QueryRow(ctx, createFile,
-		arg.Key,
-		arg.ContentType,
-		arg.SizeBytes,
-		arg.CreatedAt,
-		arg.UpdatedAt,
-	)
-	var i File
-	err := row.Scan(
-		&i.ID,
-		&i.Key,
-		&i.ContentType,
-		&i.SizeBytes,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
 const deleteFile = `-- name: DeleteFile :one
 DELETE FROM files
 WHERE id = $1

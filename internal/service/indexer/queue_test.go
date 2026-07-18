@@ -66,6 +66,15 @@ func TestStatQueueClaimError(t *testing.T) {
 	}
 }
 
+func TestStatQueueRelease(t *testing.T) {
+	queries := NewMockStatQueries(t)
+	queries.EXPECT().ReleaseIndexStat(mock.Anything, int64(9)).Return(nil)
+
+	if err := NewStatQueue(queries).Release(context.Background(), 9); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestStatQueueComplete(t *testing.T) {
 	queries := NewMockStatQueries(t)
 	queries.EXPECT().CompleteIndexStat(mock.Anything, int64(9)).Return(nil)

@@ -46,7 +46,7 @@ func main() {
 			Workers:      cfg.Worker.Workers,
 			PollInterval: cfg.Worker.PollInterval,
 			SeedInterval: cfg.Worker.SeedInterval,
-			BatchSize:    int32(cfg.Worker.BatchSize), //nolint:gosec // bounded operator-supplied config
+			BatchSize:    int32(cfg.Worker.BatchSize),
 			MaxAttempts:  int32(cfg.Worker.MaxAttempts),
 			ClaimTTL:     cfg.Worker.ClaimTTL,
 		},

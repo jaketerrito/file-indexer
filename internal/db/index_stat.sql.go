@@ -108,16 +108,38 @@ func (q *Queries) FailIndexStat(ctx context.Context, arg FailIndexStatParams) er
 	return err
 }
 
+const releaseIndexStat = `-- name: ReleaseIndexStat :exec
+UPDATE index_stat
+SET status = 'pending',
+    attempts = GREATEST(attempts - 1, 0),
+    claimed_at = NULL,
+    updated_at = now()
+WHERE file_id = $1
+  AND status = 'claimed'
+`
+
+// Return a claimed-but-unstarted job to pending without consuming an
+// attempt (worker pool shutdown between claim and dispatch). The status
+// guard keeps a late release from clobbering a row another worker has
+// already reclaimed and completed.
+func (q *Queries) ReleaseIndexStat(ctx context.Context, fileID int64) error {
+	_, err := q.db.Exec(ctx, releaseIndexStat, fileID)
+	return err
+}
+
 const resetIndexStat = `-- name: ResetIndexStat :execrows
 UPDATE index_stat
 SET status = 'pending', attempts = 0, next_attempt_at = now(), last_error = NULL, updated_at = now()
 WHERE file_id = ANY ($1::bigint[])
-  AND status <> 'pending'
+  AND (status <> 'pending' OR attempts > 0 OR next_attempt_at > now())
 `
 
 // Re-enqueue specific files (e.g. the crawler detected the object changed in
 // S3). Done/error/claimed rows all return to pending; attempts restart since
-// this is logically a new piece of work.
+// this is logically a new piece of work. Rows already pending are still
+// reset when they carry failure state (attempts or a backoff delay), so a
+// changed file mid-retry is re-indexed promptly instead of inheriting the
+// old failure's backoff.
 func (q *Queries) ResetIndexStat(ctx context.Context, fileIds []int64) (int64, error) {
 	result, err := q.db.Exec(ctx, resetIndexStat, fileIds)
 	if err != nil {

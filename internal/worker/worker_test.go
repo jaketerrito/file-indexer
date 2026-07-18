@@ -33,20 +33,21 @@ type failCall struct {
 // fakeQueue is an in-memory Queue. Claim hands out the queued jobs once;
 // afterwards it returns empty batches (or claimErrs, if set).
 type fakeQueue struct {
-	mu        sync.Mutex
-	jobs      []Job
-	claimErrs int // number of leading Claim calls that fail
-	seedErr   error
-	seedN     int64
+	mu           sync.Mutex
+	jobs         []Job
+	claimErrs    int // number of leading Claim calls that fail
+	seedErr      error
+	seedN        int64
+	completeErrs int // number of leading Complete calls that fail
+	completeErr  error
 
-	seeds       int
-	claims      int
-	completed   []int64
-	fails       []failCall
-	completeErr error
-	failErr     error
+	seeds     int
+	claims    int
+	completed []int64
+	released  []int64
+	fails     []failCall
 
-	activity chan struct{} // signalled on every Complete/Fail
+	activity chan struct{} // signalled on every Complete/Fail call
 }
 
 func newFakeQueue(jobs ...Job) *fakeQueue {
@@ -74,11 +75,22 @@ func (q *fakeQueue) Claim(_ context.Context, limit int32, _ time.Time) ([]Job, e
 	return batch, nil
 }
 
+func (q *fakeQueue) Release(_ context.Context, fileID int64) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.released = append(q.released, fileID)
+	return nil
+}
+
 func (q *fakeQueue) Complete(_ context.Context, fileID int64) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.completed = append(q.completed, fileID)
 	q.activity <- struct{}{}
+	if q.completeErrs > 0 {
+		q.completeErrs--
+		return errors.New("complete boom")
+	}
 	return q.completeErr
 }
 
@@ -87,7 +99,7 @@ func (q *fakeQueue) Fail(_ context.Context, fileID int64, cause string, nextAtte
 	defer q.mu.Unlock()
 	q.fails = append(q.fails, failCall{fileID, cause, nextAttempt, exhausted})
 	q.activity <- struct{}{}
-	return q.failErr
+	return nil
 }
 
 // waitActivity blocks until the queue has seen n Complete/Fail calls.
@@ -271,22 +283,103 @@ func TestPoolSeedsOnInterval(t *testing.T) {
 	stop()
 }
 
-func TestPoolLogsStatusWriteErrors(t *testing.T) {
-	// Complete/Fail persistence errors must not crash the pool or block
-	// subsequent jobs.
-	q := newFakeQueue(Job{FileID: 1, Key: "a", Attempts: 1}, Job{FileID: 2, Key: "b", Attempts: 1})
-	q.completeErr = errors.New("db down")
+func TestPoolRetriesTransientStatusWriteError(t *testing.T) {
+	// A transient Complete failure is retried and must not lose the
+	// outcome or trigger the failure path.
+	q := newFakeQueue(Job{FileID: 1, Key: "a", Attempts: 1})
+	q.completeErrs = 1
 
 	h := HandlerFunc(func(context.Context, Job) error { return nil })
 
-	stop := runPool(t, New("test", fastConfig(), q, h))
+	p := New("test", fastConfig(), q, h)
+	p.retryDelay = time.Millisecond
+
+	stop := runPool(t, p)
 	q.waitActivity(t, 2)
 	stop()
 
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if len(q.completed) != 2 {
-		t.Fatalf("completed attempts = %v, want both despite errors", q.completed)
+		t.Fatalf("Complete calls = %v, want 2 (failure then retry)", q.completed)
+	}
+	if len(q.fails) != 0 {
+		t.Errorf("fails = %v, want none", q.fails)
+	}
+}
+
+func TestPoolLogsStatusWriteErrors(t *testing.T) {
+	// Persistent Complete errors exhaust the retry budget without crashing
+	// the pool or blocking subsequent jobs.
+	q := newFakeQueue(Job{FileID: 1, Key: "a", Attempts: 1}, Job{FileID: 2, Key: "b", Attempts: 1})
+	q.completeErr = errors.New("db down")
+
+	h := HandlerFunc(func(context.Context, Job) error { return nil })
+
+	p := New("test", fastConfig(), q, h)
+	p.retryDelay = time.Millisecond
+
+	stop := runPool(t, p)
+	q.waitActivity(t, 2*statusWriteTries)
+	stop()
+
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if len(q.completed) != 2*statusWriteTries {
+		t.Fatalf("Complete calls = %d, want %d (retry budget per job)", len(q.completed), 2*statusWriteTries)
+	}
+}
+
+func TestPoolReleasesUndispatchedOnShutdown(t *testing.T) {
+	// One worker, one blocking job: the dispatcher claims all three jobs,
+	// hands off the first, and blocks sending the second. Cancelling must
+	// release the two undispatched claims so a restarted pool can claim
+	// them immediately instead of waiting out the claim TTL.
+	q := newFakeQueue(
+		Job{FileID: 1, Key: "a", Attempts: 1},
+		Job{FileID: 2, Key: "b", Attempts: 1},
+		Job{FileID: 3, Key: "c", Attempts: 1},
+	)
+
+	started := make(chan struct{})
+	unblock := make(chan struct{})
+	h := HandlerFunc(func(context.Context, Job) error {
+		close(started) // only job 1 is ever dispatched
+		<-unblock
+		return nil
+	})
+
+	cfg := fastConfig()
+	cfg.Workers = 1
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- New("test", cfg, q, h).Run(ctx) }()
+
+	<-started
+	cancel()
+	close(unblock)
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Run returned %v, want nil", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("pool did not shut down")
+	}
+
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	released := map[int64]bool{}
+	for _, id := range q.released {
+		released[id] = true
+	}
+	if len(released) != 2 || !released[2] || !released[3] {
+		t.Errorf("released = %v, want jobs 2 and 3", q.released)
+	}
+	if len(q.completed) != 1 || q.completed[0] != 1 {
+		t.Errorf("completed = %v, want job 1 (in-flight job finishes and records)", q.completed)
 	}
 }
 

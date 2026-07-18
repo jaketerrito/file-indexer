@@ -221,6 +221,63 @@ func (_c *MockStatQueries_FailIndexStat_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// ReleaseIndexStat provides a mock function for the type MockStatQueries
+func (_mock *MockStatQueries) ReleaseIndexStat(ctx context.Context, fileID int64) error {
+	ret := _mock.Called(ctx, fileID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReleaseIndexStat")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) error); ok {
+		r0 = returnFunc(ctx, fileID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockStatQueries_ReleaseIndexStat_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReleaseIndexStat'
+type MockStatQueries_ReleaseIndexStat_Call struct {
+	*mock.Call
+}
+
+// ReleaseIndexStat is a helper method to define mock.On call
+//   - ctx context.Context
+//   - fileID int64
+func (_e *MockStatQueries_Expecter) ReleaseIndexStat(ctx any, fileID any) *MockStatQueries_ReleaseIndexStat_Call {
+	return &MockStatQueries_ReleaseIndexStat_Call{Call: _e.mock.On("ReleaseIndexStat", ctx, fileID)}
+}
+
+func (_c *MockStatQueries_ReleaseIndexStat_Call) Run(run func(ctx context.Context, fileID int64)) *MockStatQueries_ReleaseIndexStat_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockStatQueries_ReleaseIndexStat_Call) Return(err error) *MockStatQueries_ReleaseIndexStat_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockStatQueries_ReleaseIndexStat_Call) RunAndReturn(run func(ctx context.Context, fileID int64) error) *MockStatQueries_ReleaseIndexStat_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SeedIndexStat provides a mock function for the type MockStatQueries
 func (_mock *MockStatQueries) SeedIndexStat(ctx context.Context) (int64, error) {
 	ret := _mock.Called(ctx)

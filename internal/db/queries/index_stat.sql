@@ -42,6 +42,19 @@ SELECT c.file_id, c.attempts, f.key
 FROM claimed c
 JOIN files f ON f.id = c.file_id;
 
+-- name: ReleaseIndexStat :exec
+-- Return a claimed-but-unstarted job to pending without consuming an
+-- attempt (worker pool shutdown between claim and dispatch). The status
+-- guard keeps a late release from clobbering a row another worker has
+-- already reclaimed and completed.
+UPDATE index_stat
+SET status = 'pending',
+    attempts = GREATEST(attempts - 1, 0),
+    claimed_at = NULL,
+    updated_at = now()
+WHERE file_id = $1
+  AND status = 'claimed';
+
 -- name: CompleteIndexStat :exec
 UPDATE index_stat
 SET status = 'done', last_error = NULL, updated_at = now()
@@ -61,8 +74,11 @@ WHERE file_id = sqlc.arg(file_id);
 -- name: ResetIndexStat :execrows
 -- Re-enqueue specific files (e.g. the crawler detected the object changed in
 -- S3). Done/error/claimed rows all return to pending; attempts restart since
--- this is logically a new piece of work.
+-- this is logically a new piece of work. Rows already pending are still
+-- reset when they carry failure state (attempts or a backoff delay), so a
+-- changed file mid-retry is re-indexed promptly instead of inheriting the
+-- old failure's backoff.
 UPDATE index_stat
 SET status = 'pending', attempts = 0, next_attempt_at = now(), last_error = NULL, updated_at = now()
 WHERE file_id = ANY (sqlc.arg(file_ids)::bigint[])
-  AND status <> 'pending';
+  AND (status <> 'pending' OR attempts > 0 OR next_attempt_at > now());

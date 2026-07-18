@@ -33,6 +33,9 @@ type Queue interface {
 	// Claim atomically claims up to limit jobs. Jobs claimed before
 	// staleBefore by other (presumed dead) workers may be re-claimed.
 	Claim(ctx context.Context, limit int32, staleBefore time.Time) ([]Job, error)
+	// Release returns a claimed-but-unstarted job to pending without
+	// consuming an attempt (pool shutdown between claim and dispatch).
+	Release(ctx context.Context, fileID int64) error
 	// Complete marks a job done.
 	Complete(ctx context.Context, fileID int64) error
 	// Fail records a failed attempt. When exhausted is false the job becomes
@@ -105,6 +108,16 @@ func (c Config) withDefaults() Config {
 	return c
 }
 
+// Status writes (Complete/Fail/Release) run on a context detached from pool
+// cancellation, so they are individually bounded and retried a few times:
+// a transient DB blip must not lose a finished job's outcome, and a hung DB
+// must not stall shutdown forever.
+const (
+	statusWriteTimeout = 10 * time.Second
+	statusWriteTries   = 3
+	statusRetryDelay   = 500 * time.Millisecond
+)
+
 // Pool polls a Queue and fans claimed jobs out to a fixed set of worker
 // goroutines running the Handler.
 type Pool struct {
@@ -112,19 +125,21 @@ type Pool struct {
 	queue   Queue
 	handler Handler
 	name    string
-	// now is stubbed in tests.
-	now func() time.Time
+	// now and retryDelay are stubbed in tests.
+	now        func() time.Time
+	retryDelay time.Duration
 }
 
 // New constructs a Pool. name labels log lines (e.g. "stat"). It does no
 // I/O; call Run to start.
 func New(name string, cfg Config, queue Queue, handler Handler) *Pool {
 	return &Pool{
-		cfg:     cfg.withDefaults(),
-		queue:   queue,
-		handler: handler,
-		name:    name,
-		now:     time.Now,
+		cfg:        cfg.withDefaults(),
+		queue:      queue,
+		handler:    handler,
+		name:       name,
+		now:        time.Now,
+		retryDelay: statusRetryDelay,
 	}
 }
 
@@ -170,10 +185,14 @@ func (p *Pool) dispatch(ctx context.Context, jobs chan<- Job) {
 			slog.Error("claim failed", "pool", p.name, "error", err)
 		}
 
-		for _, job := range claimed {
+		for i, job := range claimed {
 			select {
 			case jobs <- job:
 			case <-ctx.Done():
+				// Shutdown between claim and dispatch: release the rest so
+				// they are immediately claimable after restart instead of
+				// waiting out the claim TTL.
+				p.release(context.WithoutCancel(ctx), claimed[i:])
 				return
 			}
 		}
@@ -191,6 +210,42 @@ func (p *Pool) dispatch(ctx context.Context, jobs chan<- Job) {
 		case <-time.After(p.cfg.PollInterval):
 		}
 	}
+}
+
+// release returns undispatched claims to pending during shutdown.
+func (p *Pool) release(ctx context.Context, jobs []Job) {
+	for _, job := range jobs {
+		err := p.statusWrite(ctx, "release", job, func(c context.Context) error {
+			return p.queue.Release(c, job.FileID)
+		})
+		if err != nil {
+			// The claim TTL will recover the row; nothing else to do.
+			slog.Error("release failed", "pool", p.name, "key", job.Key, "error", err)
+		}
+	}
+	if len(jobs) > 0 {
+		slog.Info("released undispatched jobs", "pool", p.name, "count", len(jobs))
+	}
+}
+
+// statusWrite runs one queue status mutation with a per-try timeout and a
+// small retry budget.
+func (p *Pool) statusWrite(ctx context.Context, op string, job Job, fn func(ctx context.Context) error) error {
+	var err error
+	for try := 1; try <= statusWriteTries; try++ {
+		tryCtx, cancel := context.WithTimeout(ctx, statusWriteTimeout)
+		err = fn(tryCtx)
+		cancel()
+		if err == nil {
+			return nil
+		}
+		if try < statusWriteTries {
+			slog.Warn("status write failed, retrying", "pool", p.name,
+				"op", op, "key", job.Key, "try", try, "error", err)
+			time.Sleep(p.retryDelay)
+		}
+	}
+	return err
 }
 
 func (p *Pool) seed(ctx context.Context) {
@@ -216,7 +271,12 @@ func (p *Pool) work(ctx context.Context, jobs <-chan Job) {
 			p.fail(statusCtx, job, err)
 			continue
 		}
-		if err := p.queue.Complete(statusCtx, job.FileID); err != nil {
+		err := p.statusWrite(statusCtx, "complete", job, func(c context.Context) error {
+			return p.queue.Complete(c, job.FileID)
+		})
+		if err != nil {
+			// The row stays claimed and will be reclaimed after the TTL;
+			// the handler is idempotent so the re-run is harmless.
 			slog.Error("complete failed", "pool", p.name, "key", job.Key, "error", err)
 			continue
 		}
@@ -227,7 +287,10 @@ func (p *Pool) work(ctx context.Context, jobs <-chan Job) {
 func (p *Pool) fail(ctx context.Context, job Job, cause error) {
 	exhausted := job.Attempts >= p.cfg.MaxAttempts
 	nextAttempt := p.now().Add(p.backoff(job.Attempts))
-	if err := p.queue.Fail(ctx, job.FileID, cause.Error(), nextAttempt, exhausted); err != nil {
+	err := p.statusWrite(ctx, "fail", job, func(c context.Context) error {
+		return p.queue.Fail(c, job.FileID, cause.Error(), nextAttempt, exhausted)
+	})
+	if err != nil {
 		slog.Error("fail-mark failed", "pool", p.name, "key", job.Key, "error", err)
 		return
 	}

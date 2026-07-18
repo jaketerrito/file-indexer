@@ -1,8 +1,3 @@
--- name: CreateFile :one
-INSERT INTO files (key, content_type, size_bytes, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING *;
-
 -- name: UpsertFiles :many
 -- Crawler ingest: register discovered objects idempotently. created_at and
 -- updated_at both start as the object's S3 last-modified time. On re-crawl,

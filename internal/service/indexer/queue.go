@@ -13,6 +13,7 @@ import (
 type StatQueries interface {
 	SeedIndexStat(ctx context.Context) (int64, error)
 	ClaimIndexStat(ctx context.Context, arg db.ClaimIndexStatParams) ([]db.ClaimIndexStatRow, error)
+	ReleaseIndexStat(ctx context.Context, fileID int64) error
 	CompleteIndexStat(ctx context.Context, fileID int64) error
 	FailIndexStat(ctx context.Context, arg db.FailIndexStatParams) error
 }
@@ -49,6 +50,10 @@ func (q *StatQueue) Claim(ctx context.Context, limit int32, staleBefore time.Tim
 		jobs[i] = worker.Job{FileID: row.FileID, Key: row.Key, Attempts: row.Attempts}
 	}
 	return jobs, nil
+}
+
+func (q *StatQueue) Release(ctx context.Context, fileID int64) error {
+	return q.queries.ReleaseIndexStat(ctx, fileID)
 }
 
 func (q *StatQueue) Complete(ctx context.Context, fileID int64) error {

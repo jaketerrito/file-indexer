@@ -68,26 +68,44 @@ func uniqueKey(t *testing.T) string {
 	return fmt.Sprintf("it/%s/%d", t.Name(), time.Now().UnixNano())
 }
 
-// createTestFile inserts a file row and registers cleanup to remove it.
+// createTestFile inserts a file row through the production write paths
+// (crawler upsert + stat indexer metadata update) and registers cleanup to
+// remove it.
 func createTestFile(t *testing.T, q *Queries, key string) File {
 	t.Helper()
 	ctx := context.Background()
-	now := time.Now().UTC().Truncate(time.Microsecond)
+	// UpsertFiles stores timestamps truncated to whole seconds.
+	now := time.Now().UTC().Truncate(time.Second)
 
-	file, err := q.CreateFile(ctx, CreateFileParams{
-		Key:         key,
-		ContentType: pgtype.Text{String: "text/plain", Valid: true},
-		SizeBytes:   pgtype.Int8{Int64: 42, Valid: true},
-		CreatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
+	ids, err := q.UpsertFiles(ctx, UpsertFilesParams{
+		Keys:          []string{key},
+		Sizes:         []int64{42},
+		LastModifieds: []pgtype.Timestamptz{{Time: now, Valid: true}},
 	})
 	if err != nil {
-		t.Fatalf("CreateFile: %v", err)
+		t.Fatalf("UpsertFiles: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("UpsertFiles returned %d ids, want 1", len(ids))
 	}
 	t.Cleanup(func() {
 		// Best effort: the row may already be deleted by the test itself.
-		_, _ = q.DeleteFile(context.Background(), file.ID)
+		_, _ = q.DeleteFile(context.Background(), ids[0])
 	})
+
+	if err := q.UpdateFileMetadata(ctx, UpdateFileMetadataParams{
+		ID:          ids[0],
+		ContentType: pgtype.Text{String: "text/plain", Valid: true},
+		SizeBytes:   pgtype.Int8{Int64: 42, Valid: true},
+		UpdatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
+	}); err != nil {
+		t.Fatalf("UpdateFileMetadata: %v", err)
+	}
+
+	file, err := q.GetFile(ctx, ids[0])
+	if err != nil {
+		t.Fatalf("GetFile: %v", err)
+	}
 	return file
 }
 
@@ -130,7 +148,7 @@ func TestCreateAndGetFile(t *testing.T) {
 	created := createTestFile(t, q, key)
 
 	if created.ID == 0 {
-		t.Error("CreateFile returned zero ID")
+		t.Error("createTestFile returned zero ID")
 	}
 	if created.Key != key {
 		t.Errorf("Key = %q, want %q", created.Key, key)
@@ -148,25 +166,6 @@ func TestCreateAndGetFile(t *testing.T) {
 	}
 	if got != created {
 		t.Errorf("GetFile = %+v, want %+v", got, created)
-	}
-}
-
-func TestCreateFileDuplicateKey(t *testing.T) {
-	conn := testConn(t)
-	q := New(conn)
-	ctx := context.Background()
-
-	key := uniqueKey(t)
-	createTestFile(t, q, key)
-
-	now := time.Now().UTC().Truncate(time.Microsecond)
-	_, err := q.CreateFile(ctx, CreateFileParams{
-		Key:       key,
-		CreatedAt: pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt: pgtype.Timestamptz{Time: now, Valid: true},
-	})
-	if err == nil {
-		t.Fatal("CreateFile with duplicate key: want error, got nil")
 	}
 }
 
@@ -245,21 +244,24 @@ func TestWithTxRollback(t *testing.T) {
 	}
 
 	key := uniqueKey(t)
-	now := time.Now().UTC().Truncate(time.Microsecond)
-	created, err := q.WithTx(tx).CreateFile(ctx, CreateFileParams{
-		Key:       key,
-		CreatedAt: pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt: pgtype.Timestamptz{Time: now, Valid: true},
+	now := time.Now().UTC().Truncate(time.Second)
+	ids, err := q.WithTx(tx).UpsertFiles(ctx, UpsertFilesParams{
+		Keys:          []string{key},
+		Sizes:         []int64{1},
+		LastModifieds: []pgtype.Timestamptz{{Time: now, Valid: true}},
 	})
 	if err != nil {
-		t.Fatalf("CreateFile in tx: %v", err)
+		t.Fatalf("UpsertFiles in tx: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("UpsertFiles in tx returned %d ids, want 1", len(ids))
 	}
 
 	if err := tx.Rollback(ctx); err != nil {
 		t.Fatalf("Rollback: %v", err)
 	}
 
-	if _, err := q.GetFile(ctx, created.ID); !errors.Is(err, pgx.ErrNoRows) {
+	if _, err := q.GetFile(ctx, ids[0]); !errors.Is(err, pgx.ErrNoRows) {
 		t.Errorf("GetFile after rollback error = %v, want pgx.ErrNoRows", err)
 	}
 }
