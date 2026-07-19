@@ -21,6 +21,21 @@ func fastConfig() Config {
 	}
 }
 
+// testConfig returns a Config ready to pass to Run, with test seams set to
+// sensible defaults.
+func testConfig() Config {
+	return Config{
+		PollInterval: time.Millisecond,
+		BatchSize:    8,
+		MaxAttempts:  3,
+		ClaimTTL:     time.Minute,
+		BackoffBase:  time.Second,
+		BackoffMax:   8 * time.Second,
+		now:          time.Now,
+		retryDelay:   500 * time.Millisecond,
+	}
+}
+
 type failCall struct {
 	fileID      int64
 	cause       string
@@ -51,7 +66,7 @@ func newFakeQueue(jobs ...Job) *fakeQueue {
 	return &fakeQueue{jobs: jobs, activity: make(chan struct{}, 64)}
 }
 
-func (q *fakeQueue) Seed(context.Context) (int64, error) {
+func (q *fakeQueue) Seed(_ context.Context) (int64, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.seeds++
@@ -104,34 +119,23 @@ func (q *fakeQueue) waitActivity(t *testing.T, n int) {
 	}
 }
 
-// runRunner starts the loop and returns a stop function that cancels it and
-// waits for run to return.
-func runRunner(t *testing.T, r *runner[string]) (stop func()) {
+// runRunner starts Run in a goroutine and returns a stop function that
+// cancels the context and waits for Run to return.
+func runRunner(t *testing.T, cfg Config, q Queue[string], process ProcessFunc[string]) (stop func()) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
-	go func() { done <- r.run(ctx) }()
+	go func() { done <- Run(ctx, "test", cfg, q, process) }()
 	return func() {
 		cancel()
 		select {
 		case err := <-done:
 			if err != nil {
-				t.Errorf("run returned %v, want nil", err)
+				t.Errorf("Run returned %v, want nil", err)
 			}
 		case <-time.After(5 * time.Second):
 			t.Fatal("runner did not shut down")
 		}
-	}
-}
-
-func newTestRunner(q *fakeQueue, process ProcessFunc[string]) *runner[string] {
-	return &runner[string]{
-		cfg:        fastConfig(),
-		queue:      q,
-		process:    process,
-		name:       "test",
-		now:        time.Now,
-		retryDelay: statusRetryDelay,
 	}
 }
 
@@ -147,7 +151,7 @@ func TestRunProcessesJobsSequentially(t *testing.T) {
 		return "ok", nil
 	})
 
-	stop := runRunner(t, newTestRunner(q, process))
+	stop := runRunner(t, testConfig(), q, process)
 	q.waitActivity(t, 2)
 	stop()
 
@@ -173,11 +177,11 @@ func TestRunFailsJobWithBackoff(t *testing.T) {
 	q := newFakeQueue(Job{FileID: 7, Key: "bad", Attempts: 2})
 	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "", errors.New("stat exploded") })
 
-	r := newTestRunner(q, process)
 	base := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
-	r.now = func() time.Time { return base }
+	cfg := testConfig()
+	cfg.now = func() time.Time { return base }
 
-	stop := runRunner(t, r)
+	stop := runRunner(t, cfg, q, process)
 	q.waitActivity(t, 1)
 	stop()
 
@@ -206,7 +210,7 @@ func TestRunExhaustsRetries(t *testing.T) {
 	q := newFakeQueue(Job{FileID: 7, Key: "bad", Attempts: 3}) // == MaxAttempts
 	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "", errors.New("still broken") })
 
-	stop := runRunner(t, newTestRunner(q, process))
+	stop := runRunner(t, testConfig(), q, process)
 	q.waitActivity(t, 1)
 	stop()
 
@@ -224,7 +228,7 @@ func TestRunSurvivesClaimAndSeedErrors(t *testing.T) {
 
 	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
 
-	stop := runRunner(t, newTestRunner(q, process))
+	stop := runRunner(t, testConfig(), q, process)
 	q.waitActivity(t, 1)
 	stop()
 
@@ -244,11 +248,11 @@ func TestRunFullBatchClaimsAgainImmediately(t *testing.T) {
 	q := newFakeQueue(Job{FileID: 1, Key: "a", Attempts: 1}, Job{FileID: 2, Key: "b", Attempts: 1})
 	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
 
-	r := newTestRunner(q, process)
-	r.cfg.BatchSize = 1
-	r.cfg.PollInterval = time.Hour
+	cfg := testConfig()
+	cfg.BatchSize = 1
+	cfg.PollInterval = time.Hour
 
-	stop := runRunner(t, r)
+	stop := runRunner(t, cfg, q, process)
 	q.waitActivity(t, 2)
 	stop()
 
@@ -265,7 +269,7 @@ func TestRunSeedsAfterShortBatch(t *testing.T) {
 	q := newFakeQueue()
 	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
 
-	stop := runRunner(t, newTestRunner(q, process))
+	stop := runRunner(t, testConfig(), q, process)
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		q.mu.Lock()
@@ -290,10 +294,10 @@ func TestRunRetriesTransientStatusWriteError(t *testing.T) {
 
 	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
 
-	r := newTestRunner(q, process)
-	r.retryDelay = time.Millisecond
+	cfg := testConfig()
+	cfg.retryDelay = time.Millisecond
 
-	stop := runRunner(t, r)
+	stop := runRunner(t, cfg, q, process)
 	q.waitActivity(t, 2)
 	stop()
 
@@ -315,10 +319,10 @@ func TestRunLogsStatusWriteErrors(t *testing.T) {
 
 	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
 
-	r := newTestRunner(q, process)
-	r.retryDelay = time.Millisecond
+	cfg := testConfig()
+	cfg.retryDelay = time.Millisecond
 
-	stop := runRunner(t, r)
+	stop := runRunner(t, cfg, q, process)
 	q.waitActivity(t, 2*statusWriteTries)
 	stop()
 
@@ -348,9 +352,8 @@ func TestRunStopsMidBatchOnCancel(t *testing.T) {
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
-	r := newTestRunner(q, process)
 	done := make(chan error, 1)
-	go func() { done <- r.run(ctx) }()
+	go func() { done <- Run(ctx, "test", testConfig(), q, process) }()
 
 	<-started
 	cancel()
@@ -359,7 +362,7 @@ func TestRunStopsMidBatchOnCancel(t *testing.T) {
 	select {
 	case err := <-done:
 		if err != nil {
-			t.Fatalf("run returned %v, want nil", err)
+			t.Fatalf("Run returned %v, want nil", err)
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("runner did not shut down")
@@ -373,7 +376,7 @@ func TestRunStopsMidBatchOnCancel(t *testing.T) {
 }
 
 func TestBackoff(t *testing.T) {
-	r := &runner[string]{cfg: Config{BackoffBase: time.Second, BackoffMax: 10 * time.Second}}
+	cfg := Config{BackoffBase: time.Second, BackoffMax: 10 * time.Second}
 	tests := []struct {
 		attempts int32
 		want     time.Duration
@@ -386,10 +389,8 @@ func TestBackoff(t *testing.T) {
 		{50, 10 * time.Second},
 	}
 	for _, tt := range tests {
-		if got := r.backoff(tt.attempts); got != tt.want {
+		if got := backoff(cfg, tt.attempts); got != tt.want {
 			t.Errorf("backoff(%d) = %v, want %v", tt.attempts, got, tt.want)
 		}
 	}
 }
-
-

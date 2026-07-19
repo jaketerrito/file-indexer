@@ -5,8 +5,12 @@
 -- objects are silent no-ops at the DB level. The stat seed step detects
 -- stale done rows by comparing index_stat.mark against files.marked_at.
 INSERT INTO files (key, marked_at)
-SELECT unnest(sqlc.arg(keys)::text[]),
-       unnest(sqlc.arg(marked_ats)::timestamptz[])
+SELECT input.key, MAX(input.marked_at)
+FROM (
+    SELECT unnest(sqlc.arg(keys)::text[]) AS key,
+           unnest(sqlc.arg(marked_ats)::timestamptz[]) AS marked_at
+) input
+GROUP BY input.key
 ON CONFLICT (key) DO UPDATE
     SET marked_at = GREATEST(files.marked_at, EXCLUDED.marked_at);
 

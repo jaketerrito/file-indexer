@@ -49,12 +49,6 @@ func (c *Crawler) Run(ctx context.Context) error {
 
 	var discovered int64
 	batch := db.UpsertFilesParams{}
-	// inBatch guards against duplicate keys within one flush: the upsert is
-	// a single INSERT ... ON CONFLICT statement, and postgres rejects a
-	// statement that touches the same row twice ("cannot affect row a second
-	// time"). S3 listings should never repeat a key, but a dropped duplicate
-	// is strictly better than a failed crawl if one ever does.
-	inBatch := make(map[string]struct{}, c.batchSize)
 
 	flush := func() error {
 		if len(batch.Keys) == 0 {
@@ -66,16 +60,10 @@ func (c *Crawler) Run(ctx context.Context) error {
 		slog.Info("registered files", "batch", len(batch.Keys))
 		discovered += int64(len(batch.Keys))
 		batch = db.UpsertFilesParams{}
-		clear(inBatch)
 		return nil
 	}
 
 	err := c.store.Walk(ctx, func(info storage.ObjectInfo) error {
-		if _, dup := inBatch[info.Key]; dup {
-			slog.Warn("duplicate key in listing, skipping", "key", info.Key)
-			return nil
-		}
-		inBatch[info.Key] = struct{}{}
 		batch.Keys = append(batch.Keys, info.Key)
 		batch.MarkedAts = append(batch.MarkedAts,
 			pgtype.Timestamptz{Time: info.LastModified, Valid: true})

@@ -403,8 +403,12 @@ func (q *Queries) ListFilesBySizeDesc(ctx context.Context, arg ListFilesBySizeDe
 
 const upsertFiles = `-- name: UpsertFiles :execrows
 INSERT INTO files (key, marked_at)
-SELECT unnest($1::text[]),
-       unnest($2::timestamptz[])
+SELECT input.key, MAX(input.marked_at)
+FROM (
+    SELECT unnest($1::text[]) AS key,
+           unnest($2::timestamptz[]) AS marked_at
+) input
+GROUP BY input.key
 ON CONFLICT (key) DO UPDATE
     SET marked_at = GREATEST(files.marked_at, EXCLUDED.marked_at)
 `

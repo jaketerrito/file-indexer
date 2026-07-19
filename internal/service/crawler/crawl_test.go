@@ -81,13 +81,14 @@ func TestRunFlushesFullBatches(t *testing.T) {
 	}
 }
 
-func TestRunDeduplicatesKeysWithinBatch(t *testing.T) {
+func TestRunPassesDuplicateKeysToBatch(t *testing.T) {
 	store := NewMockObjectStore(t)
 	store.EXPECT().Walk(mock.Anything, mock.Anything).
 		RunAndReturn(walkOver(objectInfo("a"), objectInfo("a"), objectInfo("b")))
 
 	files := NewMockFileStore(t)
-	files.EXPECT().UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("a", "b"))).Return(1, nil)
+	// SQL-level dedup via GROUP BY handles in-batch duplicates now.
+	files.EXPECT().UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("a", "a", "b"))).Return(1, nil)
 
 	if err := New(store, files).Run(context.Background()); err != nil {
 		t.Fatal(err)
