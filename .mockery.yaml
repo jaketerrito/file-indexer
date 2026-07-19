@@ -11,7 +11,7 @@ packages:
   file-indexer/internal/service/indexer:
     interfaces:
       ObjectStore:
-      StatQueries:
+      Queries:
   file-indexer/internal/service/crawler:
     interfaces:
       ObjectStore:

@@ -1,4 +1,4 @@
-package worker
+package indexer
 
 import (
 	"context"
@@ -9,12 +9,10 @@ import (
 )
 
 // fastConfig returns a config with intervals small enough that tests finish
-// quickly while still exercising the real loops.
+// quickly while still exercising the real loop.
 func fastConfig() Config {
 	return Config{
-		Workers:      2,
 		PollInterval: time.Millisecond,
-		SeedInterval: time.Hour, // tests trigger seeding explicitly via start-up seed
 		BatchSize:    8,
 		MaxAttempts:  3,
 		ClaimTTL:     time.Minute,
@@ -44,7 +42,6 @@ type fakeQueue struct {
 	seeds     int
 	claims    int
 	completed []int64
-	released  []int64
 	fails     []failCall
 
 	activity chan struct{} // signalled on every Complete/Fail call
@@ -73,13 +70,6 @@ func (q *fakeQueue) Claim(_ context.Context, limit int32, _ time.Time) ([]Job, e
 	batch := q.jobs[:n]
 	q.jobs = q.jobs[n:]
 	return batch, nil
-}
-
-func (q *fakeQueue) Release(_ context.Context, fileID int64) error {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	q.released = append(q.released, fileID)
-	return nil
 }
 
 func (q *fakeQueue) Complete(_ context.Context, fileID int64, _ string) error {
@@ -114,46 +104,57 @@ func (q *fakeQueue) waitActivity(t *testing.T, n int) {
 	}
 }
 
-// runPool starts the pool and returns a stop function that cancels it and
-// waits for Run to return.
-func runPool(t *testing.T, p *Pool[string]) (stop func()) {
+// runRunner starts the loop and returns a stop function that cancels it and
+// waits for run to return.
+func runRunner(t *testing.T, r *runner[string]) (stop func()) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
-	go func() { done <- p.Run(ctx) }()
+	go func() { done <- r.run(ctx) }()
 	return func() {
 		cancel()
 		select {
 		case err := <-done:
 			if err != nil {
-				t.Errorf("Run returned %v, want nil", err)
+				t.Errorf("run returned %v, want nil", err)
 			}
 		case <-time.After(5 * time.Second):
-			t.Fatal("pool did not shut down")
+			t.Fatal("runner did not shut down")
 		}
 	}
 }
 
-func TestPoolProcessesJobs(t *testing.T) {
+func newTestRunner(q *fakeQueue, process ProcessFunc[string]) *runner[string] {
+	return &runner[string]{
+		cfg:        fastConfig().withDefaults(),
+		queue:      q,
+		process:    process,
+		name:       "test",
+		now:        time.Now,
+		retryDelay: statusRetryDelay,
+	}
+}
+
+func TestRunProcessesJobsSequentially(t *testing.T) {
 	q := newFakeQueue(Job{FileID: 1, Key: "a", Attempts: 1}, Job{FileID: 2, Key: "b", Attempts: 1})
 
 	var mu sync.Mutex
 	var handled []string
-	h := HandlerFunc[string](func(_ context.Context, job Job) (string, error) {
+	process := ProcessFunc[string](func(_ context.Context, job Job) (string, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		handled = append(handled, job.Key)
 		return "ok", nil
 	})
 
-	stop := runPool(t, New("test", fastConfig(), q, h))
+	stop := runRunner(t, newTestRunner(q, process))
 	q.waitActivity(t, 2)
 	stop()
 
 	mu.Lock()
 	defer mu.Unlock()
-	if len(handled) != 2 {
-		t.Fatalf("handled %v, want 2 jobs", handled)
+	if len(handled) != 2 || handled[0] != "a" || handled[1] != "b" {
+		t.Fatalf("handled = %v, want [a b] in claim order", handled)
 	}
 	q.mu.Lock()
 	defer q.mu.Unlock()
@@ -164,20 +165,19 @@ func TestPoolProcessesJobs(t *testing.T) {
 		t.Errorf("fails = %v, want none", q.fails)
 	}
 	if q.seeds == 0 {
-		t.Error("pool never seeded on startup")
+		t.Error("runner never seeded on startup")
 	}
 }
 
-func TestPoolFailsJobWithBackoff(t *testing.T) {
+func TestRunFailsJobWithBackoff(t *testing.T) {
 	q := newFakeQueue(Job{FileID: 7, Key: "bad", Attempts: 2})
-	h := HandlerFunc[string](func(context.Context, Job) (string, error) { return "", errors.New("stat exploded") })
+	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "", errors.New("stat exploded") })
 
-	cfg := fastConfig()
-	p := New("test", cfg, q, h)
+	r := newTestRunner(q, process)
 	base := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
-	p.now = func() time.Time { return base }
+	r.now = func() time.Time { return base }
 
-	stop := runPool(t, p)
+	stop := runRunner(t, r)
 	q.waitActivity(t, 1)
 	stop()
 
@@ -202,11 +202,11 @@ func TestPoolFailsJobWithBackoff(t *testing.T) {
 	}
 }
 
-func TestPoolExhaustsRetries(t *testing.T) {
+func TestRunExhaustsRetries(t *testing.T) {
 	q := newFakeQueue(Job{FileID: 7, Key: "bad", Attempts: 3}) // == MaxAttempts
-	h := HandlerFunc[string](func(context.Context, Job) (string, error) { return "", errors.New("still broken") })
+	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "", errors.New("still broken") })
 
-	stop := runPool(t, New("test", fastConfig(), q, h))
+	stop := runRunner(t, newTestRunner(q, process))
 	q.waitActivity(t, 1)
 	stop()
 
@@ -217,14 +217,14 @@ func TestPoolExhaustsRetries(t *testing.T) {
 	}
 }
 
-func TestPoolSurvivesClaimAndSeedErrors(t *testing.T) {
+func TestRunSurvivesClaimAndSeedErrors(t *testing.T) {
 	q := newFakeQueue(Job{FileID: 1, Key: "a", Attempts: 1})
 	q.claimErrs = 2
 	q.seedErr = errors.New("seed boom")
 
-	h := HandlerFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
+	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
 
-	stop := runPool(t, New("test", fastConfig(), q, h))
+	stop := runRunner(t, newTestRunner(q, process))
 	q.waitActivity(t, 1)
 	stop()
 
@@ -238,17 +238,17 @@ func TestPoolSurvivesClaimAndSeedErrors(t *testing.T) {
 	}
 }
 
-func TestPoolFullBatchClaimsAgainImmediately(t *testing.T) {
+func TestRunFullBatchClaimsAgainImmediately(t *testing.T) {
 	// With BatchSize 1 and a poll interval far longer than the test, both
 	// jobs only complete if a full batch triggers an immediate re-claim.
 	q := newFakeQueue(Job{FileID: 1, Key: "a", Attempts: 1}, Job{FileID: 2, Key: "b", Attempts: 1})
-	h := HandlerFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
+	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
 
-	cfg := fastConfig()
-	cfg.BatchSize = 1
-	cfg.PollInterval = time.Hour
+	r := newTestRunner(q, process)
+	r.cfg.BatchSize = 1
+	r.cfg.PollInterval = time.Hour
 
-	stop := runPool(t, New("test", cfg, q, h))
+	stop := runRunner(t, r)
 	q.waitActivity(t, 2)
 	stop()
 
@@ -259,14 +259,13 @@ func TestPoolFullBatchClaimsAgainImmediately(t *testing.T) {
 	}
 }
 
-func TestPoolSeedsOnInterval(t *testing.T) {
+func TestRunSeedsAfterShortBatch(t *testing.T) {
+	// A short (non-full) batch must trigger a seed before the next sleep,
+	// with no interval/ticker involved.
 	q := newFakeQueue()
-	h := HandlerFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
+	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
 
-	cfg := fastConfig()
-	cfg.SeedInterval = time.Millisecond
-
-	stop := runPool(t, New("test", cfg, q, h))
+	stop := runRunner(t, newTestRunner(q, process))
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		q.mu.Lock()
@@ -276,25 +275,25 @@ func TestPoolSeedsOnInterval(t *testing.T) {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("pool never re-seeded on interval")
+			t.Fatal("runner never re-seeded after a short batch")
 		}
 		time.Sleep(time.Millisecond)
 	}
 	stop()
 }
 
-func TestPoolRetriesTransientStatusWriteError(t *testing.T) {
+func TestRunRetriesTransientStatusWriteError(t *testing.T) {
 	// A transient Complete failure is retried and must not lose the
 	// outcome or trigger the failure path.
 	q := newFakeQueue(Job{FileID: 1, Key: "a", Attempts: 1})
 	q.completeErrs = 1
 
-	h := HandlerFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
+	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
 
-	p := New("test", fastConfig(), q, h)
-	p.retryDelay = time.Millisecond
+	r := newTestRunner(q, process)
+	r.retryDelay = time.Millisecond
 
-	stop := runPool(t, p)
+	stop := runRunner(t, r)
 	q.waitActivity(t, 2)
 	stop()
 
@@ -308,18 +307,18 @@ func TestPoolRetriesTransientStatusWriteError(t *testing.T) {
 	}
 }
 
-func TestPoolLogsStatusWriteErrors(t *testing.T) {
+func TestRunLogsStatusWriteErrors(t *testing.T) {
 	// Persistent Complete errors exhaust the retry budget without crashing
-	// the pool or blocking subsequent jobs.
+	// the loop or blocking subsequent jobs.
 	q := newFakeQueue(Job{FileID: 1, Key: "a", Attempts: 1}, Job{FileID: 2, Key: "b", Attempts: 1})
 	q.completeErr = errors.New("db down")
 
-	h := HandlerFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
+	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
 
-	p := New("test", fastConfig(), q, h)
-	p.retryDelay = time.Millisecond
+	r := newTestRunner(q, process)
+	r.retryDelay = time.Millisecond
 
-	stop := runPool(t, p)
+	stop := runRunner(t, r)
 	q.waitActivity(t, 2*statusWriteTries)
 	stop()
 
@@ -330,11 +329,10 @@ func TestPoolLogsStatusWriteErrors(t *testing.T) {
 	}
 }
 
-func TestPoolReleasesUndispatchedOnShutdown(t *testing.T) {
-	// One worker, one blocking job: the dispatcher claims all three jobs,
-	// hands off the first, and blocks sending the second. Cancelling must
-	// release the two undispatched claims so a restarted pool can claim
-	// them immediately instead of waiting out the claim TTL.
+func TestRunStopsMidBatchOnCancel(t *testing.T) {
+	// One blocking job: the loop claims all three, processes the first,
+	// and must stop before the second once ctx is cancelled instead of
+	// racing to finish the whole batch.
 	q := newFakeQueue(
 		Job{FileID: 1, Key: "a", Attempts: 1},
 		Job{FileID: 2, Key: "b", Attempts: 1},
@@ -343,18 +341,16 @@ func TestPoolReleasesUndispatchedOnShutdown(t *testing.T) {
 
 	started := make(chan struct{})
 	unblock := make(chan struct{})
-	h := HandlerFunc[string](func(context.Context, Job) (string, error) {
-		close(started) // only job 1 is ever dispatched
+	process := ProcessFunc[string](func(context.Context, Job) (string, error) {
+		close(started) // only job 1 is ever processed
 		<-unblock
 		return "ok", nil
 	})
 
-	cfg := fastConfig()
-	cfg.Workers = 1
-
 	ctx, cancel := context.WithCancel(context.Background())
+	r := newTestRunner(q, process)
 	done := make(chan error, 1)
-	go func() { done <- New("test", cfg, q, h).Run(ctx) }()
+	go func() { done <- r.run(ctx) }()
 
 	<-started
 	cancel()
@@ -363,28 +359,21 @@ func TestPoolReleasesUndispatchedOnShutdown(t *testing.T) {
 	select {
 	case err := <-done:
 		if err != nil {
-			t.Fatalf("Run returned %v, want nil", err)
+			t.Fatalf("run returned %v, want nil", err)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("pool did not shut down")
+		t.Fatal("runner did not shut down")
 	}
 
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	released := map[int64]bool{}
-	for _, id := range q.released {
-		released[id] = true
-	}
-	if len(released) != 2 || !released[2] || !released[3] {
-		t.Errorf("released = %v, want jobs 2 and 3", q.released)
-	}
 	if len(q.completed) != 1 || q.completed[0] != 1 {
-		t.Errorf("completed = %v, want job 1 (in-flight job finishes and records)", q.completed)
+		t.Errorf("completed = %v, want only job 1 (in-flight job finishes and records)", q.completed)
 	}
 }
 
 func TestBackoff(t *testing.T) {
-	p := New[string]("test", Config{BackoffBase: time.Second, BackoffMax: 10 * time.Second}, nil, nil)
+	r := &runner[string]{cfg: Config{BackoffBase: time.Second, BackoffMax: 10 * time.Second}}
 	tests := []struct {
 		attempts int32
 		want     time.Duration
@@ -397,7 +386,7 @@ func TestBackoff(t *testing.T) {
 		{50, 10 * time.Second},
 	}
 	for _, tt := range tests {
-		if got := p.backoff(tt.attempts); got != tt.want {
+		if got := r.backoff(tt.attempts); got != tt.want {
 			t.Errorf("backoff(%d) = %v, want %v", tt.attempts, got, tt.want)
 		}
 	}
@@ -405,15 +394,14 @@ func TestBackoff(t *testing.T) {
 
 func TestConfigDefaults(t *testing.T) {
 	got := Config{}.withDefaults()
-	if got.Workers <= 0 || got.PollInterval <= 0 || got.SeedInterval <= 0 ||
-		got.BatchSize <= 0 || got.MaxAttempts <= 0 || got.ClaimTTL <= 0 ||
-		got.BackoffBase <= 0 || got.BackoffMax <= 0 {
+	if got.PollInterval <= 0 || got.BatchSize <= 0 || got.MaxAttempts <= 0 ||
+		got.ClaimTTL <= 0 || got.BackoffBase <= 0 || got.BackoffMax <= 0 {
 		t.Errorf("withDefaults left zero fields: %+v", got)
 	}
 
 	// Explicit values survive.
-	cfg := Config{Workers: 9, BatchSize: 3}
-	if got := cfg.withDefaults(); got.Workers != 9 || got.BatchSize != 3 {
+	cfg := Config{BatchSize: 3, MaxAttempts: 9}
+	if got := cfg.withDefaults(); got.BatchSize != 3 || got.MaxAttempts != 9 {
 		t.Errorf("withDefaults overwrote explicit values: %+v", got)
 	}
 }

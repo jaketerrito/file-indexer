@@ -24,7 +24,8 @@ type FileInfo struct {
 	LastModified pgtype.Timestamptz
 }
 
-type IndexStat struct {
+type IndexQueue struct {
+	IndexType     string
 	FileID        int64
 	Status        string
 	Attempts      int32
@@ -33,7 +34,12 @@ type IndexStat struct {
 	LastError     pgtype.Text
 	UpdatedAt     pgtype.Timestamptz
 	Mark          pgtype.Timestamptz
-	ContentType   pgtype.Text
-	SizeBytes     pgtype.Int8
-	LastModified  pgtype.Timestamptz
+}
+
+type IndexStatResult struct {
+	FileID       int64
+	ContentType  string
+	SizeBytes    int64
+	LastModified pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
 }

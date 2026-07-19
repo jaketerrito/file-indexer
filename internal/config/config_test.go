@@ -48,22 +48,16 @@ func TestLoadDefaults(t *testing.T) {
 }
 
 func TestLoadWorkerConfig(t *testing.T) {
-	t.Setenv("WORKER_COUNT", "8")
 	t.Setenv("WORKER_POLL_INTERVAL", "3s")
-	t.Setenv("WORKER_SEED_INTERVAL", "2m")
 	t.Setenv("WORKER_BATCH_SIZE", "16")
 	t.Setenv("WORKER_MAX_ATTEMPTS", "7")
 	t.Setenv("WORKER_CLAIM_TTL", "15m")
+	t.Setenv("WORKER_BACKOFF_BASE", "20s")
+	t.Setenv("WORKER_BACKOFF_MAX", "5m")
 
 	w := Load().Worker
-	if w.Workers != 8 {
-		t.Errorf("Workers = %d, want 8", w.Workers)
-	}
 	if w.PollInterval != 3*time.Second {
 		t.Errorf("PollInterval = %v, want 3s", w.PollInterval)
-	}
-	if w.SeedInterval != 2*time.Minute {
-		t.Errorf("SeedInterval = %v, want 2m", w.SeedInterval)
 	}
 	if w.BatchSize != 16 {
 		t.Errorf("BatchSize = %d, want 16", w.BatchSize)
@@ -74,18 +68,20 @@ func TestLoadWorkerConfig(t *testing.T) {
 	if w.ClaimTTL != 15*time.Minute {
 		t.Errorf("ClaimTTL = %v, want 15m", w.ClaimTTL)
 	}
+	if w.BackoffBase != 20*time.Second {
+		t.Errorf("BackoffBase = %v, want 20s", w.BackoffBase)
+	}
+	if w.BackoffMax != 5*time.Minute {
+		t.Errorf("BackoffMax = %v, want 5m", w.BackoffMax)
+	}
 }
 
 func TestLoadWorkerConfigUnsetAndInvalid(t *testing.T) {
-	// Unset and malformed values both yield zero values, which the worker
-	// pool replaces with its own defaults.
-	t.Setenv("WORKER_COUNT", "not-a-number")
+	// Unset and malformed values both yield zero values, which the indexer
+	// package replaces with its own defaults.
 	t.Setenv("WORKER_POLL_INTERVAL", "not-a-duration")
 
 	w := Load().Worker
-	if w.Workers != 0 {
-		t.Errorf("Workers = %d, want 0 for malformed value", w.Workers)
-	}
 	if w.PollInterval != 0 {
 		t.Errorf("PollInterval = %v, want 0 for malformed value", w.PollInterval)
 	}

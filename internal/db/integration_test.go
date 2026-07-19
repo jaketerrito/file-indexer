@@ -5,7 +5,7 @@ package db
 import (
 	"context"
 	"errors"
-	"file-indexer/internal/config"
+	"file-indexer/internal/db/dbtest"
 	"fmt"
 	"os"
 	"testing"
@@ -27,28 +27,27 @@ import (
 //	export DB_HOST=localhost DB_PORT=5432 DB_USER=postgres \
 //	       DB_PASSWORD=mysecretpassword DB_NAME=postgres
 //	go test -tags=integration -race ./internal/db/
-func testDSN(t *testing.T) string {
-	t.Helper()
-	if os.Getenv("DB_HOST") == "" {
-		t.Fatal("integration tests require DB_HOST to be set (see just test-integration)")
-	}
-	return config.Load().Database.URL()
+//
+// TestMain gives the whole package its own temporary database (see
+// internal/db/dbtest) so these tests never share mutable files/index_queue
+// state with another test binary or a real indexer/crawler daemon polling
+// the same Postgres instance (e.g. under Tilt).
+func TestMain(m *testing.M) {
+	os.Exit(dbtest.Main(m, RunMigrations))
 }
 
-// testConn runs migrations and returns a connection to the test database.
-// Running migrations here keeps the suite hermetic (runnable against a bare
-// postgres); under Tilt the migrate Job has already run, making this a no-op,
-// and the session lock in RunMigrations makes concurrent runs safe.
+// testDSN returns the temporary test database's DSN.
+func testDSN(t *testing.T) string {
+	t.Helper()
+	return dbtest.DSN()
+}
+
+// testConn returns a connection to the test database. Migrations already
+// ran once in TestMain.
 func testConn(t *testing.T) *pgx.Conn {
 	t.Helper()
-	dsn := testDSN(t)
-
 	ctx := context.Background()
-	if err := RunMigrations(ctx, "pgx", dsn); err != nil {
-		t.Fatalf("RunMigrations: %v", err)
-	}
-
-	conn, err := pgx.Connect(ctx, dsn)
+	conn, err := pgx.Connect(ctx, testDSN(t))
 	if err != nil {
 		t.Fatalf("pgx.Connect: %v", err)
 	}
@@ -89,20 +88,26 @@ func insertTestFile(t *testing.T, conn *pgx.Conn, key string) int64 {
 }
 
 // indexTestFile records stat results for a file, making its file_infos row
-// fully populated. Seed + complete via production queries.
+// fully populated. Seed + complete via production queries; the queue status
+// flip and result write are a transaction in production (see
+// indexer.PGQueue.Complete) but run back-to-back here since nothing else is
+// racing them.
 func indexTestFile(t *testing.T, q *Queries, fileID int64, contentType string, size int64, lastModified time.Time) {
 	t.Helper()
 	ctx := context.Background()
-	if _, err := q.SeedIndexStat(ctx); err != nil {
-		t.Fatalf("SeedIndexStat: %v", err)
+	if _, err := q.SeedIndexQueue(ctx, "stat"); err != nil {
+		t.Fatalf("SeedIndexQueue: %v", err)
 	}
-	if err := q.CompleteIndexStat(ctx, CompleteIndexStatParams{
+	if err := q.CompleteIndexQueue(ctx, CompleteIndexQueueParams{IndexType: "stat", FileID: fileID}); err != nil {
+		t.Fatalf("CompleteIndexQueue: %v", err)
+	}
+	if err := q.UpsertIndexStatResult(ctx, UpsertIndexStatResultParams{
 		FileID:       fileID,
-		ContentType:  pgtype.Text{String: contentType, Valid: contentType != ""},
-		SizeBytes:    pgtype.Int8{Int64: size, Valid: size != 0},
+		ContentType:  contentType,
+		SizeBytes:    size,
 		LastModified: pgtype.Timestamptz{Time: lastModified, Valid: true},
 	}); err != nil {
-		t.Fatalf("CompleteIndexStat: %v", err)
+		t.Fatalf("UpsertIndexStatResult: %v", err)
 	}
 }
 
@@ -130,8 +135,6 @@ func TestRunMigrations(t *testing.T) {
 }
 
 func TestRunMigrationsUnknownDriver(t *testing.T) {
-	testDSN(t)
-
 	err := RunMigrations(context.Background(), "no-such-driver", "dsn")
 	if err == nil {
 		t.Fatal("RunMigrations with unknown driver: want error, got nil")
@@ -139,8 +142,6 @@ func TestRunMigrationsUnknownDriver(t *testing.T) {
 }
 
 func TestRunMigrationsUnreachableDB(t *testing.T) {
-	testDSN(t)
-
 	dsn := "host=127.0.0.1 port=1 user=nobody password=nope dbname=none sslmode=disable connect_timeout=1"
 	err := RunMigrations(context.Background(), "pgx", dsn)
 	if err == nil {

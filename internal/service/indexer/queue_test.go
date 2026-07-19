@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"file-indexer/internal/db"
-	"file-indexer/internal/worker"
 	"testing"
 	"time"
 
@@ -12,12 +11,20 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-func TestStatQueueSeed(t *testing.T) {
-	queries := NewMockStatQueries(t)
-	queries.EXPECT().SeedIndexStat(mock.Anything).Return(3, nil)
-	queries.EXPECT().RequeueStaleIndexStat(mock.Anything).Return(2, nil)
+// pgQueueForTest builds a PGQueue around a mock Queries, bypassing
+// NewPGQueue so no real *pgxpool.Pool is needed. Complete (which needs a
+// real transaction) is covered by the db package's integration tests
+// instead.
+func pgQueueForTest(queries Queries) *PGQueue[StatResult] {
+	return &PGQueue[StatResult]{queries: queries, indexType: "stat", store: StoreStatResult}
+}
 
-	n, err := NewStatQueue(queries).Seed(context.Background())
+func TestPGQueueSeed(t *testing.T) {
+	queries := NewMockQueries(t)
+	queries.EXPECT().SeedIndexQueue(mock.Anything, "stat").Return(3, nil)
+	queries.EXPECT().RequeueStaleIndexQueue(mock.Anything, "stat").Return(2, nil)
+
+	n, err := pgQueueForTest(queries).Seed(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,44 +34,44 @@ func TestStatQueueSeed(t *testing.T) {
 	}
 }
 
-func TestStatQueueSeedPropagatesSeedError(t *testing.T) {
-	queries := NewMockStatQueries(t)
-	queries.EXPECT().SeedIndexStat(mock.Anything).Return(0, errors.New("db down"))
+func TestPGQueueSeedPropagatesSeedError(t *testing.T) {
+	queries := NewMockQueries(t)
+	queries.EXPECT().SeedIndexQueue(mock.Anything, "stat").Return(0, errors.New("db down"))
 
-	if _, err := NewStatQueue(queries).Seed(context.Background()); err == nil {
-		t.Fatal("expected error from SeedIndexStat")
+	if _, err := pgQueueForTest(queries).Seed(context.Background()); err == nil {
+		t.Fatal("expected error from SeedIndexQueue")
 	}
 }
 
-func TestStatQueueSeedPropagatesRequeueError(t *testing.T) {
-	queries := NewMockStatQueries(t)
-	queries.EXPECT().SeedIndexStat(mock.Anything).Return(0, nil)
-	queries.EXPECT().RequeueStaleIndexStat(mock.Anything).Return(0, errors.New("db down"))
+func TestPGQueueSeedPropagatesRequeueError(t *testing.T) {
+	queries := NewMockQueries(t)
+	queries.EXPECT().SeedIndexQueue(mock.Anything, "stat").Return(0, nil)
+	queries.EXPECT().RequeueStaleIndexQueue(mock.Anything, "stat").Return(0, errors.New("db down"))
 
-	if _, err := NewStatQueue(queries).Seed(context.Background()); err == nil {
-		t.Fatal("expected error from RequeueStaleIndexStat")
+	if _, err := pgQueueForTest(queries).Seed(context.Background()); err == nil {
+		t.Fatal("expected error from RequeueStaleIndexQueue")
 	}
 }
 
-func TestStatQueueClaim(t *testing.T) {
+func TestPGQueueClaim(t *testing.T) {
 	staleBefore := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
 
-	queries := NewMockStatQueries(t)
+	queries := NewMockQueries(t)
 	queries.EXPECT().
-		ClaimIndexStat(mock.Anything, mock.MatchedBy(func(arg db.ClaimIndexStatParams) bool {
-			return arg.BatchSize == 5 &&
+		ClaimIndexQueue(mock.Anything, mock.MatchedBy(func(arg db.ClaimIndexQueueParams) bool {
+			return arg.IndexType == "stat" && arg.BatchSize == 5 &&
 				arg.StaleBefore.Valid && arg.StaleBefore.Time.Equal(staleBefore)
 		})).
-		Return([]db.ClaimIndexStatRow{
+		Return([]db.ClaimIndexQueueRow{
 			{FileID: 1, Attempts: 1, Key: "a"},
 			{FileID: 2, Attempts: 4, Key: "b"},
 		}, nil)
 
-	jobs, err := NewStatQueue(queries).Claim(context.Background(), 5, staleBefore)
+	jobs, err := pgQueueForTest(queries).Claim(context.Background(), 5, staleBefore)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []worker.Job{
+	want := []Job{
 		{FileID: 1, Key: "a", Attempts: 1},
 		{FileID: 2, Key: "b", Attempts: 4},
 	}
@@ -78,49 +85,22 @@ func TestStatQueueClaim(t *testing.T) {
 	}
 }
 
-func TestStatQueueClaimError(t *testing.T) {
-	queries := NewMockStatQueries(t)
-	queries.EXPECT().ClaimIndexStat(mock.Anything, mock.Anything).Return(nil, errors.New("db down"))
+func TestPGQueueClaimError(t *testing.T) {
+	queries := NewMockQueries(t)
+	queries.EXPECT().ClaimIndexQueue(mock.Anything, mock.Anything).Return(nil, errors.New("db down"))
 
-	if _, err := NewStatQueue(queries).Claim(context.Background(), 1, time.Now()); err == nil {
+	if _, err := pgQueueForTest(queries).Claim(context.Background(), 1, time.Now()); err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestStatQueueRelease(t *testing.T) {
-	queries := NewMockStatQueries(t)
-	queries.EXPECT().ReleaseIndexStat(mock.Anything, int64(9)).Return(nil)
-
-	if err := NewStatQueue(queries).Release(context.Background(), 9); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestStatQueueComplete(t *testing.T) {
-	lm := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
-
-	queries := NewMockStatQueries(t)
-	queries.EXPECT().
-		CompleteIndexStat(mock.Anything, db.CompleteIndexStatParams{
-			FileID:       9,
-			ContentType:  pgtype.Text{String: "image/png", Valid: true},
-			SizeBytes:    pgtype.Int8{Int64: 512, Valid: true},
-			LastModified: pgtype.Timestamptz{Time: lm, Valid: true},
-		}).
-		Return(nil)
-
-	result := StatResult{ContentType: "image/png", SizeBytes: 512, LastModified: lm}
-	if err := NewStatQueue(queries).Complete(context.Background(), 9, result); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestStatQueueFail(t *testing.T) {
+func TestPGQueueFail(t *testing.T) {
 	next := time.Date(2026, 7, 18, 12, 5, 0, 0, time.UTC)
 
-	queries := NewMockStatQueries(t)
+	queries := NewMockQueries(t)
 	queries.EXPECT().
-		FailIndexStat(mock.Anything, db.FailIndexStatParams{
+		FailIndexQueue(mock.Anything, db.FailIndexQueueParams{
+			IndexType:     "stat",
 			FileID:        9,
 			LastError:     pgtype.Text{String: "boom", Valid: true},
 			NextAttemptAt: pgtype.Timestamptz{Time: next, Valid: true},
@@ -128,7 +108,7 @@ func TestStatQueueFail(t *testing.T) {
 		}).
 		Return(nil)
 
-	if err := NewStatQueue(queries).Fail(context.Background(), 9, "boom", next, true); err != nil {
+	if err := pgQueueForTest(queries).Fail(context.Background(), 9, "boom", next, true); err != nil {
 		t.Fatal(err)
 	}
 }

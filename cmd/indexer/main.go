@@ -1,17 +1,16 @@
-// The indexer is a worker-pool daemon (no server): it polls the index_stat
-// queue table in postgres for files needing stat indexing, fetches metadata
-// from S3, and records the results. Files enter the queue by self-seeding
-// from the files table, which the crawler (and later the API) populates.
+// The indexer is a stateless daemon (no server): it polls the index_queue
+// table in postgres for files needing stat indexing, fetches metadata from
+// S3, and records the results. Files enter the queue by self-seeding from
+// the files table, which the crawler (and later the API) populates. It has
+// no in-process concurrency; scale out by running more replicas.
 package main
 
 import (
 	"context"
 	"file-indexer/internal/config"
-	"file-indexer/internal/db"
 	"file-indexer/internal/logger"
 	"file-indexer/internal/service/indexer"
 	"file-indexer/internal/storage"
-	"file-indexer/internal/worker"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -40,21 +39,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	queries := db.New(pool)
-	statPool := worker.New("stat",
-		worker.Config{
-			Workers:      cfg.Worker.Workers,
-			PollInterval: cfg.Worker.PollInterval,
-			SeedInterval: cfg.Worker.SeedInterval,
-			BatchSize:    int32(cfg.Worker.BatchSize),
-			MaxAttempts:  int32(cfg.Worker.MaxAttempts),
-			ClaimTTL:     cfg.Worker.ClaimTTL,
-		},
-		indexer.NewStatQueue(queries),
-		indexer.NewStatIndexer(s3),
-	)
+	queue := indexer.NewPGQueue(pool, "stat", indexer.StoreStatResult)
+	stat := indexer.NewStatIndexer(s3)
 
-	if err := statPool.Run(ctx); err != nil {
+	runnerCfg := indexer.Config{
+		PollInterval: cfg.Worker.PollInterval,
+		BatchSize:    int32(cfg.Worker.BatchSize),
+		MaxAttempts:  int32(cfg.Worker.MaxAttempts),
+		ClaimTTL:     cfg.Worker.ClaimTTL,
+		BackoffBase:  cfg.Worker.BackoffBase,
+		BackoffMax:   cfg.Worker.BackoffMax,
+	}
+
+	if err := indexer.Run(ctx, "stat", runnerCfg, queue, stat.Process); err != nil {
 		slog.Error("indexer failed", "error", err)
 		os.Exit(1)
 	}

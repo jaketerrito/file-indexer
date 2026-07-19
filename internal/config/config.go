@@ -35,22 +35,24 @@ type S3Config struct {
 	Region string
 }
 
-// WorkerConfig tunes the indexer worker pool. Zero values fall back to the
-// worker package defaults, so only the knobs that matter need to be set.
+// WorkerConfig tunes the indexer's claim/process loop. Zero values fall
+// back to the indexer package defaults, so only the knobs that matter need
+// to be set.
 type WorkerConfig struct {
-	// Workers is the number of concurrent job executors.
-	Workers int
 	// PollInterval is the sleep between polls when the queue is empty.
 	PollInterval time.Duration
-	// SeedInterval is how often new files are discovered and enqueued.
-	SeedInterval time.Duration
 	// BatchSize is the maximum number of jobs claimed per poll.
 	BatchSize int
 	// MaxAttempts is the number of tries before a job is parked as an error.
 	MaxAttempts int
 	// ClaimTTL is how long a claim may be held before it is presumed
-	// abandoned (crashed worker) and re-claimed.
+	// abandoned (crashed instance) and re-claimed.
 	ClaimTTL time.Duration
+	// BackoffBase is the retry delay after the first failure; it doubles
+	// per attempt up to BackoffMax.
+	BackoffBase time.Duration
+	// BackoffMax caps the exponential retry delay.
+	BackoffMax time.Duration
 }
 
 type Config struct {
@@ -117,12 +119,12 @@ func Load() *Config {
 			Region:          os.Getenv("S3_REGION"),
 		},
 		Worker: WorkerConfig{
-			Workers:      getEnvInt("WORKER_COUNT"),
 			PollInterval: getEnvDuration("WORKER_POLL_INTERVAL"),
-			SeedInterval: getEnvDuration("WORKER_SEED_INTERVAL"),
 			BatchSize:    getEnvInt("WORKER_BATCH_SIZE"),
 			MaxAttempts:  getEnvInt("WORKER_MAX_ATTEMPTS"),
 			ClaimTTL:     getEnvDuration("WORKER_CLAIM_TTL"),
+			BackoffBase:  getEnvDuration("WORKER_BACKOFF_BASE"),
+			BackoffMax:   getEnvDuration("WORKER_BACKOFF_MAX"),
 		},
 	}
 }
