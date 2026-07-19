@@ -4,6 +4,11 @@
 --                          ^                    |
 --                          +------fail----------+--(attempts exhausted)--> error
 --
+-- Staleness detection: the seed step also re-enqueues done rows whose
+-- stored mark no longer matches files.marked_at, so an edited object is
+-- automatically re-indexed on the next seed cycle without the crawler
+-- needing to know which index types exist.
+--
 -- Timing policy (backoff, claim TTL, max attempts) lives in the worker
 -- framework; these queries only persist the decisions it makes.
 
@@ -16,6 +21,23 @@ SELECT f.id
 FROM files f
 WHERE NOT EXISTS (SELECT 1 FROM index_stat s WHERE s.file_id = f.id)
 ON CONFLICT (file_id) DO NOTHING;
+
+-- name: RequeueStaleIndexStat :execrows
+-- Re-enqueue done rows whose stored mark no longer matches files.marked_at.
+-- This is the second half of seed: new files are handled by SeedIndexStat;
+-- edited files (whose crawler re-crawl bumped marked_at past the stored
+-- mark) are handled here. Only done rows are re-enqueued — pending/claimed
+-- rows are already in-flight; error rows stay parked until manually reset.
+UPDATE index_stat s
+SET status = 'pending',
+    attempts = 0,
+    next_attempt_at = now(),
+    last_error = NULL,
+    updated_at = now()
+FROM files f
+WHERE s.file_id = f.id
+  AND s.status = 'done'
+  AND s.mark IS DISTINCT FROM f.marked_at;
 
 -- name: ClaimIndexStat :many
 -- Atomically claim a batch of jobs for one worker pool poll. FOR UPDATE SKIP
@@ -56,18 +78,21 @@ WHERE file_id = $1
   AND status = 'claimed';
 
 -- name: CompleteIndexStat :exec
--- Record a successful run: status flip and stat results in one atomic
--- UPDATE. last_modified is truncated to whole seconds to match the
--- precision the crawler's change detection compares against (HTTP
--- Last-Modified is second-precision; listings are sub-second).
-UPDATE index_stat
+-- Record a successful run: status flip, mark capture, and stat results in
+-- one atomic UPDATE. mark copies files.marked_at at completion time so
+-- that an edit arriving mid-run (bumping marked_at) still triggers a
+-- re-index on the next seed cycle.
+UPDATE index_stat s
 SET status = 'done',
     last_error = NULL,
     updated_at = now(),
+    mark = f.marked_at,
     content_type = sqlc.arg(content_type),
     size_bytes = sqlc.arg(size_bytes),
-    last_modified = date_trunc('second', sqlc.arg(last_modified)::timestamptz)
-WHERE file_id = sqlc.arg(file_id);
+    last_modified = sqlc.arg(last_modified)::timestamptz
+FROM files f
+WHERE s.file_id = sqlc.arg(file_id)
+  AND f.id = sqlc.arg(file_id);
 
 -- name: FailIndexStat :exec
 -- Record a failed attempt. When the worker framework has exhausted retries it
@@ -79,22 +104,3 @@ SET status = CASE WHEN sqlc.arg(exhausted)::bool THEN 'error' ELSE 'pending' END
     last_error = sqlc.arg(last_error),
     updated_at = now()
 WHERE file_id = sqlc.arg(file_id);
-
--- name: ResetChangedIndexStat :execrows
--- Crawler change detection: given the bucket listing (key, size,
--- last-modified triples), re-enqueue done rows whose stored stat results no
--- longer match the listing. Attempts restart since this is logically a new
--- piece of work. Only done rows are comparable — pending/claimed rows are
--- already queued and error rows have no results to compare (they stay
--- parked until manually reset).
-UPDATE index_stat s
-SET status = 'pending', attempts = 0, next_attempt_at = now(), last_error = NULL, updated_at = now()
-FROM files f,
-     (SELECT unnest(sqlc.arg(keys)::text[])                  AS key,
-             unnest(sqlc.arg(sizes)::bigint[])               AS size_bytes,
-             unnest(sqlc.arg(last_modifieds)::timestamptz[]) AS last_modified) t
-WHERE f.key = t.key
-  AND s.file_id = f.id
-  AND s.status = 'done'
-  AND (s.size_bytes IS DISTINCT FROM t.size_bytes
-    OR s.last_modified IS DISTINCT FROM date_trunc('second', t.last_modified));

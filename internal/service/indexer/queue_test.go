@@ -15,13 +15,34 @@ import (
 func TestStatQueueSeed(t *testing.T) {
 	queries := NewMockStatQueries(t)
 	queries.EXPECT().SeedIndexStat(mock.Anything).Return(3, nil)
+	queries.EXPECT().RequeueStaleIndexStat(mock.Anything).Return(2, nil)
 
 	n, err := NewStatQueue(queries).Seed(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n != 3 {
-		t.Errorf("Seed = %d, want 3", n)
+	// Seed returns seeded + requeued combined.
+	if n != 5 {
+		t.Errorf("Seed = %d, want 5 (3 seeded + 2 requeued)", n)
+	}
+}
+
+func TestStatQueueSeedPropagatesSeedError(t *testing.T) {
+	queries := NewMockStatQueries(t)
+	queries.EXPECT().SeedIndexStat(mock.Anything).Return(0, errors.New("db down"))
+
+	if _, err := NewStatQueue(queries).Seed(context.Background()); err == nil {
+		t.Fatal("expected error from SeedIndexStat")
+	}
+}
+
+func TestStatQueueSeedPropagatesRequeueError(t *testing.T) {
+	queries := NewMockStatQueries(t)
+	queries.EXPECT().SeedIndexStat(mock.Anything).Return(0, nil)
+	queries.EXPECT().RequeueStaleIndexStat(mock.Anything).Return(0, errors.New("db down"))
+
+	if _, err := NewStatQueue(queries).Seed(context.Background()); err == nil {
+		t.Fatal("expected error from RequeueStaleIndexStat")
 	}
 }
 

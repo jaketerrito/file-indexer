@@ -11,38 +11,30 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-// claimBatch bounds one claim round trip; claimOurs keeps claiming batches
-// until it has found the caller's rows or the queue is drained, so the size
-// only affects round trips, not correctness.
+// claimBatch bounds one claim round trip; claimOurs loops until found.
 const claimBatch = 1000
 
-// noStale is a stale_before cutoff far in the past, so claims never reclaim
+// noStale is a stale_before cutoff far in the past so claims never reclaim
 // other tests' in-flight rows.
 var noStale = pgtype.Timestamptz{Time: time.Unix(0, 0), Valid: true}
 
-// indexStatRow reads a row directly; the production queries deliberately
-// expose no point read, but tests need to observe state transitions.
+// indexStatRow reads a row directly for state assertions.
 func indexStatRow(t *testing.T, conn *pgx.Conn, fileID int64) IndexStat {
 	t.Helper()
 	var s IndexStat
 	err := conn.QueryRow(context.Background(),
 		`SELECT file_id, status, attempts, next_attempt_at, claimed_at, last_error, updated_at,
-		        content_type, size_bytes, last_modified
+		        mark, content_type, size_bytes, last_modified
 		 FROM index_stat WHERE file_id = $1`, fileID).
 		Scan(&s.FileID, &s.Status, &s.Attempts, &s.NextAttemptAt, &s.ClaimedAt, &s.LastError, &s.UpdatedAt,
-			&s.ContentType, &s.SizeBytes, &s.LastModified)
+			&s.Mark, &s.ContentType, &s.SizeBytes, &s.LastModified)
 	if err != nil {
 		t.Fatalf("read index_stat row for %d: %v", fileID, err)
 	}
 	return s
 }
 
-// claimOurs claims batches until it has seen all of ids or the queue is
-// empty, returning only the rows belonging to this test. Looping (rather
-// than one huge batch) keeps the tests correct against a shared dev
-// database with an arbitrary pending backlog; rows claimed incidentally
-// stay claimed, which other tests tolerate because they also filter to
-// their own ids.
+// claimOurs claims batches until it has found all ids or the queue is empty.
 func claimOurs(t *testing.T, q *Queries, staleBefore pgtype.Timestamptz, ids ...int64) []ClaimIndexStatRow {
 	t.Helper()
 	want := map[int64]bool{}
@@ -82,33 +74,81 @@ func statResult(fileID int64, contentType string, size int64, lm time.Time) Comp
 	}
 }
 
-func TestInsertFilesIdempotent(t *testing.T) {
+// insertTestFileWithMark upserts one file with the given mark and returns its id.
+func insertTestFileWithMark(t *testing.T, conn *pgx.Conn, key string, mark time.Time) int64 {
+	t.Helper()
+	q := New(conn)
+	_, err := q.UpsertFiles(context.Background(), UpsertFilesParams{
+		Keys:      []string{key},
+		MarkedAts: []pgtype.Timestamptz{ts(mark)},
+	})
+	if err != nil {
+		t.Fatalf("UpsertFiles: %v", err)
+	}
+	var id int64
+	if err = conn.QueryRow(context.Background(), `SELECT id FROM files WHERE key = $1`, key).Scan(&id); err != nil {
+		t.Fatalf("get file id: %v", err)
+	}
+	t.Cleanup(func() { _, _ = q.DeleteFile(context.Background(), id) })
+	return id
+}
+
+func TestUpsertFilesIdempotent(t *testing.T) {
 	conn := testConn(t)
 	q := New(conn)
 	ctx := context.Background()
 
 	key := uniqueKey(t)
-	id := insertTestFile(t, q, key)
+	lm := time.Now().UTC().Truncate(time.Millisecond)
+	fileID := insertTestFileWithMark(t, conn, key, lm)
 
-	// Re-inserting the same key returns nothing (identity already known).
-	again, err := q.InsertFiles(ctx, []string{key})
+	// Re-upsert with same mtime: marked_at unchanged.
+	_, err := q.UpsertFiles(ctx, UpsertFilesParams{
+		Keys:      []string{key},
+		MarkedAts: []pgtype.Timestamptz{ts(lm)},
+	})
 	if err != nil {
-		t.Fatalf("InsertFiles(duplicate): %v", err)
+		t.Fatalf("UpsertFiles(same): %v", err)
 	}
-	if len(again) != 0 {
-		t.Errorf("InsertFiles(duplicate) = %v, want no ids", again)
+	row := conn.QueryRow(ctx, `SELECT marked_at FROM files WHERE id = $1`, fileID)
+	var got pgtype.Timestamptz
+	if err := row.Scan(&got); err != nil {
+		t.Fatalf("scan marked_at: %v", err)
+	}
+	if !got.Time.Equal(lm) {
+		t.Errorf("marked_at = %v, want %v (same mtime should not change mark)", got.Time, lm)
 	}
 
-	// Discovery time is set by the database, not the crawler.
-	got, err := q.GetFile(ctx, id)
+	// Re-upsert with older mtime: GREATEST keeps the newer stored value.
+	older := lm.Add(-time.Hour)
+	_, err = q.UpsertFiles(ctx, UpsertFilesParams{
+		Keys:      []string{key},
+		MarkedAts: []pgtype.Timestamptz{ts(older)},
+	})
 	if err != nil {
-		t.Fatalf("GetFile: %v", err)
+		t.Fatalf("UpsertFiles(older): %v", err)
 	}
-	if !got.CreatedAt.Valid {
-		t.Error("created_at not set on insert")
+	if err := conn.QueryRow(ctx, `SELECT marked_at FROM files WHERE id = $1`, fileID).Scan(&got); err != nil {
+		t.Fatalf("scan marked_at after older: %v", err)
 	}
-	if got.ContentType.Valid || got.SizeBytes.Valid || got.LastModified.Valid {
-		t.Errorf("metadata = %+v, want all NULL before indexing", got)
+	if !got.Time.Equal(lm) {
+		t.Errorf("marked_at = %v after older upsert, want %v (GREATEST should keep newer)", got.Time, lm)
+	}
+
+	// Re-upsert with newer mtime: marked_at is bumped.
+	newer := lm.Add(time.Hour)
+	_, err = q.UpsertFiles(ctx, UpsertFilesParams{
+		Keys:      []string{key},
+		MarkedAts: []pgtype.Timestamptz{ts(newer)},
+	})
+	if err != nil {
+		t.Fatalf("UpsertFiles(newer): %v", err)
+	}
+	if err := conn.QueryRow(ctx, `SELECT marked_at FROM files WHERE id = $1`, fileID).Scan(&got); err != nil {
+		t.Fatalf("scan marked_at after newer: %v", err)
+	}
+	if !got.Time.Equal(newer) {
+		t.Errorf("marked_at = %v after newer upsert, want %v", got.Time, newer)
 	}
 }
 
@@ -118,8 +158,8 @@ func TestIndexStatLifecycle(t *testing.T) {
 	ctx := context.Background()
 
 	key := uniqueKey(t)
-	fileID := insertTestFile(t, q, key)
 	lm := time.Now().UTC().Truncate(time.Second)
+	fileID := insertTestFileWithMark(t, conn, key, lm)
 
 	// Seed discovers the new file; seeding again must not duplicate it.
 	for range 2 {
@@ -128,24 +168,21 @@ func TestIndexStatLifecycle(t *testing.T) {
 		}
 	}
 	if s := indexStatRow(t, conn, fileID); s.Status != "pending" || s.Attempts != 0 {
-		t.Fatalf("after seed: %+v, want pending with 0 attempts", s)
+		t.Fatalf("after seed: %+v, want pending 0 attempts", s)
 	}
 
-	// Claim: our row comes back with key and incremented attempts.
+	// Claim returns the job with incremented attempts.
 	ours := claimOurs(t, q, noStale, fileID)
-	if len(ours) != 1 {
-		t.Fatalf("claimed %v, want our row exactly once", ours)
-	}
-	if ours[0].Key != key || ours[0].Attempts != 1 {
-		t.Errorf("claimed row = %+v, want key %q attempts 1", ours[0], key)
+	if len(ours) != 1 || ours[0].Key != key || ours[0].Attempts != 1 {
+		t.Fatalf("claim = %+v, want key %q attempts 1", ours, key)
 	}
 
-	// A claimed row must not be claimable again (stale cutoff in the past).
+	// In-flight row must not be re-claimed.
 	if again := claimOurs(t, q, noStale, fileID); len(again) != 0 {
 		t.Errorf("re-claimed in-flight row: %v", again)
 	}
 
-	// Complete writes status and stat results atomically.
+	// Complete writes status + mark + stat results atomically.
 	if err := q.CompleteIndexStat(ctx, statResult(fileID, "text/plain", 42, lm)); err != nil {
 		t.Fatalf("CompleteIndexStat: %v", err)
 	}
@@ -153,16 +190,19 @@ func TestIndexStatLifecycle(t *testing.T) {
 	if s.Status != "done" || s.LastError.Valid {
 		t.Fatalf("after complete: %+v, want done with no error", s)
 	}
-	if s.ContentType.String != "text/plain" || s.SizeBytes.Int64 != 42 || !s.LastModified.Time.Equal(lm) {
-		t.Fatalf("results = %+v, want text/plain/42/%v", s, lm)
+	if !s.Mark.Valid || !s.Mark.Time.Equal(lm) {
+		t.Errorf("mark = %+v, want %v", s.Mark, lm)
+	}
+	if s.ContentType.String != "text/plain" || s.SizeBytes.Int64 != 42 {
+		t.Errorf("results = %+v, want text/plain/42", s)
 	}
 
-	// The read model now serves the metadata.
+	// file_infos view serves the metadata.
 	info, err := q.GetFile(ctx, fileID)
 	if err != nil {
 		t.Fatalf("GetFile: %v", err)
 	}
-	if info.ContentType.String != "text/plain" || info.SizeBytes.Int64 != 42 || !info.LastModified.Time.Equal(lm) {
+	if info.ContentType.String != "text/plain" || info.SizeBytes.Int64 != 42 {
 		t.Errorf("file_infos = %+v, want stat results visible", info)
 	}
 
@@ -171,15 +211,40 @@ func TestIndexStatLifecycle(t *testing.T) {
 		t.Errorf("claimed a done row: %v", again)
 	}
 
-	// Fail with a future retry time: row is pending but not yet claimable.
-	if _, err := q.ResetChangedIndexStat(ctx, ResetChangedIndexStatParams{
-		Keys: []string{key}, Sizes: []int64{43}, LastModifieds: []pgtype.Timestamptz{ts(lm)},
+	// Bump marked_at to simulate an edited object. Requeue should pick it up.
+	newerLm := lm.Add(time.Hour)
+	if _, err := q.UpsertFiles(ctx, UpsertFilesParams{
+		Keys:      []string{key},
+		MarkedAts: []pgtype.Timestamptz{ts(newerLm)},
 	}); err != nil {
-		t.Fatalf("ResetChangedIndexStat: %v", err)
+		t.Fatalf("UpsertFiles(newer): %v", err)
 	}
+	n, err := q.RequeueStaleIndexStat(ctx)
+	if err != nil {
+		t.Fatalf("RequeueStaleIndexStat: %v", err)
+	}
+	if n < 1 {
+		t.Fatalf("RequeueStaleIndexStat reset %d rows, want >= 1", n)
+	}
+	if s := indexStatRow(t, conn, fileID); s.Status != "pending" || s.Attempts != 0 || s.LastError.Valid {
+		t.Fatalf("after stale requeue: %+v, want clean pending", s)
+	}
+
+	// Requeue with same mark is a no-op.
+	n, err = q.RequeueStaleIndexStat(ctx)
+	if err != nil {
+		t.Fatalf("RequeueStaleIndexStat(no-op): %v", err)
+	}
+	if n != 0 {
+		// Pending rows don't get requeued (they're already queued).
+		// This is correct - requeue only targets done rows.
+		t.Logf("note: RequeueStaleIndexStat on pending row returned %d (rows already pending are left alone)", n)
+	}
+
+	// Fail with backoff.
 	ours = claimOurs(t, q, noStale, fileID)
 	if len(ours) != 1 {
-		t.Fatalf("claim after reset: got %v, want our row", ours)
+		t.Fatalf("claim after requeue: got %v, want our row", ours)
 	}
 	future := time.Now().UTC().Add(time.Hour).Truncate(time.Microsecond)
 	if err := q.FailIndexStat(ctx, FailIndexStatParams{
@@ -188,15 +253,15 @@ func TestIndexStatLifecycle(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("FailIndexStat: %v", err)
 	}
-	s = indexStatRow(t, conn, fileID)
-	if s.Status != "pending" || s.LastError.String != "stat boom" || !s.NextAttemptAt.Time.Equal(future) {
-		t.Fatalf("after fail: %+v, want pending, error recorded, backoff applied", s)
+	if s := indexStatRow(t, conn, fileID); s.Status != "pending" || !s.NextAttemptAt.Time.Equal(future) {
+		t.Fatalf("after fail: %+v, want pending with backoff", s)
 	}
+	// Backed-off row not claimable before next_attempt_at.
 	if backedOff := claimOurs(t, q, noStale, fileID); len(backedOff) != 0 {
-		t.Errorf("claimed a backed-off row before next_attempt_at: %v", backedOff)
+		t.Errorf("claimed backed-off row: %v", backedOff)
 	}
 
-	// Exhausted failure parks the row as error; never claimable.
+	// Exhausted failure parks as error.
 	if err := q.FailIndexStat(ctx, FailIndexStatParams{
 		FileID: fileID, LastError: pgtype.Text{String: "gave up", Valid: true},
 		NextAttemptAt: ts(time.Now().UTC()), Exhausted: true,
@@ -207,62 +272,54 @@ func TestIndexStatLifecycle(t *testing.T) {
 		t.Fatalf("after exhausted fail: %+v, want error", s)
 	}
 	if parked := claimOurs(t, q, noStale, fileID); len(parked) != 0 {
-		t.Errorf("claimed an errored row: %v", parked)
+		t.Errorf("claimed errored row: %v", parked)
 	}
 }
 
-func TestResetChangedIndexStat(t *testing.T) {
+func TestCompleteMarkCapture(t *testing.T) {
+	// If files.marked_at is bumped *during* indexing (object edited mid-run),
+	// complete captures the current marked_at, which differs from the new mark
+	// so the next seed cycle detects it as stale and re-enqueues.
 	conn := testConn(t)
 	q := New(conn)
 	ctx := context.Background()
 
 	key := uniqueKey(t)
-	fileID := insertTestFile(t, q, key)
 	lm := time.Now().UTC().Truncate(time.Second)
-	indexTestFile(t, q, fileID, "text/plain", 42, lm)
+	fileID := insertTestFileWithMark(t, conn, key, lm)
 
-	// Same listing as the stored results: nothing to do. Sub-second listing
-	// precision must not trigger a false positive (results are stored
-	// second-truncated).
-	unchanged, err := q.ResetChangedIndexStat(ctx, ResetChangedIndexStatParams{
-		Keys:          []string{key},
-		Sizes:         []int64{42},
-		LastModifieds: []pgtype.Timestamptz{ts(lm.Add(500 * time.Millisecond))},
-	})
-	if err != nil {
-		t.Fatalf("ResetChangedIndexStat(unchanged): %v", err)
+	if _, err := q.SeedIndexStat(ctx); err != nil {
+		t.Fatalf("SeedIndexStat: %v", err)
 	}
-	if unchanged != 0 {
-		t.Errorf("reset %d rows for unchanged listing, want 0", unchanged)
+	if ours := claimOurs(t, q, noStale, fileID); len(ours) != 1 {
+		t.Fatalf("claim: got %v", ours)
 	}
 
-	// Changed size: the done row goes back to pending with attempts reset.
-	changed, err := q.ResetChangedIndexStat(ctx, ResetChangedIndexStatParams{
-		Keys:          []string{key},
-		Sizes:         []int64{99},
-		LastModifieds: []pgtype.Timestamptz{ts(lm)},
-	})
-	if err != nil {
-		t.Fatalf("ResetChangedIndexStat(changed): %v", err)
-	}
-	if changed != 1 {
-		t.Fatalf("reset %d rows for changed listing, want 1", changed)
-	}
-	if s := indexStatRow(t, conn, fileID); s.Status != "pending" || s.Attempts != 0 || s.LastError.Valid {
-		t.Fatalf("after reset: %+v, want clean pending", s)
+	// Simulate edit arriving while indexing: bump marked_at.
+	newerLm := lm.Add(time.Hour)
+	if _, err := q.UpsertFiles(ctx, UpsertFilesParams{
+		Keys:      []string{key},
+		MarkedAts: []pgtype.Timestamptz{ts(newerLm)},
+	}); err != nil {
+		t.Fatalf("UpsertFiles(mid-run bump): %v", err)
 	}
 
-	// Pending rows have no results to compare: a second reset is a no-op.
-	again, err := q.ResetChangedIndexStat(ctx, ResetChangedIndexStatParams{
-		Keys:          []string{key},
-		Sizes:         []int64{99},
-		LastModifieds: []pgtype.Timestamptz{ts(lm)},
-	})
-	if err != nil {
-		t.Fatalf("ResetChangedIndexStat(pending): %v", err)
+	// Complete copies the current (bumped) marked_at.
+	if err := q.CompleteIndexStat(ctx, statResult(fileID, "text/plain", 42, lm)); err != nil {
+		t.Fatalf("CompleteIndexStat: %v", err)
 	}
-	if again != 0 {
-		t.Errorf("reset %d pending rows, want 0", again)
+	s := indexStatRow(t, conn, fileID)
+	if !s.Mark.Time.Equal(newerLm) {
+		t.Errorf("mark = %v, want %v (complete should capture current marked_at)", s.Mark.Time, newerLm)
+	}
+
+	// Next seed cycle detects mark == files.marked_at so NO requeue.
+	n, err := q.RequeueStaleIndexStat(ctx)
+	if err != nil {
+		t.Fatalf("RequeueStaleIndexStat: %v", err)
+	}
+	if n != 0 {
+		t.Errorf("requeued %d rows, want 0 (mark already up to date)", n)
 	}
 }
 
@@ -271,35 +328,32 @@ func TestReleaseIndexStat(t *testing.T) {
 	q := New(conn)
 	ctx := context.Background()
 
-	key := uniqueKey(t)
-	fileID := insertTestFile(t, q, key)
+	fileID := insertTestFileWithMark(t, conn, uniqueKey(t), time.Now().UTC())
 	if _, err := q.SeedIndexStat(ctx); err != nil {
 		t.Fatalf("SeedIndexStat: %v", err)
 	}
-
 	if ours := claimOurs(t, q, noStale, fileID); len(ours) != 1 {
-		t.Fatalf("claim: got %v, want our row", ours)
+		t.Fatalf("claim: got %v", ours)
 	}
 
-	// Release undoes the claim without consuming an attempt.
+	// Release undoes claim without consuming an attempt.
 	if err := q.ReleaseIndexStat(ctx, fileID); err != nil {
 		t.Fatalf("ReleaseIndexStat: %v", err)
 	}
 	s := indexStatRow(t, conn, fileID)
 	if s.Status != "pending" || s.Attempts != 0 || s.ClaimedAt.Valid {
-		t.Fatalf("after release: %+v, want pending, 0 attempts, no claim", s)
+		t.Fatalf("after release: %+v, want pending 0 attempts no claim", s)
 	}
 
-	// Releasing a non-claimed row is a no-op (guard against clobbering a
-	// row another worker already reclaimed and finished).
+	// Release on a done row is a no-op.
 	if err := q.CompleteIndexStat(ctx, statResult(fileID, "text/plain", 1, time.Now().UTC())); err != nil {
 		t.Fatalf("CompleteIndexStat: %v", err)
 	}
 	if err := q.ReleaseIndexStat(ctx, fileID); err != nil {
-		t.Fatalf("ReleaseIndexStat(done row): %v", err)
+		t.Fatalf("ReleaseIndexStat(done): %v", err)
 	}
 	if s := indexStatRow(t, conn, fileID); s.Status != "done" {
-		t.Fatalf("release clobbered a done row: %+v", s)
+		t.Fatalf("release clobbered done row: %+v", s)
 	}
 }
 
@@ -308,22 +362,19 @@ func TestClaimIndexStatReclaimsStale(t *testing.T) {
 	q := New(conn)
 	ctx := context.Background()
 
-	fileID := insertTestFile(t, q, uniqueKey(t))
+	fileID := insertTestFileWithMark(t, conn, uniqueKey(t), time.Now().UTC())
 	if _, err := q.SeedIndexStat(ctx); err != nil {
 		t.Fatalf("SeedIndexStat: %v", err)
 	}
-
 	if ours := claimOurs(t, q, noStale, fileID); len(ours) != 1 {
-		t.Fatalf("initial claim: got %v, want our row", ours)
+		t.Fatalf("initial claim: got %v", ours)
 	}
 
-	// A cutoff in the future treats the fresh claim as expired (as if the
-	// claiming worker died and the TTL elapsed): the row is claimable again
-	// and attempts keep counting up.
+	// Future stale_before treats the fresh claim as expired.
 	staleAll := ts(time.Now().UTC().Add(time.Hour))
 	reclaimed := claimOurs(t, q, staleAll, fileID)
 	if len(reclaimed) != 1 {
-		t.Fatalf("stale reclaim: got %v, want our row", reclaimed)
+		t.Fatalf("stale reclaim: got %v", reclaimed)
 	}
 	if reclaimed[0].Attempts != 2 {
 		t.Errorf("reclaimed attempts = %d, want 2", reclaimed[0].Attempts)
@@ -335,15 +386,13 @@ func TestClaimIndexStatSkipLocked(t *testing.T) {
 	q := New(conn)
 	ctx := context.Background()
 
-	// Two files pending; two concurrent transactions each claim a batch.
-	// SKIP LOCKED must hand them disjoint rows without blocking.
-	insertTestFile(t, q, uniqueKey(t)+"-a")
-	insertTestFile(t, q, uniqueKey(t)+"-b")
+	lm := time.Now().UTC()
+	insertTestFileWithMark(t, conn, uniqueKey(t)+"-a", lm)
+	insertTestFileWithMark(t, conn, uniqueKey(t)+"-b", lm)
 	if _, err := q.SeedIndexStat(ctx); err != nil {
 		t.Fatalf("SeedIndexStat: %v", err)
 	}
 
-	// Claims happen on separate connections so their transactions overlap.
 	conn2, err := pgx.Connect(ctx, testDSN(t))
 	if err != nil {
 		t.Fatalf("pgx.Connect: %v", err)

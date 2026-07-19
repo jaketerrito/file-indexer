@@ -12,6 +12,7 @@ import (
 // StatQueries is the slice of db.Queries the stat queue adapter depends on.
 type StatQueries interface {
 	SeedIndexStat(ctx context.Context) (int64, error)
+	RequeueStaleIndexStat(ctx context.Context) (int64, error)
 	ClaimIndexStat(ctx context.Context, arg db.ClaimIndexStatParams) ([]db.ClaimIndexStatRow, error)
 	ReleaseIndexStat(ctx context.Context, fileID int64) error
 	CompleteIndexStat(ctx context.Context, arg db.CompleteIndexStatParams) error
@@ -32,8 +33,19 @@ func NewStatQueue(queries StatQueries) *StatQueue {
 
 var _ worker.Queue[StatResult] = (*StatQueue)(nil)
 
+// Seed discovers new files (no index_stat row yet) and re-enqueues done
+// rows whose stored mark no longer matches files.marked_at (edited objects).
+// Both are run together so the pool's single SeedInterval covers both cases.
 func (q *StatQueue) Seed(ctx context.Context) (int64, error) {
-	return q.queries.SeedIndexStat(ctx)
+	seeded, err := q.queries.SeedIndexStat(ctx)
+	if err != nil {
+		return 0, err
+	}
+	requeued, err := q.queries.RequeueStaleIndexStat(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return seeded + requeued, nil
 }
 
 func (q *StatQueue) Claim(ctx context.Context, limit int32, staleBefore time.Time) ([]worker.Job, error) {

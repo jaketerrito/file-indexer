@@ -1,12 +1,14 @@
--- name: InsertFiles :many
--- Crawler ingest: register discovered objects by key only — identity, no
--- metadata. Idempotent; RETURNING yields the ids of rows that are actually
--- new (conflicts return nothing), which the crawler uses purely for
--- logging. New files are picked up by each index type's seed query.
-INSERT INTO files (key)
-SELECT unnest(sqlc.arg(keys)::text[])
-ON CONFLICT (key) DO NOTHING
-RETURNING id;
+-- name: UpsertFiles :execrows
+-- Crawler ingest: register discovered objects by key + listing last-modified
+-- (the staleness mark). Idempotent: ON CONFLICT bumps marked_at only when
+-- the listing shows a strictly newer mtime, so re-crawls of unchanged
+-- objects are silent no-ops at the DB level. The stat seed step detects
+-- stale done rows by comparing index_stat.mark against files.marked_at.
+INSERT INTO files (key, marked_at)
+SELECT unnest(sqlc.arg(keys)::text[]),
+       unnest(sqlc.arg(marked_ats)::timestamptz[])
+ON CONFLICT (key) DO UPDATE
+    SET marked_at = GREATEST(files.marked_at, EXCLUDED.marked_at);
 
 -- name: GetFile :one
 SELECT * FROM file_infos

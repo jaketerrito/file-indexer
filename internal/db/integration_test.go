@@ -68,33 +68,31 @@ func uniqueKey(t *testing.T) string {
 	return fmt.Sprintf("it/%s/%d", t.Name(), time.Now().UnixNano())
 }
 
-// insertTestFile registers a file key through the crawler's write path and
-// registers cleanup to remove it (index_stat rows cascade). Returns the new
-// file id.
-func insertTestFile(t *testing.T, q *Queries, key string) int64 {
+// insertTestFile upserts a file key via the crawler path and returns the id.
+func insertTestFile(t *testing.T, conn *pgx.Conn, key string) int64 {
 	t.Helper()
-
-	ids, err := q.InsertFiles(context.Background(), []string{key})
-	if err != nil {
-		t.Fatalf("InsertFiles: %v", err)
-	}
-	if len(ids) != 1 {
-		t.Fatalf("InsertFiles returned %d ids, want 1", len(ids))
-	}
-	t.Cleanup(func() {
-		// Best effort: the row may already be deleted by the test itself.
-		_, _ = q.DeleteFile(context.Background(), ids[0])
+	q := New(conn)
+	now := time.Now().UTC()
+	_, err := q.UpsertFiles(context.Background(), UpsertFilesParams{
+		Keys:      []string{key},
+		MarkedAts: []pgtype.Timestamptz{{Time: now, Valid: true}},
 	})
-	return ids[0]
+	if err != nil {
+		t.Fatalf("UpsertFiles: %v", err)
+	}
+	var id int64
+	if err := conn.QueryRow(context.Background(), `SELECT id FROM files WHERE key = $1`, key).Scan(&id); err != nil {
+		t.Fatalf("get file id for %q: %v", key, err)
+	}
+	t.Cleanup(func() { _, _ = q.DeleteFile(context.Background(), id) })
+	return id
 }
 
-// indexTestFile records stat results for a file through the worker's write
-// path (seed + complete), making its file_infos row fully populated.
-// last_modified is stored truncated to whole seconds.
+// indexTestFile records stat results for a file, making its file_infos row
+// fully populated. Seed + complete via production queries.
 func indexTestFile(t *testing.T, q *Queries, fileID int64, contentType string, size int64, lastModified time.Time) {
 	t.Helper()
 	ctx := context.Background()
-
 	if _, err := q.SeedIndexStat(ctx); err != nil {
 		t.Fatalf("SeedIndexStat: %v", err)
 	}
@@ -108,15 +106,12 @@ func indexTestFile(t *testing.T, q *Queries, fileID int64, contentType string, s
 	}
 }
 
-// createTestFile inserts a file and stat-indexes it with fixed metadata,
-// returning the file_infos read-model row.
-func createTestFile(t *testing.T, q *Queries, key string) FileInfo {
+// createTestFile inserts and stat-indexes a file, returning the file_infos row.
+func createTestFile(t *testing.T, conn *pgx.Conn, key string) FileInfo {
 	t.Helper()
-
-	id := insertTestFile(t, q, key)
-	indexTestFile(t, q, id, "text/plain", 42, time.Now().UTC().Truncate(time.Second))
-
-	file, err := q.GetFile(context.Background(), id)
+	id := insertTestFile(t, conn, key)
+	indexTestFile(t, New(conn), id, "text/plain", 42, time.Now().UTC())
+	file, err := New(conn).GetFile(context.Background(), id)
 	if err != nil {
 		t.Fatalf("GetFile: %v", err)
 	}
@@ -159,7 +154,7 @@ func TestCreateAndGetFile(t *testing.T) {
 	ctx := context.Background()
 
 	key := uniqueKey(t)
-	created := createTestFile(t, q, key)
+	created := createTestFile(t, conn, key)
 
 	if created.ID == 0 {
 		t.Error("createTestFile returned zero ID")
@@ -198,8 +193,8 @@ func TestGetFilesByIDs(t *testing.T) {
 	q := New(conn)
 	ctx := context.Background()
 
-	a := createTestFile(t, q, uniqueKey(t)+"-a")
-	b := createTestFile(t, q, uniqueKey(t)+"-b")
+	a := createTestFile(t, conn, uniqueKey(t)+"-a")
+	b := createTestFile(t, conn, uniqueKey(t)+"-b")
 
 	files, err := q.GetFilesByIDs(ctx, []int64{a.ID, b.ID})
 	if err != nil {
@@ -228,7 +223,7 @@ func TestDeleteFile(t *testing.T) {
 	q := New(conn)
 	ctx := context.Background()
 
-	created := createTestFile(t, q, uniqueKey(t))
+	created := createTestFile(t, conn, uniqueKey(t))
 
 	deleted, err := q.DeleteFile(ctx, created.ID)
 	if err != nil {
@@ -259,19 +254,25 @@ func TestWithTxRollback(t *testing.T) {
 	}
 
 	key := uniqueKey(t)
-	ids, err := q.WithTx(tx).InsertFiles(ctx, []string{key})
+	now := time.Now().UTC()
+	_, err = q.WithTx(tx).UpsertFiles(ctx, UpsertFilesParams{
+		Keys:      []string{key},
+		MarkedAts: []pgtype.Timestamptz{{Time: now, Valid: true}},
+	})
 	if err != nil {
-		t.Fatalf("InsertFiles in tx: %v", err)
+		t.Fatalf("UpsertFiles in tx: %v", err)
 	}
-	if len(ids) != 1 {
-		t.Fatalf("InsertFiles in tx returned %d ids, want 1", len(ids))
+	// Grab the id within the same transaction.
+	var txID int64
+	if err := tx.QueryRow(ctx, `SELECT id FROM files WHERE key = $1`, key).Scan(&txID); err != nil {
+		t.Fatalf("scan id in tx: %v", err)
 	}
 
 	if err := tx.Rollback(ctx); err != nil {
 		t.Fatalf("Rollback: %v", err)
 	}
 
-	if _, err := q.GetFile(ctx, ids[0]); !errors.Is(err, pgx.ErrNoRows) {
+	if _, err := q.GetFile(ctx, txID); !errors.Is(err, pgx.ErrNoRows) {
 		t.Errorf("GetFile after rollback error = %v, want pgx.ErrNoRows", err)
 	}
 }

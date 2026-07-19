@@ -14,13 +14,18 @@ import (
 const deleteFile = `-- name: DeleteFile :one
 DELETE FROM files
 WHERE id = $1
-RETURNING id, key, created_at
+RETURNING id, key, created_at, marked_at
 `
 
 func (q *Queries) DeleteFile(ctx context.Context, id int64) (File, error) {
 	row := q.db.QueryRow(ctx, deleteFile, id)
 	var i File
-	err := row.Scan(&i.ID, &i.Key, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.CreatedAt,
+		&i.MarkedAt,
+	)
 	return i, err
 }
 
@@ -68,37 +73,6 @@ func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []int64) ([]FileIn
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const insertFiles = `-- name: InsertFiles :many
-INSERT INTO files (key)
-SELECT unnest($1::text[])
-ON CONFLICT (key) DO NOTHING
-RETURNING id
-`
-
-// Crawler ingest: register discovered objects by key only — identity, no
-// metadata. Idempotent; RETURNING yields the ids of rows that are actually
-// new (conflicts return nothing), which the crawler uses purely for
-// logging. New files are picked up by each index type's seed query.
-func (q *Queries) InsertFiles(ctx context.Context, keys []string) ([]int64, error) {
-	rows, err := q.db.Query(ctx, insertFiles, keys)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		items = append(items, id)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -425,4 +399,30 @@ func (q *Queries) ListFilesBySizeDesc(ctx context.Context, arg ListFilesBySizeDe
 		return nil, err
 	}
 	return items, nil
+}
+
+const upsertFiles = `-- name: UpsertFiles :execrows
+INSERT INTO files (key, marked_at)
+SELECT unnest($1::text[]),
+       unnest($2::timestamptz[])
+ON CONFLICT (key) DO UPDATE
+    SET marked_at = GREATEST(files.marked_at, EXCLUDED.marked_at)
+`
+
+type UpsertFilesParams struct {
+	Keys      []string
+	MarkedAts []pgtype.Timestamptz
+}
+
+// Crawler ingest: register discovered objects by key + listing last-modified
+// (the staleness mark). Idempotent: ON CONFLICT bumps marked_at only when
+// the listing shows a strictly newer mtime, so re-crawls of unchanged
+// objects are silent no-ops at the DB level. The stat seed step detects
+// stale done rows by comparing index_stat.mark against files.marked_at.
+func (q *Queries) UpsertFiles(ctx context.Context, arg UpsertFilesParams) (int64, error) {
+	result, err := q.db.Exec(ctx, upsertFiles, arg.Keys, arg.MarkedAts)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }

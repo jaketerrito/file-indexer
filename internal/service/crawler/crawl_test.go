@@ -12,9 +12,7 @@ import (
 )
 
 // walkOver returns a RunAndReturn implementation that invokes the supplied
-// callback once per object, mimicking a real ObjectStore.Walk. It returns
-// the first callback error, matching the production loop's short-circuit
-// behavior.
+// callback once per object, mimicking a real ObjectStore.Walk.
 func walkOver(infos ...storage.ObjectInfo) func(ctx context.Context, fn func(storage.ObjectInfo) error) error {
 	return func(ctx context.Context, fn func(storage.ObjectInfo) error) error {
 		for _, info := range infos {
@@ -26,45 +24,55 @@ func walkOver(infos ...storage.ObjectInfo) func(ctx context.Context, fn func(sto
 	}
 }
 
-func objectInfo(key string, size int64) storage.ObjectInfo {
-	return storage.ObjectInfo{Key: key, Size: size, LastModified: time.Date(2026, 7, 18, 0, 0, 0, 0, time.UTC)}
+func objectInfo(key string) storage.ObjectInfo {
+	return storage.ObjectInfo{Key: key, Size: 1, LastModified: time.Date(2026, 7, 18, 0, 0, 0, 0, time.UTC)}
+}
+
+// upsertMatcher returns a mock matcher that asserts the UpsertFilesParams
+// contains exactly the given keys (order-sensitive) and that all
+// MarkedAts are valid.
+func upsertMatcher(keys ...string) func(db.UpsertFilesParams) bool {
+	return func(arg db.UpsertFilesParams) bool {
+		if len(arg.Keys) != len(keys) {
+			return false
+		}
+		for i, k := range keys {
+			if arg.Keys[i] != k {
+				return false
+			}
+		}
+		for _, m := range arg.MarkedAts {
+			if !m.Valid {
+				return false
+			}
+		}
+		return true
+	}
 }
 
 func TestRun(t *testing.T) {
 	store := NewMockObjectStore(t)
 	store.EXPECT().Walk(mock.Anything, mock.Anything).
-		RunAndReturn(walkOver(objectInfo("a", 1), objectInfo("b", 2)))
+		RunAndReturn(walkOver(objectInfo("a"), objectInfo("b")))
 
 	files := NewMockFileStore(t)
-	files.EXPECT().InsertFiles(mock.Anything, []string{"a", "b"}).Return([]int64{10, 11}, nil)
-	files.EXPECT().ResetChangedIndexStat(mock.Anything, mock.MatchedBy(func(arg db.ResetChangedIndexStatParams) bool {
-		return len(arg.Keys) == 2 && arg.Keys[0] == "a" && arg.Keys[1] == "b" &&
-			arg.Sizes[0] == 1 && arg.Sizes[1] == 2 &&
-			arg.LastModifieds[0].Valid && arg.LastModifieds[1].Valid
-	})).Return(0, nil)
+	files.EXPECT().
+		UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("a", "b"))).
+		Return(2, nil)
 
-	c := New(store, files)
-	if err := c.Run(context.Background()); err != nil {
+	if err := New(store, files).Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestRunFlushesFullBatches(t *testing.T) {
-	// Three objects with batch size two: expect a flush of two then a final
-	// flush of one.
 	store := NewMockObjectStore(t)
 	store.EXPECT().Walk(mock.Anything, mock.Anything).
-		RunAndReturn(walkOver(objectInfo("a", 1), objectInfo("b", 2), objectInfo("c", 3)))
+		RunAndReturn(walkOver(objectInfo("a"), objectInfo("b"), objectInfo("c")))
 
 	files := NewMockFileStore(t)
-	files.EXPECT().InsertFiles(mock.Anything, []string{"a", "b"}).Return([]int64{1, 2}, nil)
-	files.EXPECT().InsertFiles(mock.Anything, []string{"c"}).Return([]int64{3}, nil)
-	files.EXPECT().ResetChangedIndexStat(mock.Anything, mock.MatchedBy(func(arg db.ResetChangedIndexStatParams) bool {
-		return len(arg.Keys) == 2
-	})).Return(0, nil)
-	files.EXPECT().ResetChangedIndexStat(mock.Anything, mock.MatchedBy(func(arg db.ResetChangedIndexStatParams) bool {
-		return len(arg.Keys) == 1 && arg.Keys[0] == "c"
-	})).Return(0, nil)
+	files.EXPECT().UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("a", "b"))).Return(2, nil)
+	files.EXPECT().UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("c"))).Return(1, nil)
 
 	c := New(store, files)
 	c.batchSize = 2
@@ -76,16 +84,12 @@ func TestRunFlushesFullBatches(t *testing.T) {
 func TestRunDeduplicatesKeysWithinBatch(t *testing.T) {
 	store := NewMockObjectStore(t)
 	store.EXPECT().Walk(mock.Anything, mock.Anything).
-		RunAndReturn(walkOver(objectInfo("a", 1), objectInfo("a", 1), objectInfo("b", 2)))
+		RunAndReturn(walkOver(objectInfo("a"), objectInfo("a"), objectInfo("b")))
 
 	files := NewMockFileStore(t)
-	files.EXPECT().InsertFiles(mock.Anything, []string{"a", "b"}).Return([]int64{1, 2}, nil)
-	files.EXPECT().ResetChangedIndexStat(mock.Anything, mock.MatchedBy(func(arg db.ResetChangedIndexStatParams) bool {
-		return len(arg.Keys) == 2
-	})).Return(0, nil)
+	files.EXPECT().UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("a", "b"))).Return(1, nil)
 
-	c := New(store, files)
-	if err := c.Run(context.Background()); err != nil {
+	if err := New(store, files).Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -96,38 +100,21 @@ func TestRunEmptyBucket(t *testing.T) {
 
 	files := NewMockFileStore(t)
 
-	c := New(store, files)
-	if err := c.Run(context.Background()); err != nil {
+	if err := New(store, files).Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	files.AssertNotCalled(t, "InsertFiles", mock.Anything, mock.Anything)
+	files.AssertNotCalled(t, "UpsertFiles", mock.Anything, mock.Anything)
 }
 
-func TestRunInsertError(t *testing.T) {
+func TestRunUpsertError(t *testing.T) {
 	store := NewMockObjectStore(t)
 	store.EXPECT().Walk(mock.Anything, mock.Anything).
-		RunAndReturn(walkOver(objectInfo("a", 1)))
+		RunAndReturn(walkOver(objectInfo("a")))
 
 	files := NewMockFileStore(t)
-	files.EXPECT().InsertFiles(mock.Anything, mock.Anything).Return(nil, errors.New("insert failed"))
+	files.EXPECT().UpsertFiles(mock.Anything, mock.Anything).Return(0, errors.New("db error"))
 
-	c := New(store, files)
-	if err := c.Run(context.Background()); err == nil {
-		t.Fatal("expected error")
-	}
-}
-
-func TestRunResetError(t *testing.T) {
-	store := NewMockObjectStore(t)
-	store.EXPECT().Walk(mock.Anything, mock.Anything).
-		RunAndReturn(walkOver(objectInfo("a", 1)))
-
-	files := NewMockFileStore(t)
-	files.EXPECT().InsertFiles(mock.Anything, mock.Anything).Return([]int64{1}, nil)
-	files.EXPECT().ResetChangedIndexStat(mock.Anything, mock.Anything).Return(0, errors.New("reset failed"))
-
-	c := New(store, files)
-	if err := c.Run(context.Background()); err == nil {
+	if err := New(store, files).Run(context.Background()); err == nil {
 		t.Fatal("expected error")
 	}
 }
@@ -136,12 +123,10 @@ func TestRunWalkError(t *testing.T) {
 	store := NewMockObjectStore(t)
 	store.EXPECT().Walk(mock.Anything, mock.Anything).Return(errors.New("walk failed"))
 
-	// The store must never be written when Walk itself fails.
 	files := NewMockFileStore(t)
 
-	c := New(store, files)
-	if err := c.Run(context.Background()); err == nil {
+	if err := New(store, files).Run(context.Background()); err == nil {
 		t.Fatal("expected error")
 	}
-	files.AssertNotCalled(t, "InsertFiles", mock.Anything, mock.Anything)
+	files.AssertNotCalled(t, "UpsertFiles", mock.Anything, mock.Anything)
 }

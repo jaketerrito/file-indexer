@@ -12,6 +12,7 @@ type File struct {
 	ID        int64
 	Key       string
 	CreatedAt pgtype.Timestamptz
+	MarkedAt  pgtype.Timestamptz
 }
 
 type FileInfo struct {
@@ -31,6 +32,7 @@ type IndexStat struct {
 	ClaimedAt     pgtype.Timestamptz
 	LastError     pgtype.Text
 	UpdatedAt     pgtype.Timestamptz
+	Mark          pgtype.Timestamptz
 	ContentType   pgtype.Text
 	SizeBytes     pgtype.Int8
 	LastModified  pgtype.Timestamptz

@@ -123,93 +123,25 @@ func (_m *MockFileStore) EXPECT() *MockFileStore_Expecter {
 	return &MockFileStore_Expecter{mock: &_m.Mock}
 }
 
-// InsertFiles provides a mock function for the type MockFileStore
-func (_mock *MockFileStore) InsertFiles(ctx context.Context, keys []string) ([]int64, error) {
-	ret := _mock.Called(ctx, keys)
-
-	if len(ret) == 0 {
-		panic("no return value specified for InsertFiles")
-	}
-
-	var r0 []int64
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) ([]int64, error)); ok {
-		return returnFunc(ctx, keys)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) []int64); ok {
-		r0 = returnFunc(ctx, keys)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]int64)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
-		r1 = returnFunc(ctx, keys)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockFileStore_InsertFiles_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertFiles'
-type MockFileStore_InsertFiles_Call struct {
-	*mock.Call
-}
-
-// InsertFiles is a helper method to define mock.On call
-//   - ctx context.Context
-//   - keys []string
-func (_e *MockFileStore_Expecter) InsertFiles(ctx any, keys any) *MockFileStore_InsertFiles_Call {
-	return &MockFileStore_InsertFiles_Call{Call: _e.mock.On("InsertFiles", ctx, keys)}
-}
-
-func (_c *MockFileStore_InsertFiles_Call) Run(run func(ctx context.Context, keys []string)) *MockFileStore_InsertFiles_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 []string
-		if args[1] != nil {
-			arg1 = args[1].([]string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockFileStore_InsertFiles_Call) Return(int64s []int64, err error) *MockFileStore_InsertFiles_Call {
-	_c.Call.Return(int64s, err)
-	return _c
-}
-
-func (_c *MockFileStore_InsertFiles_Call) RunAndReturn(run func(ctx context.Context, keys []string) ([]int64, error)) *MockFileStore_InsertFiles_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// ResetChangedIndexStat provides a mock function for the type MockFileStore
-func (_mock *MockFileStore) ResetChangedIndexStat(ctx context.Context, arg db.ResetChangedIndexStatParams) (int64, error) {
+// UpsertFiles provides a mock function for the type MockFileStore
+func (_mock *MockFileStore) UpsertFiles(ctx context.Context, arg db.UpsertFilesParams) (int64, error) {
 	ret := _mock.Called(ctx, arg)
 
 	if len(ret) == 0 {
-		panic("no return value specified for ResetChangedIndexStat")
+		panic("no return value specified for UpsertFiles")
 	}
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ResetChangedIndexStatParams) (int64, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpsertFilesParams) (int64, error)); ok {
 		return returnFunc(ctx, arg)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ResetChangedIndexStatParams) int64); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpsertFilesParams) int64); ok {
 		r0 = returnFunc(ctx, arg)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ResetChangedIndexStatParams) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.UpsertFilesParams) error); ok {
 		r1 = returnFunc(ctx, arg)
 	} else {
 		r1 = ret.Error(1)
@@ -217,27 +149,27 @@ func (_mock *MockFileStore) ResetChangedIndexStat(ctx context.Context, arg db.Re
 	return r0, r1
 }
 
-// MockFileStore_ResetChangedIndexStat_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResetChangedIndexStat'
-type MockFileStore_ResetChangedIndexStat_Call struct {
+// MockFileStore_UpsertFiles_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpsertFiles'
+type MockFileStore_UpsertFiles_Call struct {
 	*mock.Call
 }
 
-// ResetChangedIndexStat is a helper method to define mock.On call
+// UpsertFiles is a helper method to define mock.On call
 //   - ctx context.Context
-//   - arg db.ResetChangedIndexStatParams
-func (_e *MockFileStore_Expecter) ResetChangedIndexStat(ctx any, arg any) *MockFileStore_ResetChangedIndexStat_Call {
-	return &MockFileStore_ResetChangedIndexStat_Call{Call: _e.mock.On("ResetChangedIndexStat", ctx, arg)}
+//   - arg db.UpsertFilesParams
+func (_e *MockFileStore_Expecter) UpsertFiles(ctx any, arg any) *MockFileStore_UpsertFiles_Call {
+	return &MockFileStore_UpsertFiles_Call{Call: _e.mock.On("UpsertFiles", ctx, arg)}
 }
 
-func (_c *MockFileStore_ResetChangedIndexStat_Call) Run(run func(ctx context.Context, arg db.ResetChangedIndexStatParams)) *MockFileStore_ResetChangedIndexStat_Call {
+func (_c *MockFileStore_UpsertFiles_Call) Run(run func(ctx context.Context, arg db.UpsertFilesParams)) *MockFileStore_UpsertFiles_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 db.ResetChangedIndexStatParams
+		var arg1 db.UpsertFilesParams
 		if args[1] != nil {
-			arg1 = args[1].(db.ResetChangedIndexStatParams)
+			arg1 = args[1].(db.UpsertFilesParams)
 		}
 		run(
 			arg0,
@@ -247,12 +179,12 @@ func (_c *MockFileStore_ResetChangedIndexStat_Call) Run(run func(ctx context.Con
 	return _c
 }
 
-func (_c *MockFileStore_ResetChangedIndexStat_Call) Return(n int64, err error) *MockFileStore_ResetChangedIndexStat_Call {
+func (_c *MockFileStore_UpsertFiles_Call) Return(n int64, err error) *MockFileStore_UpsertFiles_Call {
 	_c.Call.Return(n, err)
 	return _c
 }
 
-func (_c *MockFileStore_ResetChangedIndexStat_Call) RunAndReturn(run func(ctx context.Context, arg db.ResetChangedIndexStatParams) (int64, error)) *MockFileStore_ResetChangedIndexStat_Call {
+func (_c *MockFileStore_UpsertFiles_Call) RunAndReturn(run func(ctx context.Context, arg db.UpsertFilesParams) (int64, error)) *MockFileStore_UpsertFiles_Call {
 	_c.Call.Return(run)
 	return _c
 }

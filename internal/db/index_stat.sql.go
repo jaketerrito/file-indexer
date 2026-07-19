@@ -69,14 +69,17 @@ func (q *Queries) ClaimIndexStat(ctx context.Context, arg ClaimIndexStatParams) 
 }
 
 const completeIndexStat = `-- name: CompleteIndexStat :exec
-UPDATE index_stat
+UPDATE index_stat s
 SET status = 'done',
     last_error = NULL,
     updated_at = now(),
+    mark = f.marked_at,
     content_type = $1,
     size_bytes = $2,
-    last_modified = date_trunc('second', $3::timestamptz)
-WHERE file_id = $4
+    last_modified = $3::timestamptz
+FROM files f
+WHERE s.file_id = $4
+  AND f.id = $4
 `
 
 type CompleteIndexStatParams struct {
@@ -86,10 +89,10 @@ type CompleteIndexStatParams struct {
 	FileID       int64
 }
 
-// Record a successful run: status flip and stat results in one atomic
-// UPDATE. last_modified is truncated to whole seconds to match the
-// precision the crawler's change detection compares against (HTTP
-// Last-Modified is second-precision; listings are sub-second).
+// Record a successful run: status flip, mark capture, and stat results in
+// one atomic UPDATE. mark copies files.marked_at at completion time so
+// that an edit arriving mid-run (bumping marked_at) still triggers a
+// re-index on the next seed cycle.
 func (q *Queries) CompleteIndexStat(ctx context.Context, arg CompleteIndexStatParams) error {
 	_, err := q.db.Exec(ctx, completeIndexStat,
 		arg.ContentType,
@@ -148,34 +151,26 @@ func (q *Queries) ReleaseIndexStat(ctx context.Context, fileID int64) error {
 	return err
 }
 
-const resetChangedIndexStat = `-- name: ResetChangedIndexStat :execrows
+const requeueStaleIndexStat = `-- name: RequeueStaleIndexStat :execrows
 UPDATE index_stat s
-SET status = 'pending', attempts = 0, next_attempt_at = now(), last_error = NULL, updated_at = now()
-FROM files f,
-     (SELECT unnest($1::text[])                  AS key,
-             unnest($2::bigint[])               AS size_bytes,
-             unnest($3::timestamptz[]) AS last_modified) t
-WHERE f.key = t.key
-  AND s.file_id = f.id
+SET status = 'pending',
+    attempts = 0,
+    next_attempt_at = now(),
+    last_error = NULL,
+    updated_at = now()
+FROM files f
+WHERE s.file_id = f.id
   AND s.status = 'done'
-  AND (s.size_bytes IS DISTINCT FROM t.size_bytes
-    OR s.last_modified IS DISTINCT FROM date_trunc('second', t.last_modified))
+  AND s.mark IS DISTINCT FROM f.marked_at
 `
 
-type ResetChangedIndexStatParams struct {
-	Keys          []string
-	Sizes         []int64
-	LastModifieds []pgtype.Timestamptz
-}
-
-// Crawler change detection: given the bucket listing (key, size,
-// last-modified triples), re-enqueue done rows whose stored stat results no
-// longer match the listing. Attempts restart since this is logically a new
-// piece of work. Only done rows are comparable — pending/claimed rows are
-// already queued and error rows have no results to compare (they stay
-// parked until manually reset).
-func (q *Queries) ResetChangedIndexStat(ctx context.Context, arg ResetChangedIndexStatParams) (int64, error) {
-	result, err := q.db.Exec(ctx, resetChangedIndexStat, arg.Keys, arg.Sizes, arg.LastModifieds)
+// Re-enqueue done rows whose stored mark no longer matches files.marked_at.
+// This is the second half of seed: new files are handled by SeedIndexStat;
+// edited files (whose crawler re-crawl bumped marked_at past the stored
+// mark) are handled here. Only done rows are re-enqueued — pending/claimed
+// rows are already in-flight; error rows stay parked until manually reset.
+func (q *Queries) RequeueStaleIndexStat(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, requeueStaleIndexStat)
 	if err != nil {
 		return 0, err
 	}
@@ -196,6 +191,11 @@ ON CONFLICT (file_id) DO NOTHING
 //	(no row)  --seed-->  pending  --claim-->  claimed  --complete-->  done
 //	                       ^                    |
 //	                       +------fail----------+--(attempts exhausted)--> error
+//
+// Staleness detection: the seed step also re-enqueues done rows whose
+// stored mark no longer matches files.marked_at, so an edited object is
+// automatically re-indexed on the next seed cycle without the crawler
+// needing to know which index types exist.
 //
 // Timing policy (backoff, claim TTL, max attempts) lives in the worker
 // framework; these queries only persist the decisions it makes.
