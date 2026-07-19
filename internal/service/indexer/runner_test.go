@@ -126,7 +126,7 @@ func runRunner(t *testing.T, r *runner[string]) (stop func()) {
 
 func newTestRunner(q *fakeQueue, process ProcessFunc[string]) *runner[string] {
 	return &runner[string]{
-		cfg:        fastConfig().withDefaults(),
+		cfg:        fastConfig(),
 		queue:      q,
 		process:    process,
 		name:       "test",
@@ -392,16 +392,4 @@ func TestBackoff(t *testing.T) {
 	}
 }
 
-func TestConfigDefaults(t *testing.T) {
-	got := Config{}.withDefaults()
-	if got.PollInterval <= 0 || got.BatchSize <= 0 || got.MaxAttempts <= 0 ||
-		got.ClaimTTL <= 0 || got.BackoffBase <= 0 || got.BackoffMax <= 0 {
-		t.Errorf("withDefaults left zero fields: %+v", got)
-	}
 
-	// Explicit values survive.
-	cfg := Config{BatchSize: 3, MaxAttempts: 9}
-	if got := cfg.withDefaults(); got.BatchSize != 3 || got.MaxAttempts != 9 {
-		t.Errorf("withDefaults overwrote explicit values: %+v", got)
-	}
-}

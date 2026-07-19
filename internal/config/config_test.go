@@ -47,15 +47,15 @@ func TestLoadDefaults(t *testing.T) {
 	}
 }
 
-func TestLoadWorkerConfig(t *testing.T) {
-	t.Setenv("WORKER_POLL_INTERVAL", "3s")
-	t.Setenv("WORKER_BATCH_SIZE", "16")
-	t.Setenv("WORKER_MAX_ATTEMPTS", "7")
-	t.Setenv("WORKER_CLAIM_TTL", "15m")
-	t.Setenv("WORKER_BACKOFF_BASE", "20s")
-	t.Setenv("WORKER_BACKOFF_MAX", "5m")
+func TestLoadIndexerConfig(t *testing.T) {
+	t.Setenv("INDEXER_POLL_INTERVAL", "3s")
+	t.Setenv("INDEXER_BATCH_SIZE", "16")
+	t.Setenv("INDEXER_MAX_ATTEMPTS", "7")
+	t.Setenv("INDEXER_CLAIM_TTL", "15m")
+	t.Setenv("INDEXER_BACKOFF_BASE", "20s")
+	t.Setenv("INDEXER_BACKOFF_MAX", "5m")
 
-	w := Load().Worker
+	w := Load().Indexer
 	if w.PollInterval != 3*time.Second {
 		t.Errorf("PollInterval = %v, want 3s", w.PollInterval)
 	}
@@ -76,20 +76,19 @@ func TestLoadWorkerConfig(t *testing.T) {
 	}
 }
 
-func TestLoadWorkerConfigUnsetAndInvalid(t *testing.T) {
-	// Unset and malformed values both yield zero values, which the indexer
-	// package replaces with its own defaults.
-	t.Setenv("WORKER_POLL_INTERVAL", "not-a-duration")
+func TestLoadIndexerConfigUnsetAndInvalid(t *testing.T) {
+	// Unset and malformed values fall back to built-in defaults.
+	t.Setenv("INDEXER_POLL_INTERVAL", "not-a-duration")
 
-	w := Load().Worker
-	if w.PollInterval != 0 {
-		t.Errorf("PollInterval = %v, want 0 for malformed value", w.PollInterval)
+	w := Load().Indexer
+	if w.PollInterval != 5*time.Second {
+		t.Errorf("PollInterval = %v, want 5s default for malformed value", w.PollInterval)
 	}
-	if w.BatchSize != 0 {
-		t.Errorf("BatchSize = %d, want 0 when unset", w.BatchSize)
+	if w.BatchSize != 32 {
+		t.Errorf("BatchSize = %d, want 32 default when unset", w.BatchSize)
 	}
-	if w.ClaimTTL != 0 {
-		t.Errorf("ClaimTTL = %v, want 0 when unset", w.ClaimTTL)
+	if w.ClaimTTL != 10*time.Minute {
+		t.Errorf("ClaimTTL = %v, want 10m default when unset", w.ClaimTTL)
 	}
 }
 

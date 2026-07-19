@@ -50,8 +50,8 @@ type Queue[R any] interface {
 // persist. An error triggers the retry policy and the result is discarded.
 type ProcessFunc[R any] func(ctx context.Context, job Job) (R, error)
 
-// Config carries Run's tuning knobs. Zero values are replaced by the
-// defaults below.
+// Config carries Run's tuning knobs. Populate from config.Load or set
+// all fields explicitly.
 type Config struct {
 	// PollInterval is how long the loop sleeps after finding the queue
 	// empty (or near-empty). A full batch triggers an immediate re-claim to
@@ -71,28 +71,6 @@ type Config struct {
 	BackoffBase time.Duration
 	// BackoffMax caps the exponential retry delay.
 	BackoffMax time.Duration
-}
-
-func (c Config) withDefaults() Config {
-	if c.PollInterval <= 0 {
-		c.PollInterval = 5 * time.Second
-	}
-	if c.BatchSize <= 0 {
-		c.BatchSize = 32
-	}
-	if c.MaxAttempts <= 0 {
-		c.MaxAttempts = 5
-	}
-	if c.ClaimTTL <= 0 {
-		c.ClaimTTL = 10 * time.Minute
-	}
-	if c.BackoffBase <= 0 {
-		c.BackoffBase = 10 * time.Second
-	}
-	if c.BackoffMax <= 0 {
-		c.BackoffMax = 10 * time.Minute
-	}
-	return c
 }
 
 // Status writes (Complete/Fail) run on a context detached from cancellation,
@@ -123,7 +101,7 @@ type runner[R any] struct {
 // aborting the loop.
 func Run[R any](ctx context.Context, name string, cfg Config, queue Queue[R], process ProcessFunc[R]) error {
 	r := &runner[R]{
-		cfg:        cfg.withDefaults(),
+		cfg:        cfg,
 		queue:      queue,
 		process:    process,
 		name:       name,

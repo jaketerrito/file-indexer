@@ -42,16 +42,9 @@ func main() {
 	queue := indexer.NewPGQueue(pool, "stat", indexer.StoreStatResult)
 	stat := indexer.NewStatIndexer(s3)
 
-	runnerCfg := indexer.Config{
-		PollInterval: cfg.Worker.PollInterval,
-		BatchSize:    int32(cfg.Worker.BatchSize),
-		MaxAttempts:  int32(cfg.Worker.MaxAttempts),
-		ClaimTTL:     cfg.Worker.ClaimTTL,
-		BackoffBase:  cfg.Worker.BackoffBase,
-		BackoffMax:   cfg.Worker.BackoffMax,
-	}
+	indexerCfg := indexer.Config(cfg.Indexer)
 
-	if err := indexer.Run(ctx, "stat", runnerCfg, queue, stat.Process); err != nil {
+	if err := indexer.Run(ctx, "stat", indexerCfg, queue, stat.Process); err != nil {
 		slog.Error("indexer failed", "error", err)
 		os.Exit(1)
 	}
