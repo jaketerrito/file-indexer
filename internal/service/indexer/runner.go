@@ -40,11 +40,11 @@ type Config struct {
 	ClaimTTL     time.Duration
 	BackoffBase  time.Duration
 	BackoffMax   time.Duration
-
-	// Test seams; zero value uses default.
-	now        func() time.Time
-	retryDelay time.Duration
 }
+
+// Test hooks — set only by tests inside the indexer package.
+var testNow func() time.Time
+var testRetryDelay time.Duration
 
 const (
 	statusWriteTimeout = 10 * time.Second
@@ -57,11 +57,11 @@ const (
 // Queue errors are logged and retried on the next iteration rather than
 // aborting the loop.
 func Run[R any](ctx context.Context, name string, cfg Config, queue Queue[R], process ProcessFunc[R]) error {
-	now := cfg.now
+	now := testNow
 	if now == nil {
 		now = time.Now
 	}
-	retryDelay := cfg.retryDelay
+	retryDelay := testRetryDelay
 	if retryDelay == 0 {
 		retryDelay = 500 * time.Millisecond
 	}

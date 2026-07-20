@@ -21,8 +21,7 @@ func fastConfig() Config {
 	}
 }
 
-// testConfig returns a Config ready to pass to Run, with test seams set to
-// sensible defaults.
+// testConfig returns a Config ready to pass to Run.
 func testConfig() Config {
 	return Config{
 		PollInterval: time.Millisecond,
@@ -31,8 +30,6 @@ func testConfig() Config {
 		ClaimTTL:     time.Minute,
 		BackoffBase:  time.Second,
 		BackoffMax:   8 * time.Second,
-		now:          time.Now,
-		retryDelay:   500 * time.Millisecond,
 	}
 }
 
@@ -178,10 +175,10 @@ func TestRunFailsJobWithBackoff(t *testing.T) {
 	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "", errors.New("stat exploded") })
 
 	base := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
-	cfg := testConfig()
-	cfg.now = func() time.Time { return base }
+	testNow = func() time.Time { return base }
+	t.Cleanup(func() { testNow = nil })
 
-	stop := runRunner(t, cfg, q, process)
+	stop := runRunner(t, testConfig(), q, process)
 	q.waitActivity(t, 1)
 	stop()
 
@@ -294,10 +291,10 @@ func TestRunRetriesTransientStatusWriteError(t *testing.T) {
 
 	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
 
-	cfg := testConfig()
-	cfg.retryDelay = time.Millisecond
+	testRetryDelay = time.Millisecond
+	t.Cleanup(func() { testRetryDelay = 0 })
 
-	stop := runRunner(t, cfg, q, process)
+	stop := runRunner(t, testConfig(), q, process)
 	q.waitActivity(t, 2)
 	stop()
 
@@ -319,10 +316,10 @@ func TestRunLogsStatusWriteErrors(t *testing.T) {
 
 	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
 
-	cfg := testConfig()
-	cfg.retryDelay = time.Millisecond
+	testRetryDelay = time.Millisecond
+	t.Cleanup(func() { testRetryDelay = 0 })
 
-	stop := runRunner(t, cfg, q, process)
+	stop := runRunner(t, testConfig(), q, process)
 	q.waitActivity(t, 2*statusWriteTries)
 	stop()
 
