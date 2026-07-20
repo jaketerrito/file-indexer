@@ -8,19 +8,6 @@ import (
 	"time"
 )
 
-// fastConfig returns a config with intervals small enough that tests finish
-// quickly while still exercising the real loop.
-func fastConfig() Config {
-	return Config{
-		PollInterval: time.Millisecond,
-		BatchSize:    8,
-		MaxAttempts:  3,
-		ClaimTTL:     time.Minute,
-		BackoffBase:  time.Second,
-		BackoffMax:   8 * time.Second,
-	}
-}
-
 // testConfig returns a Config ready to pass to Run.
 func testConfig() Config {
 	return Config{

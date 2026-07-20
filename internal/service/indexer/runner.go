@@ -43,8 +43,10 @@ type Config struct {
 }
 
 // Test hooks — set only by tests inside the indexer package.
-var testNow func() time.Time
-var testRetryDelay time.Duration
+var (
+	testNow        func() time.Time
+	testRetryDelay time.Duration
+)
 
 const (
 	statusWriteTimeout = 10 * time.Second
