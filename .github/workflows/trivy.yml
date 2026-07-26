@@ -13,7 +13,7 @@ jobs:
     name: filesystem scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Trivy filesystem scan (vuln, misconfig, secrets)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
@@ -32,7 +32,7 @@ jobs:
       matrix:
         target: [./cmd/indexer, ./cmd/migrate, ./cmd/files, ./cmd/search, ./cmd/crawler]
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Build image
         run: |
           docker build \
@@ -53,7 +53,7 @@ jobs:
     name: image scan (web)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Build image
         run: docker build -t file-indexer-web-scan:${{ github.sha }} web
       - name: Trivy image scan
