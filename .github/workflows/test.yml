@@ -64,7 +64,7 @@ jobs:
     timeout-minutes: 20
     env:
       # renovate: datasource=github-releases depName=casey/just
-      JUST_VERSION: "1.55.1"
+      JUST_VERSION: "1.57.0"
       # renovate: datasource=github-releases depName=kubernetes-sigs/kind
       KIND_VERSION: "0.32.0"
       # renovate: datasource=github-releases depName=tilt-dev/ctlptl
