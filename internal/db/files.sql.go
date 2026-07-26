@@ -418,11 +418,7 @@ type UpsertFilesParams struct {
 	MarkedAts []pgtype.Timestamptz
 }
 
-// Crawler ingest: register discovered objects by key + listing last-modified
-// (the staleness mark). Idempotent: ON CONFLICT bumps marked_at only when
-// the listing shows a strictly newer mtime, so re-crawls of unchanged
-// objects are silent no-ops at the DB level. The stat seed step detects
-// stale done rows by comparing index_stat.mark against files.marked_at.
+// Add new files and update marked_at if the listing shows a newer mtime.
 func (q *Queries) UpsertFiles(ctx context.Context, arg UpsertFilesParams) (int64, error) {
 	result, err := q.db.Exec(ctx, upsertFiles, arg.Keys, arg.MarkedAts)
 	if err != nil {

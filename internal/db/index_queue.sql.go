@@ -17,7 +17,7 @@ WITH candidates AS (
     FROM index_queue
     WHERE index_type = $1::text
       AND ((status = 'pending' AND next_attempt_at <= now())
-           OR (status = 'claimed' AND claimed_at <= $2::timestamptz))
+           OR (status = 'claimed' AND now() - claimed_at >= $2::interval))
     ORDER BY next_attempt_at
     LIMIT $3
     FOR UPDATE SKIP LOCKED
@@ -35,9 +35,9 @@ JOIN files f ON f.id = c.file_id
 `
 
 type ClaimIndexQueueParams struct {
-	IndexType   string
-	StaleBefore pgtype.Timestamptz
-	BatchSize   int32
+	IndexType    string
+	StaleTimeout pgtype.Interval
+	BatchSize    int32
 }
 
 type ClaimIndexQueueRow struct {
@@ -48,11 +48,10 @@ type ClaimIndexQueueRow struct {
 
 // Atomically claim a batch of jobs for one index type. FOR UPDATE SKIP
 // LOCKED lets concurrent claimers (any number of pods) grab disjoint
-// batches without blocking. Rows stuck in claimed since before stale_before
-// (a crashed instance's claim TTL cutoff) are reclaimed alongside pending
-// rows.
+// batches without blocking. Rows claimed longer than stale_timeout
+// (a crashed instance's claim TTL) are reclaimed alongside pending rows.
 func (q *Queries) ClaimIndexQueue(ctx context.Context, arg ClaimIndexQueueParams) ([]ClaimIndexQueueRow, error) {
-	rows, err := q.db.Query(ctx, claimIndexQueue, arg.IndexType, arg.StaleBefore, arg.BatchSize)
+	rows, err := q.db.Query(ctx, claimIndexQueue, arg.IndexType, arg.StaleTimeout, arg.BatchSize)
 	if err != nil {
 		return nil, err
 	}
@@ -136,19 +135,22 @@ SET status = 'pending',
     attempts = 0,
     next_attempt_at = now(),
     last_error = NULL,
+    mark = NULL,
     updated_at = now()
 FROM files f
 WHERE q.file_id = f.id
   AND q.index_type = $1::text
-  AND q.status = 'done'
-  AND q.mark IS DISTINCT FROM f.marked_at
+  AND q.status IN ('done', 'pending')
+  AND q.mark IS NOT NULL
+  AND q.mark < f.marked_at
 `
 
-// Re-enqueue done rows whose stored mark no longer matches files.marked_at.
-// This is the second half of seed: new files are handled by SeedIndexQueue;
-// edited files (whose crawler re-crawl bumped marked_at past the stored
-// mark) are handled here. Only done rows are re-enqueued — pending/claimed
-// rows are already in-flight; error rows stay parked until manually reset.
+// Re-enqueue done and pending rows whose stored mark is older than
+// files.marked_at. Done rows were completed against a prior snapshot;
+// pending rows may carry a stale mark from an earlier re-enqueue. In both
+// cases resetting the row ensures the next claim re-indexes the current
+// content. Claimed rows are in-flight and left alone; error rows stay
+// parked until manually reset.
 func (q *Queries) RequeueStaleIndexQueue(ctx context.Context, indexType string) (int64, error) {
 	result, err := q.db.Exec(ctx, requeueStaleIndexQueue, indexType)
 	if err != nil {

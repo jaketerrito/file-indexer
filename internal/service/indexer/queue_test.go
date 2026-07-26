@@ -54,20 +54,18 @@ func TestPGQueueSeedPropagatesRequeueError(t *testing.T) {
 }
 
 func TestPGQueueClaim(t *testing.T) {
-	staleBefore := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
-
 	queries := NewMockQueries(t)
 	queries.EXPECT().
 		ClaimIndexQueue(mock.Anything, mock.MatchedBy(func(arg db.ClaimIndexQueueParams) bool {
 			return arg.IndexType == "stat" && arg.BatchSize == 5 &&
-				arg.StaleBefore.Valid && arg.StaleBefore.Time.Equal(staleBefore)
+				arg.StaleTimeout.Microseconds == int64(4*time.Hour.Microseconds())
 		})).
 		Return([]db.ClaimIndexQueueRow{
 			{FileID: 1, Attempts: 1, Key: "a"},
 			{FileID: 2, Attempts: 4, Key: "b"},
 		}, nil)
 
-	jobs, err := pgQueueForTest(queries).Claim(context.Background(), 5, staleBefore)
+	jobs, err := pgQueueForTest(queries).Claim(context.Background(), 5, 4*time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +87,7 @@ func TestPGQueueClaimError(t *testing.T) {
 	queries := NewMockQueries(t)
 	queries.EXPECT().ClaimIndexQueue(mock.Anything, mock.Anything).Return(nil, errors.New("db down"))
 
-	if _, err := pgQueueForTest(queries).Claim(context.Background(), 1, time.Now()); err == nil {
+	if _, err := pgQueueForTest(queries).Claim(context.Background(), 1, time.Hour); err == nil {
 		t.Fatal("expected error")
 	}
 }

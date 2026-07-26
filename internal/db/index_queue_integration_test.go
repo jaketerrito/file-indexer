@@ -21,9 +21,9 @@ const claimBatch = 1000
 // binary sharing "stat" here.
 const statType = "stat"
 
-// noStale is a stale_before cutoff far in the past so claims never reclaim
-// other tests' in-flight rows.
-var noStale = pgtype.Timestamptz{Time: time.Unix(0, 0), Valid: true}
+// noStale is a huge stale_timeout so claims never reclaim other tests'
+// in-flight rows.
+var noStale = pgtype.Interval{Months: 1200, Days: 0, Microseconds: 0}
 
 // indexQueueRow reads a row directly for state assertions.
 func indexQueueRow(t *testing.T, conn *pgx.Conn, indexType string, fileID int64) IndexQueue {
@@ -40,7 +40,7 @@ func indexQueueRow(t *testing.T, conn *pgx.Conn, indexType string, fileID int64)
 }
 
 // claimOurs claims batches until it has found all ids or the queue is empty.
-func claimOurs(t *testing.T, q *Queries, indexType string, staleBefore pgtype.Timestamptz, ids ...int64) []ClaimIndexQueueRow {
+func claimOurs(t *testing.T, q *Queries, indexType string, staleTimeout pgtype.Interval, ids ...int64) []ClaimIndexQueueRow {
 	t.Helper()
 	want := map[int64]bool{}
 	for _, id := range ids {
@@ -50,7 +50,7 @@ func claimOurs(t *testing.T, q *Queries, indexType string, staleBefore pgtype.Ti
 	for {
 		rows, err := q.ClaimIndexQueue(context.Background(), ClaimIndexQueueParams{
 			IndexType:   indexType,
-			StaleBefore: staleBefore,
+			StaleTimeout: staleTimeout,
 			BatchSize:   claimBatch,
 		})
 		if err != nil {
@@ -245,13 +245,13 @@ func TestIndexQueueLifecycle(t *testing.T) {
 		t.Fatalf("after stale requeue: %+v, want clean pending", s)
 	}
 
-	// Requeue with same mark is a no-op (pending rows aren't done rows).
+	// Second requeue is a no-op: mark was cleared by the first requeue.
 	n, err = q.RequeueStaleIndexQueue(ctx, statType)
 	if err != nil {
 		t.Fatalf("RequeueStaleIndexQueue(no-op): %v", err)
 	}
 	if n != 0 {
-		t.Errorf("requeued %d rows, want 0 (row is pending, not done)", n)
+		t.Errorf("requeued %d rows, want 0 (mark already cleared)", n)
 	}
 
 	// Fail with backoff.
@@ -347,8 +347,8 @@ func TestClaimIndexQueueReclaimsStale(t *testing.T) {
 		t.Fatalf("initial claim: got %v", ours)
 	}
 
-	// Future stale_before treats the fresh claim as expired.
-	staleAll := ts(time.Now().UTC().Add(time.Hour))
+	// Zero stale_timeout treats the fresh claim as expired.
+	staleAll := pgtype.Interval{Microseconds: 0}
 	reclaimed := claimOurs(t, q, statType, staleAll, fileID)
 	if len(reclaimed) != 1 {
 		t.Fatalf("stale reclaim: got %v", reclaimed)
@@ -390,7 +390,7 @@ func TestClaimIndexQueueSkipLocked(t *testing.T) {
 	claim := func(tx pgx.Tx) map[int64]bool {
 		rows, err := New(conn).WithTx(tx).ClaimIndexQueue(ctx, ClaimIndexQueueParams{
 			IndexType:   statType,
-			StaleBefore: noStale,
+			StaleTimeout: noStale,
 			BatchSize:   claimBatch,
 		})
 		if err != nil {

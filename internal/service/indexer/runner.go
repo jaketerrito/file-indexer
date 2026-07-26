@@ -24,7 +24,7 @@ type Job struct {
 // type the index type produces.
 type Queue[R any] interface {
 	Seed(ctx context.Context) (int64, error)
-	Claim(ctx context.Context, limit int32, staleBefore time.Time) ([]Job, error)
+	Claim(ctx context.Context, limit int32, staleTimeout time.Duration) ([]Job, error)
 	Complete(ctx context.Context, fileID int64, result R) error
 	Fail(ctx context.Context, fileID int64, cause string, nextAttempt time.Time, exhausted bool) error
 }
@@ -117,7 +117,7 @@ func Run[R any](ctx context.Context, name string, cfg Config, queue Queue[R], pr
 	}
 
 	for {
-		claimed, err := queue.Claim(ctx, cfg.BatchSize, now().Add(-cfg.ClaimTTL))
+		claimed, err := queue.Claim(ctx, cfg.BatchSize, cfg.ClaimTTL)
 		if err != nil {
 			if ctx.Err() != nil {
 				slog.Info("indexer stopped", "index", name)

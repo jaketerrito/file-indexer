@@ -79,7 +79,7 @@ func TestPGQueueEndToEnd(t *testing.T) {
 	}
 
 	// Claim returns exactly our job.
-	jobs, err := queue.Claim(ctx, 10, time.Now().Add(-time.Hour))
+	jobs, err := queue.Claim(ctx, 10, time.Hour)
 	if err != nil {
 		t.Fatalf("Claim: %v", err)
 	}
@@ -123,7 +123,7 @@ func TestPGQueueEndToEnd(t *testing.T) {
 	}
 
 	// Done rows are no longer claimable.
-	again, err := queue.Claim(ctx, 10, time.Now().Add(-time.Hour))
+	again, err := queue.Claim(ctx, 10, time.Hour)
 	if err != nil {
 		t.Fatalf("Claim after complete: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestPGQueueCompleteRollsBackOnStoreError(t *testing.T) {
 	if _, err := queue.Seed(ctx); err != nil {
 		t.Fatalf("Seed: %v", err)
 	}
-	jobs, err := queue.Claim(ctx, 10, time.Now().Add(-time.Hour))
+	jobs, err := queue.Claim(ctx, 10, time.Hour)
 	if err != nil || len(jobs) != 1 {
 		t.Fatalf("Claim: jobs=%v err=%v", jobs, err)
 	}
@@ -185,7 +185,7 @@ func TestPGQueueFailPersists(t *testing.T) {
 	if _, err := queue.Seed(ctx); err != nil {
 		t.Fatalf("Seed: %v", err)
 	}
-	if _, err := queue.Claim(ctx, 10, time.Now().Add(-time.Hour)); err != nil {
+	if _, err := queue.Claim(ctx, 10, time.Hour); err != nil {
 		t.Fatalf("Claim: %v", err)
 	}
 

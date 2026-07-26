@@ -57,7 +57,7 @@ func (q *fakeQueue) Seed(_ context.Context) (int64, error) {
 	return q.seedN, q.seedErr
 }
 
-func (q *fakeQueue) Claim(_ context.Context, limit int32, _ time.Time) ([]Job, error) {
+func (q *fakeQueue) Claim(_ context.Context, limit int32, _ time.Duration) ([]Job, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.claims++

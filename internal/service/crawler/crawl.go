@@ -18,11 +18,7 @@ type ObjectStore interface {
 	Walk(ctx context.Context, fn func(storage.ObjectInfo) error) error
 }
 
-// FileStore is the slice of db.Queries the crawler depends on.
 type FileStore interface {
-	// UpsertFiles registers discovered keys with their listing last-modified
-	// times (the staleness mark). Existing rows are updated only when the
-	// new mtime is strictly newer.
 	UpsertFiles(ctx context.Context, arg db.UpsertFilesParams) (int64, error)
 }
 
@@ -37,13 +33,10 @@ type Crawler struct {
 	batchSize int
 }
 
-// New constructs a Crawler with its dependencies already built by the caller
-// (composition root). It does no I/O; call Run to start crawling.
 func New(store ObjectStore, files FileStore) *Crawler {
 	return &Crawler{store: store, files: files, batchSize: defaultBatchSize}
 }
 
-// Run walks the object store and upserts discovered files in batches.
 func (c *Crawler) Run(ctx context.Context) error {
 	slog.Info("crawl starting", "batchSize", c.batchSize)
 

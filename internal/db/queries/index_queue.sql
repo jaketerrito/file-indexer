@@ -28,35 +28,37 @@ WHERE NOT EXISTS (
 ON CONFLICT (index_type, file_id) DO NOTHING;
 
 -- name: RequeueStaleIndexQueue :execrows
--- Re-enqueue done rows whose stored mark no longer matches files.marked_at.
--- This is the second half of seed: new files are handled by SeedIndexQueue;
--- edited files (whose crawler re-crawl bumped marked_at past the stored
--- mark) are handled here. Only done rows are re-enqueued — pending/claimed
--- rows are already in-flight; error rows stay parked until manually reset.
+-- Re-enqueue done and pending rows whose stored mark is older than
+-- files.marked_at. Done rows were completed against a prior snapshot;
+-- pending rows may carry a stale mark from an earlier re-enqueue. In both
+-- cases resetting the row ensures the next claim re-indexes the current
+-- content. Claimed rows are in-flight and left alone; error rows stay
+-- parked until manually reset.
 UPDATE index_queue q
 SET status = 'pending',
     attempts = 0,
     next_attempt_at = now(),
     last_error = NULL,
+    mark = NULL,
     updated_at = now()
 FROM files f
 WHERE q.file_id = f.id
   AND q.index_type = sqlc.arg(index_type)::text
-  AND q.status = 'done'
-  AND q.mark IS DISTINCT FROM f.marked_at;
+  AND q.status IN ('done', 'pending')
+  AND q.mark IS NOT NULL
+  AND q.mark < f.marked_at;
 
 -- name: ClaimIndexQueue :many
 -- Atomically claim a batch of jobs for one index type. FOR UPDATE SKIP
 -- LOCKED lets concurrent claimers (any number of pods) grab disjoint
--- batches without blocking. Rows stuck in claimed since before stale_before
--- (a crashed instance's claim TTL cutoff) are reclaimed alongside pending
--- rows.
+-- batches without blocking. Rows claimed longer than stale_timeout
+-- (a crashed instance's claim TTL) are reclaimed alongside pending rows.
 WITH candidates AS (
     SELECT file_id
     FROM index_queue
     WHERE index_type = sqlc.arg(index_type)::text
       AND ((status = 'pending' AND next_attempt_at <= now())
-           OR (status = 'claimed' AND claimed_at <= sqlc.arg(stale_before)::timestamptz))
+           OR (status = 'claimed' AND now() - claimed_at >= sqlc.arg(stale_timeout)::interval))
     ORDER BY next_attempt_at
     LIMIT sqlc.arg(batch_size)
     FOR UPDATE SKIP LOCKED
