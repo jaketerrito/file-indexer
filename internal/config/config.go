@@ -59,7 +59,7 @@ type Config struct {
 	GrpcAddr string
 	Database DatabaseConfig
 	S3       S3Config
-	Indexer   IndexerConfig
+	Indexer  IndexerConfig
 }
 
 func getEnvDefault(key, def string) string {
