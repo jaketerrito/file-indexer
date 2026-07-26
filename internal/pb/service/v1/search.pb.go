@@ -27,8 +27,10 @@ type SortField int32
 const (
 	SortField_SORT_FIELD_UNSPECIFIED SortField = 0 // defaults to SORT_FIELD_KEY
 	SortField_SORT_FIELD_KEY         SortField = 1
-	SortField_SORT_FIELD_CREATED_AT  SortField = 2
-	SortField_SORT_FIELD_SIZE        SortField = 3
+	// Object last-modified time (from the stat index); unset until a file is
+	// indexed, sorting those files first ascending.
+	SortField_SORT_FIELD_LAST_MODIFIED SortField = 2
+	SortField_SORT_FIELD_SIZE          SortField = 3
 )
 
 // Enum value maps for SortField.
@@ -36,14 +38,14 @@ var (
 	SortField_name = map[int32]string{
 		0: "SORT_FIELD_UNSPECIFIED",
 		1: "SORT_FIELD_KEY",
-		2: "SORT_FIELD_CREATED_AT",
+		2: "SORT_FIELD_LAST_MODIFIED",
 		3: "SORT_FIELD_SIZE",
 	}
 	SortField_value = map[string]int32{
-		"SORT_FIELD_UNSPECIFIED": 0,
-		"SORT_FIELD_KEY":         1,
-		"SORT_FIELD_CREATED_AT":  2,
-		"SORT_FIELD_SIZE":        3,
+		"SORT_FIELD_UNSPECIFIED":   0,
+		"SORT_FIELD_KEY":           1,
+		"SORT_FIELD_LAST_MODIFIED": 2,
+		"SORT_FIELD_SIZE":          3,
 	}
 )
 
@@ -289,11 +291,11 @@ const file_service_v1_search_proto_rawDesc = "" +
 	"sort_order\x18\x06 \x01(\x0e2\x15.service.v1.SortOrderR\tsortOrder\"g\n" +
 	"\x11ListFilesResponse\x12*\n" +
 	"\x05files\x18\x01 \x03(\v2\x14.service.v1.FileInfoR\x05files\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*k\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*n\n" +
 	"\tSortField\x12\x1a\n" +
 	"\x16SORT_FIELD_UNSPECIFIED\x10\x00\x12\x12\n" +
-	"\x0eSORT_FIELD_KEY\x10\x01\x12\x19\n" +
-	"\x15SORT_FIELD_CREATED_AT\x10\x02\x12\x13\n" +
+	"\x0eSORT_FIELD_KEY\x10\x01\x12\x1c\n" +
+	"\x18SORT_FIELD_LAST_MODIFIED\x10\x02\x12\x13\n" +
 	"\x0fSORT_FIELD_SIZE\x10\x03*P\n" +
 	"\tSortOrder\x12\x1a\n" +
 	"\x16SORT_ORDER_UNSPECIFIED\x10\x00\x12\x12\n" +

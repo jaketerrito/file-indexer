@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cursor/v1/cursor.proto.
  */
 export const file_cursor_v1_cursor: GenFile = /*@__PURE__*/
-  fileDesc("ChZjdXJzb3IvdjEvY3Vyc29yLnByb3RvEgljdXJzb3IudjEi4wEKCVBhZ2VUb2tlbhIpCgpzb3J0X2ZpZWxkGAEgASgOMhUuc2VydmljZS52MS5Tb3J0RmllbGQSKQoKc29ydF9vcmRlchgCIAEoDjIVLnNlcnZpY2UudjEuU29ydE9yZGVyEg8KB2xhc3RfaWQYAyABKAMSCwoDa2V5GAQgASgJEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBHNpemUYBiABKAMSDgoGcHJlZml4GAcgASgJEhQKDGNvbnRlbnRfdHlwZRgIIAEoCUItWitmaWxlLWluZGV4ZXIvaW50ZXJuYWwvcGIvY3Vyc29yL3YxO2N1cnNvcnYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_service_v1_search]);
+  fileDesc("ChZjdXJzb3IvdjEvY3Vyc29yLnByb3RvEgljdXJzb3IudjEi5gEKCVBhZ2VUb2tlbhIpCgpzb3J0X2ZpZWxkGAEgASgOMhUuc2VydmljZS52MS5Tb3J0RmllbGQSKQoKc29ydF9vcmRlchgCIAEoDjIVLnNlcnZpY2UudjEuU29ydE9yZGVyEg8KB2xhc3RfaWQYAyABKAMSCwoDa2V5GAQgASgJEjEKDWxhc3RfbW9kaWZpZWQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBHNpemUYBiABKAMSDgoGcHJlZml4GAcgASgJEhQKDGNvbnRlbnRfdHlwZRgIIAEoCUItWitmaWxlLWluZGV4ZXIvaW50ZXJuYWwvcGIvY3Vyc29yL3YxO2N1cnNvcnYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_service_v1_search]);
 
 /**
  * PageToken is the internal wire format of a ListFiles page token. It is
@@ -54,9 +54,9 @@ export type PageToken = Message<"cursor.v1.PageToken"> & {
   key: string;
 
   /**
-   * @generated from field: google.protobuf.Timestamp created_at = 5;
+   * @generated from field: google.protobuf.Timestamp last_modified = 5;
    */
-  createdAt?: Timestamp | undefined;
+  lastModified?: Timestamp | undefined;
 
   /**
    * Matches COALESCE(size_bytes, 0) in the list queries.

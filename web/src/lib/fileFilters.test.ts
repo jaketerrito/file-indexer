@@ -29,7 +29,7 @@ describe('normalizeFilters round-trip', () => {
     const filters = normalizeFilters({
       prefix: 'a',
       type: 'text/',
-      sort: 'createdAt',
+      sort: 'lastModified',
       order: 'desc',
     })
     expect(normalizeFilters({ ...filters })).toEqual(filters)

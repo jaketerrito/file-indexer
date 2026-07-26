@@ -26,13 +26,12 @@ spec:
             runAsGroup: 10001
             seccompProfile:
               type: RuntimeDefault
-          env:
-            - name: GRPC_ADDR
-              value: indexer:50051
           volumeMounts:
             - name: tmp
               mountPath: /tmp
           envFrom:
+            - secretRef:
+                name: db-secret
             - secretRef:
                 name: s3-secret
       volumes:

@@ -11,11 +11,11 @@ packages:
   file-indexer/internal/service/indexer:
     interfaces:
       ObjectStore:
-      FileIndex:
+      Queries:
   file-indexer/internal/service/crawler:
     interfaces:
       ObjectStore:
-      Indexer:
+      FileStore:
   file-indexer/internal/service/search:
     interfaces:
       FileIndex:

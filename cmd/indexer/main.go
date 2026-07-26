@@ -1,14 +1,20 @@
+// The indexer is a stateless daemon (no server): it polls the index_queue
+// table in postgres for files needing stat indexing, fetches metadata from
+// S3, and records the results. Files enter the queue by self-seeding from
+// the files table, which the crawler (and later the API) populates. It has
+// no in-process concurrency; scale out by running more replicas.
 package main
 
 import (
 	"context"
 	"file-indexer/internal/config"
-	"file-indexer/internal/db"
 	"file-indexer/internal/logger"
 	"file-indexer/internal/service/indexer"
 	"file-indexer/internal/storage"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -17,7 +23,10 @@ func main() {
 	logger.Setup(slog.LevelInfo)
 	cfg := config.Load()
 
-	pool, err := pgxpool.New(context.Background(), cfg.Database.URL())
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	pool, err := pgxpool.New(ctx, cfg.Database.URL())
 	if err != nil {
 		slog.Error("database connection failed", "error", err)
 		os.Exit(1)
@@ -30,8 +39,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := indexer.New(cfg.GrpcAddr, s3, db.New(pool))
-	if err := srv.Serve(); err != nil {
+	queue := indexer.NewPGQueue(pool, "stat", indexer.StoreStatResult)
+	stat := indexer.NewStatIndexer(s3)
+
+	indexerCfg := indexer.Config(cfg.Indexer)
+
+	if err := indexer.Run(ctx, "stat", indexerCfg, queue, stat.Process); err != nil {
 		slog.Error("indexer failed", "error", err)
 		os.Exit(1)
 	}

@@ -3,20 +3,20 @@ package crawler
 import (
 	"context"
 	"errors"
+	"file-indexer/internal/db"
+	"file-indexer/internal/storage"
 	"testing"
-
-	pb "file-indexer/internal/pb/service/v1"
+	"time"
 
 	"github.com/stretchr/testify/mock"
 )
 
 // walkOver returns a RunAndReturn implementation that invokes the supplied
-// callback once per ref, mimicking a real ObjectStore.Walk. It returns the
-// first callback error, matching the production loop's short-circuit behavior.
-func walkOver(refs ...*pb.FileRef) func(ctx context.Context, fn func(*pb.FileRef) error) error {
-	return func(ctx context.Context, fn func(*pb.FileRef) error) error {
-		for _, ref := range refs {
-			if err := fn(ref); err != nil {
+// callback once per object, mimicking a real ObjectStore.Walk.
+func walkOver(infos ...storage.ObjectInfo) func(ctx context.Context, fn func(storage.ObjectInfo) error) error {
+	return func(ctx context.Context, fn func(storage.ObjectInfo) error) error {
+		for _, info := range infos {
+			if err := fn(info); err != nil {
 				return err
 			}
 		}
@@ -24,36 +24,98 @@ func walkOver(refs ...*pb.FileRef) func(ctx context.Context, fn func(*pb.FileRef
 	}
 }
 
+func objectInfo(key string) storage.ObjectInfo {
+	return storage.ObjectInfo{Key: key, Size: 1, LastModified: time.Date(2026, 7, 18, 0, 0, 0, 0, time.UTC)}
+}
+
+// upsertMatcher returns a mock matcher that asserts the UpsertFilesParams
+// contains exactly the given keys (order-sensitive) and that all
+// MarkedAts are valid.
+func upsertMatcher(keys ...string) func(db.UpsertFilesParams) bool {
+	return func(arg db.UpsertFilesParams) bool {
+		if len(arg.Keys) != len(keys) {
+			return false
+		}
+		for i, k := range keys {
+			if arg.Keys[i] != k {
+				return false
+			}
+		}
+		for _, m := range arg.MarkedAts {
+			if !m.Valid {
+				return false
+			}
+		}
+		return true
+	}
+}
+
 func TestRun(t *testing.T) {
 	store := NewMockObjectStore(t)
 	store.EXPECT().Walk(mock.Anything, mock.Anything).
-		RunAndReturn(walkOver(&pb.FileRef{Key: "a"}, &pb.FileRef{Key: "b"}))
+		RunAndReturn(walkOver(objectInfo("a"), objectInfo("b")))
 
-	client := NewMockIndexer(t)
-	client.EXPECT().Index(mock.Anything, mock.MatchedBy(func(req *pb.IndexRequest) bool {
-		return req.GetRef().GetKey() == "a"
-	})).Return(&pb.IndexResponse{Status: "OK"}, nil)
-	client.EXPECT().Index(mock.Anything, mock.MatchedBy(func(req *pb.IndexRequest) bool {
-		return req.GetRef().GetKey() == "b"
-	})).Return(&pb.IndexResponse{Status: "OK"}, nil)
+	files := NewMockFileStore(t)
+	files.EXPECT().
+		UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("a", "b"))).
+		Return(2, nil)
 
-	c := New(store, client)
-	if err := c.Run(); err != nil {
+	if err := New(store, files).Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func TestRunIndexError(t *testing.T) {
+func TestRunFlushesFullBatches(t *testing.T) {
 	store := NewMockObjectStore(t)
 	store.EXPECT().Walk(mock.Anything, mock.Anything).
-		RunAndReturn(walkOver(&pb.FileRef{Key: "a"}))
+		RunAndReturn(walkOver(objectInfo("a"), objectInfo("b"), objectInfo("c")))
 
-	client := NewMockIndexer(t)
-	client.EXPECT().Index(mock.Anything, mock.Anything).
-		Return(nil, errors.New("index failed"))
+	files := NewMockFileStore(t)
+	files.EXPECT().UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("a", "b"))).Return(2, nil)
+	files.EXPECT().UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("c"))).Return(1, nil)
 
-	c := New(store, client)
-	if err := c.Run(); err == nil {
+	c := New(store, files)
+	c.batchSize = 2
+	if err := c.Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRunPassesDuplicateKeysToBatch(t *testing.T) {
+	store := NewMockObjectStore(t)
+	store.EXPECT().Walk(mock.Anything, mock.Anything).
+		RunAndReturn(walkOver(objectInfo("a"), objectInfo("a"), objectInfo("b")))
+
+	files := NewMockFileStore(t)
+	// SQL-level dedup via GROUP BY handles in-batch duplicates now.
+	files.EXPECT().UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("a", "a", "b"))).Return(1, nil)
+
+	if err := New(store, files).Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRunEmptyBucket(t *testing.T) {
+	store := NewMockObjectStore(t)
+	store.EXPECT().Walk(mock.Anything, mock.Anything).RunAndReturn(walkOver())
+
+	files := NewMockFileStore(t)
+
+	if err := New(store, files).Run(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	files.AssertNotCalled(t, "UpsertFiles", mock.Anything, mock.Anything)
+}
+
+func TestRunUpsertError(t *testing.T) {
+	store := NewMockObjectStore(t)
+	store.EXPECT().Walk(mock.Anything, mock.Anything).
+		RunAndReturn(walkOver(objectInfo("a")))
+
+	files := NewMockFileStore(t)
+	files.EXPECT().UpsertFiles(mock.Anything, mock.Anything).Return(0, errors.New("db error"))
+
+	if err := New(store, files).Run(context.Background()); err == nil {
 		t.Fatal("expected error")
 	}
 }
@@ -62,12 +124,10 @@ func TestRunWalkError(t *testing.T) {
 	store := NewMockObjectStore(t)
 	store.EXPECT().Walk(mock.Anything, mock.Anything).Return(errors.New("walk failed"))
 
-	// Index must never be called when Walk itself fails.
-	client := NewMockIndexer(t)
+	files := NewMockFileStore(t)
 
-	c := New(store, client)
-	if err := c.Run(); err == nil {
+	if err := New(store, files).Run(context.Background()); err == nil {
 		t.Fatal("expected error")
 	}
-	client.AssertNotCalled(t, "Index", mock.Anything, mock.Anything)
+	files.AssertNotCalled(t, "UpsertFiles", mock.Anything, mock.Anything)
 }

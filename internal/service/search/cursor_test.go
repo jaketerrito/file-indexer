@@ -11,7 +11,7 @@ import (
 )
 
 func TestCursorRoundTripKey(t *testing.T) {
-	f := db.File{ID: 42, Key: "docs/a.txt"}
+	f := db.FileInfo{ID: 42, Key: "docs/a.txt"}
 	c := newCursor(pb.SortField_SORT_FIELD_KEY, pb.SortOrder_SORT_ORDER_DESC, "docs/", "text/plain", f)
 
 	got, err := decodeCursor(encodeCursor(c))
@@ -29,26 +29,35 @@ func TestCursorRoundTripKey(t *testing.T) {
 	}
 }
 
-func TestCursorRoundTripCreatedAt(t *testing.T) {
+func TestCursorRoundTripLastModified(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	f := db.File{ID: 7, CreatedAt: pgtype.Timestamptz{Time: now, Valid: true}}
-	c := newCursor(pb.SortField_SORT_FIELD_CREATED_AT, pb.SortOrder_SORT_ORDER_ASC, "", "", f)
+	f := db.FileInfo{ID: 7, LastModified: pgtype.Timestamptz{Time: now, Valid: true}}
+	c := newCursor(pb.SortField_SORT_FIELD_LAST_MODIFIED, pb.SortOrder_SORT_ORDER_ASC, "", "", f)
 
 	got, err := decodeCursor(encodeCursor(c))
 	if err != nil {
 		t.Fatalf("decodeCursor: %v", err)
 	}
-	if !got.GetCreatedAt().AsTime().Equal(now) || got.GetLastId() != 7 {
-		t.Errorf("round trip = %+v, want CreatedAt=%v LastId=7", got, now)
+	if !got.GetLastModified().AsTime().Equal(now) || got.GetLastId() != 7 {
+		t.Errorf("round trip = %+v, want LastModified=%v LastId=7", got, now)
 	}
-	ts := lastCreatedAt(got)
+	ts := lastModifiedCursor(got)
 	if !ts.Valid || !ts.Time.Equal(now) {
-		t.Errorf("lastCreatedAt = %+v, want valid %v", ts, now)
+		t.Errorf("lastModifiedCursor = %+v, want valid %v", ts, now)
+	}
+}
+
+func TestCursorNullLastModifiedSortsAsEpoch(t *testing.T) {
+	f := db.FileInfo{ID: 4} // last_modified NULL: not yet stat-indexed
+	c := newCursor(pb.SortField_SORT_FIELD_LAST_MODIFIED, pb.SortOrder_SORT_ORDER_ASC, "", "", f)
+
+	if got := c.GetLastModified().AsTime(); !got.Equal(time.Unix(0, 0)) {
+		t.Errorf("LastModified = %v, want epoch for NULL", got)
 	}
 }
 
 func TestCursorRoundTripSize(t *testing.T) {
-	f := db.File{ID: 9, SizeBytes: pgtype.Int8{Int64: 1234, Valid: true}}
+	f := db.FileInfo{ID: 9, SizeBytes: pgtype.Int8{Int64: 1234, Valid: true}}
 	c := newCursor(pb.SortField_SORT_FIELD_SIZE, pb.SortOrder_SORT_ORDER_ASC, "", "", f)
 
 	got, err := decodeCursor(encodeCursor(c))
@@ -61,7 +70,7 @@ func TestCursorRoundTripSize(t *testing.T) {
 }
 
 func TestCursorNullSizeSortsAsZero(t *testing.T) {
-	f := db.File{ID: 3} // size_bytes NULL
+	f := db.FileInfo{ID: 3} // size_bytes NULL
 	c := newCursor(pb.SortField_SORT_FIELD_SIZE, pb.SortOrder_SORT_ORDER_ASC, "", "", f)
 
 	if c.GetSize() != 0 {
@@ -81,8 +90,8 @@ func TestCursorNilAccessors(t *testing.T) {
 	if c.GetSize() != 0 {
 		t.Errorf("GetSize = %d, want 0", c.GetSize())
 	}
-	if ts := lastCreatedAt(c); ts.Valid {
-		t.Errorf("lastCreatedAt = %+v, want invalid", ts)
+	if ts := lastModifiedCursor(c); ts.Valid {
+		t.Errorf("lastModifiedCursor = %+v, want invalid", ts)
 	}
 }
 

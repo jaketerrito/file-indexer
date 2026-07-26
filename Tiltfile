@@ -50,7 +50,7 @@ k8s_resource(
 k8s_resource('postgres', port_forwards=5432)
 
 k8s_resource('migrate', resource_deps=['postgres'])
-k8s_resource('indexer', resource_deps=['postgres', 'migrate', 'local-s3'], port_forwards=50051)
+k8s_resource('indexer', resource_deps=['postgres', 'migrate', 'local-s3'])
 k8s_resource('files', resource_deps=['postgres', 'migrate', 'local-s3'], port_forwards='50052:50051')
 k8s_resource('search', resource_deps=['postgres', 'migrate'], port_forwards='50053:50051')
 k8s_resource(
@@ -60,7 +60,7 @@ k8s_resource(
 )
 k8s_resource(
     'crawler',
-    resource_deps=['indexer', 'local-s3'],
+    resource_deps=['postgres', 'migrate', 'local-s3'],
     trigger_mode=TRIGGER_MODE_MANUAL,
     auto_init=False,
 )

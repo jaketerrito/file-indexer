@@ -7,47 +7,43 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/jackc/pgx/v5"
 )
 
-// createListFile inserts a file row with explicit content type, size, and
-// created_at so list ordering and filtering can be asserted. A zero size
-// stores NULL to exercise the COALESCE(size_bytes, 0) sort behaviour.
-func createListFile(t *testing.T, q *Queries, key, contentType string, size int64, createdAt time.Time) File {
+// createListFile inserts a file and stat-indexes it with explicit content
+// type, size, and last-modified so list ordering and filtering can be
+// asserted, using the production write paths (crawler insert + worker
+// complete). A zero size stores NULL to exercise the COALESCE(size_bytes, 0)
+// sort behaviour.
+func createListFile(t *testing.T, conn *pgx.Conn, key, contentType string, size int64, lastModified time.Time) FileInfo {
 	t.Helper()
-	ctx := context.Background()
+	q := New(conn)
+	id := insertTestFile(t, conn, key)
+	indexTestFile(t, q, id, contentType, size, lastModified)
 
-	file, err := q.CreateFile(ctx, CreateFileParams{
-		Key:         key,
-		ContentType: pgtype.Text{String: contentType, Valid: contentType != ""},
-		SizeBytes:   pgtype.Int8{Int64: size, Valid: size != 0},
-		CreatedAt:   pgtype.Timestamptz{Time: createdAt, Valid: true},
-		UpdatedAt:   pgtype.Timestamptz{Time: createdAt, Valid: true},
-	})
+	file, err := q.GetFile(context.Background(), id)
 	if err != nil {
-		t.Fatalf("CreateFile: %v", err)
+		t.Fatalf("GetFile: %v", err)
 	}
-	t.Cleanup(func() {
-		_, _ = q.DeleteFile(context.Background(), file.ID)
-	})
 	return file
 }
 
 // seedListFiles creates a fixed fixture set under a unique prefix so the
 // tests are isolated from other rows in a persistent dev database. Returns
 // the prefix pattern for the list queries.
-func seedListFiles(t *testing.T, q *Queries) string {
+func seedListFiles(t *testing.T, conn *pgx.Conn) string {
 	t.Helper()
 	prefix := uniqueKey(t) + "/"
-	base := time.Now().UTC().Truncate(time.Microsecond)
+	// last_modified offsets keep the fixture ordering distinct.
+	base := time.Now().UTC().Truncate(time.Second)
 
-	createListFile(t, q, prefix+"a.txt", "text/plain", 300, base.Add(2*time.Second))
-	createListFile(t, q, prefix+"b.png", "image/png", 100, base.Add(3*time.Second))
-	createListFile(t, q, prefix+"c.jpg", "image/jpeg", 200, base.Add(1*time.Second))
+	createListFile(t, conn, prefix+"a.txt", "text/plain", 300, base.Add(2*time.Second))
+	createListFile(t, conn, prefix+"b.png", "image/png", 100, base.Add(3*time.Second))
+	createListFile(t, conn, prefix+"c.jpg", "image/jpeg", 200, base.Add(1*time.Second))
 	return prefix
 }
 
-func keysOf(files []File) []string {
+func keysOf(files []FileInfo) []string {
 	keys := make([]string, 0, len(files))
 	for _, f := range files {
 		keys = append(keys, f.Key)
@@ -55,7 +51,7 @@ func keysOf(files []File) []string {
 	return keys
 }
 
-func assertKeys(t *testing.T, got []File, want ...string) {
+func assertKeys(t *testing.T, got []FileInfo, want ...string) {
 	t.Helper()
 	if len(got) != len(want) {
 		t.Fatalf("got %d files %v, want %d %v", len(got), keysOf(got), len(want), want)
@@ -71,7 +67,7 @@ func TestListFilesByKeyOrder(t *testing.T) {
 	conn := testConn(t)
 	q := New(conn)
 	ctx := context.Background()
-	prefix := seedListFiles(t, q)
+	prefix := seedListFiles(t, conn)
 
 	asc, err := q.ListFilesByKeyAsc(ctx, ListFilesByKeyAscParams{
 		KeyPattern: prefix + "%",
@@ -92,27 +88,27 @@ func TestListFilesByKeyOrder(t *testing.T) {
 	assertKeys(t, desc, prefix+"c.jpg", prefix+"b.png", prefix+"a.txt")
 }
 
-func TestListFilesByCreatedAtOrder(t *testing.T) {
+func TestListFilesByLastModifiedOrder(t *testing.T) {
 	conn := testConn(t)
 	q := New(conn)
 	ctx := context.Background()
-	prefix := seedListFiles(t, q)
+	prefix := seedListFiles(t, conn)
 
-	asc, err := q.ListFilesByCreatedAtAsc(ctx, ListFilesByCreatedAtAscParams{
+	asc, err := q.ListFilesByLastModifiedAsc(ctx, ListFilesByLastModifiedAscParams{
 		KeyPattern: prefix + "%",
 		PageLimit:  10,
 	})
 	if err != nil {
-		t.Fatalf("ListFilesByCreatedAtAsc: %v", err)
+		t.Fatalf("ListFilesByLastModifiedAsc: %v", err)
 	}
 	assertKeys(t, asc, prefix+"c.jpg", prefix+"a.txt", prefix+"b.png")
 
-	desc, err := q.ListFilesByCreatedAtDesc(ctx, ListFilesByCreatedAtDescParams{
+	desc, err := q.ListFilesByLastModifiedDesc(ctx, ListFilesByLastModifiedDescParams{
 		KeyPattern: prefix + "%",
 		PageLimit:  10,
 	})
 	if err != nil {
-		t.Fatalf("ListFilesByCreatedAtDesc: %v", err)
+		t.Fatalf("ListFilesByLastModifiedDesc: %v", err)
 	}
 	assertKeys(t, desc, prefix+"b.png", prefix+"a.txt", prefix+"c.jpg")
 }
@@ -121,10 +117,10 @@ func TestListFilesBySizeOrder(t *testing.T) {
 	conn := testConn(t)
 	q := New(conn)
 	ctx := context.Background()
-	prefix := seedListFiles(t, q)
+	prefix := seedListFiles(t, conn)
 	// NULL size must sort as zero: first ascending, last descending.
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	createListFile(t, q, prefix+"d.bin", "application/octet-stream", 0, now)
+	createListFile(t, conn, prefix+"d.bin", "application/octet-stream", 0, now)
 
 	asc, err := q.ListFilesBySizeAsc(ctx, ListFilesBySizeAscParams{
 		KeyPattern: prefix + "%",
@@ -149,7 +145,7 @@ func TestListFilesContentTypeFilter(t *testing.T) {
 	conn := testConn(t)
 	q := New(conn)
 	ctx := context.Background()
-	prefix := seedListFiles(t, q)
+	prefix := seedListFiles(t, conn)
 
 	// Category prefix pattern matches every image.
 	images, err := q.ListFilesByKeyAsc(ctx, ListFilesByKeyAscParams{
@@ -191,9 +187,9 @@ func TestListFilesPrefixIsolation(t *testing.T) {
 	conn := testConn(t)
 	q := New(conn)
 	ctx := context.Background()
-	prefix := seedListFiles(t, q)
+	prefix := seedListFiles(t, conn)
 	other := uniqueKey(t) + "-other/"
-	createListFile(t, q, other+"x.txt", "text/plain", 1, time.Now().UTC())
+	createListFile(t, conn, other+"x.txt", "text/plain", 1, time.Now().UTC())
 
 	files, err := q.ListFilesByKeyAsc(ctx, ListFilesByKeyAscParams{
 		KeyPattern: prefix + "%",
@@ -216,7 +212,7 @@ func TestListFilesKeysetPagination(t *testing.T) {
 	conn := testConn(t)
 	q := New(conn)
 	ctx := context.Background()
-	prefix := seedListFiles(t, q)
+	prefix := seedListFiles(t, conn)
 
 	// Walk key-ascending two at a time; pages must not overlap or skip.
 	page1, err := q.ListFilesByKeyAsc(ctx, ListFilesByKeyAscParams{
@@ -246,7 +242,7 @@ func TestListFilesKeysetPaginationDescBySize(t *testing.T) {
 	conn := testConn(t)
 	q := New(conn)
 	ctx := context.Background()
-	prefix := seedListFiles(t, q)
+	prefix := seedListFiles(t, conn)
 
 	page1, err := q.ListFilesBySizeDesc(ctx, ListFilesBySizeDescParams{
 		KeyPattern: prefix + "%",

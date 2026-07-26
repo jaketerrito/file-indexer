@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"file-indexer/internal/db"
 	"fmt"
+	"time"
 
 	cursorv1 "file-indexer/internal/pb/cursor/v1"
 	pb "file-indexer/internal/pb/service/v1"
@@ -21,7 +22,7 @@ type cursor = cursorv1.PageToken
 
 // newCursor captures the query being paginated and the keyset position of
 // the last returned row.
-func newCursor(sortField pb.SortField, sortOrder pb.SortOrder, prefix, contentType string, last db.File) *cursor {
+func newCursor(sortField pb.SortField, sortOrder pb.SortOrder, prefix, contentType string, last db.FileInfo) *cursor {
 	c := &cursor{
 		SortField:   sortField,
 		SortOrder:   sortOrder,
@@ -32,14 +33,26 @@ func newCursor(sortField pb.SortField, sortOrder pb.SortOrder, prefix, contentTy
 	switch sortField {
 	case pb.SortField_SORT_FIELD_KEY:
 		c.Key = last.Key
-	case pb.SortField_SORT_FIELD_CREATED_AT:
-		c.CreatedAt = timestamppb.New(last.CreatedAt.Time)
+	case pb.SortField_SORT_FIELD_LAST_MODIFIED:
+		// Matches COALESCE(last_modified, 'epoch') in the list queries: a
+		// file not yet stat-indexed sorts at the epoch.
+		c.LastModified = timestamppb.New(coalesceLastModified(last))
 	case pb.SortField_SORT_FIELD_SIZE:
 		// Matches COALESCE(size_bytes, 0) in the list queries: a NULL size
 		// sorts as zero.
 		c.Size = last.SizeBytes.Int64
 	}
 	return c
+}
+
+// coalesceLastModified mirrors the list queries' COALESCE(last_modified,
+// 'epoch'::timestamptz) so cursor comparisons see the same sort value the
+// database used.
+func coalesceLastModified(f db.FileInfo) time.Time {
+	if f.LastModified.Valid {
+		return f.LastModified.Time
+	}
+	return time.Unix(0, 0).UTC()
 }
 
 func encodeCursor(c *cursor) string {
@@ -63,13 +76,13 @@ func decodeCursor(token string) (*cursor, error) {
 	return c, nil
 }
 
-// lastCreatedAt adapts the cursor's timestamp for the sqlc params. Like the
-// generated proto getters it is nil-safe so the query dispatch can pass it
-// unconditionally; when the cursor is nil, has_cursor is false and the
+// lastModifiedCursor adapts the cursor's timestamp for the sqlc params. Like
+// the generated proto getters it is nil-safe so the query dispatch can pass
+// it unconditionally; when the cursor is nil, has_cursor is false and the
 // database ignores the value.
-func lastCreatedAt(c *cursor) pgtype.Timestamptz {
+func lastModifiedCursor(c *cursor) pgtype.Timestamptz {
 	if c == nil {
 		return pgtype.Timestamptz{}
 	}
-	return pgtype.Timestamptz{Time: c.GetCreatedAt().AsTime(), Valid: true}
+	return pgtype.Timestamptz{Time: c.GetLastModified().AsTime(), Valid: true}
 }

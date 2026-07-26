@@ -2,48 +2,77 @@ package crawler
 
 import (
 	"context"
-	pb "file-indexer/internal/pb/service/v1"
+	"file-indexer/internal/db"
+	"file-indexer/internal/storage"
 	"log/slog"
 
-	"google.golang.org/grpc"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
+// defaultBatchSize bounds how many discovered objects are buffered before
+// being flushed to the database in one round trip.
+const defaultBatchSize = 500
+
+// ObjectStore is the slice of storage.Storage the crawler depends on.
 type ObjectStore interface {
-	Walk(ctx context.Context, fn func(*pb.FileRef) error) error
+	Walk(ctx context.Context, fn func(storage.ObjectInfo) error) error
 }
 
-// Indexer is the slice of the indexer gRPC client the crawler depends on. It
-// mirrors pb.IndexerServiceClient so the real generated client satisfies it
-// directly, while letting tests supply a local mock without reaching into the
-// generated package.
-type Indexer interface {
-	Index(ctx context.Context, in *pb.IndexRequest, opts ...grpc.CallOption) (*pb.IndexResponse, error)
+type FileStore interface {
+	UpsertFiles(ctx context.Context, arg db.UpsertFilesParams) (int64, error)
 }
 
-// Crawler walks an object store and sends discovered file references to the
-// indexer service over gRPC.
+// Crawler reconciles the object store with the database: it walks the S3
+// listing and upserts each object's key and last-modified time. The
+// last-modified time acts as a staleness mark — index worker seed steps
+// compare their stored mark against files.marked_at to detect edits and
+// re-enqueue stale results automatically.
 type Crawler struct {
-	store  ObjectStore
-	client Indexer
+	store     ObjectStore
+	files     FileStore
+	batchSize int
 }
 
-// New constructs a Crawler with its dependencies already built by the caller
-// (composition root). It does no I/O; call Run to start crawling.
-func New(store ObjectStore, client Indexer) *Crawler {
-	return &Crawler{store: store, client: client}
+func New(store ObjectStore, files FileStore) *Crawler {
+	return &Crawler{store: store, files: files, batchSize: defaultBatchSize}
 }
 
-// Run walks the object store and emits an index request per discovered file.
-func (c *Crawler) Run() error {
-	return c.store.Walk(context.Background(), func(ref *pb.FileRef) error {
-		response, err := c.client.Index(context.Background(), &pb.IndexRequest{
-			Ref: ref,
-		})
-		if err != nil {
+func (c *Crawler) Run(ctx context.Context) error {
+	slog.Info("crawl starting", "batchSize", c.batchSize)
+
+	var discovered int64
+	batch := db.UpsertFilesParams{}
+
+	flush := func() error {
+		if len(batch.Keys) == 0 {
+			return nil
+		}
+		if _, err := c.files.UpsertFiles(ctx, batch); err != nil {
 			return err
 		}
+		slog.Info("registered files", "batch", len(batch.Keys))
+		discovered += int64(len(batch.Keys))
+		batch = db.UpsertFilesParams{}
+		return nil
+	}
 
-		slog.Info("uploaded", "file", ref.GetKey(), "status", response.Status)
+	err := c.store.Walk(ctx, func(info storage.ObjectInfo) error {
+		batch.Keys = append(batch.Keys, info.Key)
+		batch.MarkedAts = append(batch.MarkedAts,
+			pgtype.Timestamptz{Time: info.LastModified, Valid: true})
+
+		if len(batch.Keys) >= c.batchSize {
+			return flush()
+		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	if err := flush(); err != nil {
+		return err
+	}
+
+	slog.Info("crawl finished", "discovered", discovered)
+	return nil
 }

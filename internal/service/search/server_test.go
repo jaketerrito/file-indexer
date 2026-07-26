@@ -18,14 +18,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func testFile(id int64, key string) db.File {
+func testFile(id int64, key string) db.FileInfo {
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	return db.File{
+	return db.FileInfo{
 		ID: id, Key: key,
-		ContentType: pgtype.Text{String: "text/plain", Valid: true},
-		SizeBytes:   pgtype.Int8{Int64: id * 10, Valid: true},
-		CreatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
+		ContentType:  pgtype.Text{String: "text/plain", Valid: true},
+		SizeBytes:    pgtype.Int8{Int64: id * 10, Valid: true},
+		CreatedAt:    pgtype.Timestamptz{Time: now, Valid: true},
+		LastModified: pgtype.Timestamptz{Time: now, Valid: true},
 	}
 }
 
@@ -52,7 +52,7 @@ func TestListFilesDefaults(t *testing.T) {
 		ContentTypePattern: "",
 		HasCursor:          false,
 		PageLimit:          defaultPageSize + 1,
-	}).Return([]db.File{testFile(1, "a"), testFile(2, "b")}, nil)
+	}).Return([]db.FileInfo{testFile(1, "a"), testFile(2, "b")}, nil)
 
 	srv := SearchServer{queries: queries}
 
@@ -153,11 +153,11 @@ func TestListFilesSortDispatch(t *testing.T) {
 		{"key desc", pb.SortField_SORT_FIELD_KEY, pb.SortOrder_SORT_ORDER_DESC, func(m *MockFileIndex) {
 			m.EXPECT().ListFilesByKeyDesc(mock.Anything, mock.Anything).Return(nil, nil)
 		}},
-		{"created_at asc", pb.SortField_SORT_FIELD_CREATED_AT, pb.SortOrder_SORT_ORDER_ASC, func(m *MockFileIndex) {
-			m.EXPECT().ListFilesByCreatedAtAsc(mock.Anything, mock.Anything).Return(nil, nil)
+		{"last_modified asc", pb.SortField_SORT_FIELD_LAST_MODIFIED, pb.SortOrder_SORT_ORDER_ASC, func(m *MockFileIndex) {
+			m.EXPECT().ListFilesByLastModifiedAsc(mock.Anything, mock.Anything).Return(nil, nil)
 		}},
-		{"created_at desc", pb.SortField_SORT_FIELD_CREATED_AT, pb.SortOrder_SORT_ORDER_DESC, func(m *MockFileIndex) {
-			m.EXPECT().ListFilesByCreatedAtDesc(mock.Anything, mock.Anything).Return(nil, nil)
+		{"last_modified desc", pb.SortField_SORT_FIELD_LAST_MODIFIED, pb.SortOrder_SORT_ORDER_DESC, func(m *MockFileIndex) {
+			m.EXPECT().ListFilesByLastModifiedDesc(mock.Anything, mock.Anything).Return(nil, nil)
 		}},
 		{"size asc", pb.SortField_SORT_FIELD_SIZE, pb.SortOrder_SORT_ORDER_ASC, func(m *MockFileIndex) {
 			m.EXPECT().ListFilesBySizeAsc(mock.Anything, mock.Anything).Return(nil, nil)
@@ -205,7 +205,7 @@ func TestListFilesUnknownSortOrder(t *testing.T) {
 func TestListFilesPagination(t *testing.T) {
 	// First page: 3 rows for a limit of 2 means another page exists; the
 	// third row must be dropped and the token must point at the second.
-	files := []db.File{testFile(1, "a"), testFile(2, "b"), testFile(3, "c")}
+	files := []db.FileInfo{testFile(1, "a"), testFile(2, "b"), testFile(3, "c")}
 
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
@@ -341,12 +341,12 @@ func TestListFilesQueryError(t *testing.T) {
 
 func TestDbFileToProto(t *testing.T) {
 	now := time.Now()
-	f := db.File{
+	f := db.FileInfo{
 		ID: 1, Key: "k",
-		ContentType: pgtype.Text{String: "image/png", Valid: true},
-		SizeBytes:   pgtype.Int8{Int64: 200, Valid: true},
-		CreatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
+		ContentType:  pgtype.Text{String: "image/png", Valid: true},
+		SizeBytes:    pgtype.Int8{Int64: 200, Valid: true},
+		CreatedAt:    pgtype.Timestamptz{Time: now, Valid: true},
+		LastModified: pgtype.Timestamptz{Time: now, Valid: true},
 	}
 	pf := dbFileToProto(f)
 	if pf.Id != 1 || pf.Key != "k" || pf.ContentType != "image/png" || pf.SizeBytes != 200 {
@@ -361,12 +361,15 @@ func TestDbFileToProto(t *testing.T) {
 }
 
 func TestDbFileToProtoNullFields(t *testing.T) {
-	f := db.File{
+	f := db.FileInfo{
 		ID: 2, Key: "nulls",
 	}
 	pf := dbFileToProto(f)
 	if pf.Id != 2 || pf.ContentType != "" || pf.SizeBytes != 0 {
 		t.Errorf("dbFileToProto = %+v", pf)
+	}
+	if pf.CreatedAt != nil || pf.UpdatedAt != nil {
+		t.Errorf("timestamps = (%v, %v), want unset for NULLs", pf.CreatedAt, pf.UpdatedAt)
 	}
 }
 
@@ -389,7 +392,7 @@ func freeAddr(t *testing.T) string {
 func TestServe(t *testing.T) {
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, mock.Anything).
-		Return([]db.File{testFile(7, "obj-key")}, nil)
+		Return([]db.FileInfo{testFile(7, "obj-key")}, nil)
 
 	addr := freeAddr(t)
 	srv := New(addr, queries)

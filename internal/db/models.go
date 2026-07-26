@@ -9,10 +9,37 @@ import (
 )
 
 type File struct {
-	ID          int64
-	Key         string
-	ContentType pgtype.Text
-	SizeBytes   pgtype.Int8
-	CreatedAt   pgtype.Timestamptz
-	UpdatedAt   pgtype.Timestamptz
+	ID        int64
+	Key       string
+	CreatedAt pgtype.Timestamptz
+	MarkedAt  pgtype.Timestamptz
+}
+
+type FileInfo struct {
+	ID           int64
+	Key          string
+	CreatedAt    pgtype.Timestamptz
+	ContentType  pgtype.Text
+	SizeBytes    pgtype.Int8
+	LastModified pgtype.Timestamptz
+}
+
+type IndexQueue struct {
+	IndexType     string
+	FileID        int64
+	Status        string
+	Attempts      int32
+	NextAttemptAt pgtype.Timestamptz
+	ClaimedAt     pgtype.Timestamptz
+	LastError     pgtype.Text
+	UpdatedAt     pgtype.Timestamptz
+	Mark          pgtype.Timestamptz
+}
+
+type IndexStatResult struct {
+	FileID       int64
+	ContentType  string
+	SizeBytes    int64
+	LastModified pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
 }

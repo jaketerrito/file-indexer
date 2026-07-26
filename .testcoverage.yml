@@ -16,3 +16,4 @@ exclude:
   paths:
     - ^internal/pb # generated protobuf
     - ^cmd/ # composition roots (thin main() wiring)
+    - ^internal/db/dbtest # integration-test-only helper, no unit tests of its own

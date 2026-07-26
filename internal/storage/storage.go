@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	pb "file-indexer/internal/pb/service/v1"
 	"io"
 	"time"
 )
@@ -30,7 +29,11 @@ type Storage interface {
 
 	GetURL(ctx context.Context, key string) (string, error)
 
-	Walk(ctx context.Context, fn func(*pb.FileRef) error) error
+	// Walk lists every object in the bucket and invokes fn with the metadata
+	// the listing provides (key, size, last-modified; ContentType is empty —
+	// S3 listings do not include it, use Stat). Walking stops at the first
+	// error from fn.
+	Walk(ctx context.Context, fn func(ObjectInfo) error) error
 
 	// Stat returns metadata for a single object without fetching its content.
 	Stat(ctx context.Context, key string) (ObjectInfo, error)
