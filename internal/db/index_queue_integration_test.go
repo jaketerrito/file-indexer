@@ -23,7 +23,7 @@ const statType = "stat"
 
 // noStale is a huge stale_timeout so claims never reclaim other tests'
 // in-flight rows.
-var noStale = pgtype.Interval{Months: 1200, Days: 0, Microseconds: 0}
+var noStale = pgtype.Interval{Months: 1200, Days: 0, Microseconds: 0, Valid: true}
 
 // indexQueueRow reads a row directly for state assertions.
 func indexQueueRow(t *testing.T, conn *pgx.Conn, indexType string, fileID int64) IndexQueue {
@@ -348,7 +348,7 @@ func TestClaimIndexQueueReclaimsStale(t *testing.T) {
 	}
 
 	// Zero stale_timeout treats the fresh claim as expired.
-	staleAll := pgtype.Interval{Microseconds: 0}
+	staleAll := pgtype.Interval{Microseconds: 0, Valid: true}
 	reclaimed := claimOurs(t, q, statType, staleAll, fileID)
 	if len(reclaimed) != 1 {
 		t.Fatalf("stale reclaim: got %v", reclaimed)

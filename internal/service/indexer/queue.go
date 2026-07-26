@@ -66,7 +66,7 @@ func (q *PGQueue[R]) Seed(ctx context.Context) (int64, error) {
 func (q *PGQueue[R]) Claim(ctx context.Context, limit int32, staleTimeout time.Duration) ([]Job, error) {
 	rows, err := q.queries.ClaimIndexQueue(ctx, db.ClaimIndexQueueParams{
 		IndexType:    q.indexType,
-		StaleTimeout: pgtype.Interval{Microseconds: staleTimeout.Microseconds()},
+		StaleTimeout: pgtype.Interval{Microseconds: staleTimeout.Microseconds(), Valid: true},
 		BatchSize:    limit,
 	})
 	if err != nil {
