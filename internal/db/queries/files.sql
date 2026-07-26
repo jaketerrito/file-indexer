@@ -1,14 +1,21 @@
--- name: CreateFile :one
-INSERT INTO files (key, content_type, size_bytes, created_at, updated_at)
-VALUES ($1, $2, $3, $4, $5)
-RETURNING *;
+-- name: UpsertFiles :execrows
+-- Add new files and update marked_at if the listing shows a newer mtime.
+INSERT INTO files (key, marked_at)
+SELECT input.key, MAX(input.marked_at)
+FROM (
+    SELECT unnest(sqlc.arg(keys)::text[]) AS key,
+           unnest(sqlc.arg(marked_ats)::timestamptz[]) AS marked_at
+) input
+GROUP BY input.key
+ON CONFLICT (key) DO UPDATE
+    SET marked_at = GREATEST(files.marked_at, EXCLUDED.marked_at);
 
 -- name: GetFile :one
-SELECT * FROM files
+SELECT * FROM file_infos
 WHERE id = $1;
 
 -- name: GetFilesByIDs :many
-SELECT * FROM files
+SELECT * FROM file_infos
 WHERE id = ANY($1::bigint[]);
 
 -- name: DeleteFile :one
@@ -21,10 +28,12 @@ RETURNING *;
 -- so cursors are stable. key_pattern and content_type_pattern are LIKE
 -- patterns built (and escaped) by the caller; an empty content_type_pattern
 -- disables the content type filter. When has_cursor is false the last_*
--- arguments are ignored.
+-- arguments are ignored. Metadata columns come from the stat index via the
+-- file_infos view and are NULL until a file is indexed; sorts fall back via
+-- COALESCE so unindexed files group together instead of disappearing.
 
 -- name: ListFilesByKeyAsc :many
-SELECT * FROM files
+SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
   AND (NOT sqlc.arg(has_cursor)::bool OR (key, id) > (sqlc.arg(last_key)::text, sqlc.arg(last_id)::bigint))
@@ -32,31 +41,31 @@ ORDER BY key ASC, id ASC
 LIMIT sqlc.arg(page_limit);
 
 -- name: ListFilesByKeyDesc :many
-SELECT * FROM files
+SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
   AND (NOT sqlc.arg(has_cursor)::bool OR (key, id) < (sqlc.arg(last_key)::text, sqlc.arg(last_id)::bigint))
 ORDER BY key DESC, id DESC
 LIMIT sqlc.arg(page_limit);
 
--- name: ListFilesByCreatedAtAsc :many
-SELECT * FROM files
+-- name: ListFilesByLastModifiedAsc :many
+SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
-  AND (NOT sqlc.arg(has_cursor)::bool OR (created_at, id) > (sqlc.arg(last_created_at)::timestamptz, sqlc.arg(last_id)::bigint))
-ORDER BY created_at ASC, id ASC
+  AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(last_modified, 'epoch'::timestamptz), id) > (sqlc.arg(cursor_last_modified)::timestamptz, sqlc.arg(last_id)::bigint))
+ORDER BY COALESCE(last_modified, 'epoch'::timestamptz) ASC, id ASC
 LIMIT sqlc.arg(page_limit);
 
--- name: ListFilesByCreatedAtDesc :many
-SELECT * FROM files
+-- name: ListFilesByLastModifiedDesc :many
+SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
-  AND (NOT sqlc.arg(has_cursor)::bool OR (created_at, id) < (sqlc.arg(last_created_at)::timestamptz, sqlc.arg(last_id)::bigint))
-ORDER BY created_at DESC, id DESC
+  AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(last_modified, 'epoch'::timestamptz), id) < (sqlc.arg(cursor_last_modified)::timestamptz, sqlc.arg(last_id)::bigint))
+ORDER BY COALESCE(last_modified, 'epoch'::timestamptz) DESC, id DESC
 LIMIT sqlc.arg(page_limit);
 
 -- name: ListFilesBySizeAsc :many
-SELECT * FROM files
+SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
   AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(size_bytes, 0), id) > (sqlc.arg(last_size)::bigint, sqlc.arg(last_id)::bigint))
@@ -64,7 +73,7 @@ ORDER BY COALESCE(size_bytes, 0) ASC, id ASC
 LIMIT sqlc.arg(page_limit);
 
 -- name: ListFilesBySizeDesc :many
-SELECT * FROM files
+SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
   AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(size_bytes, 0), id) < (sqlc.arg(last_size)::bigint, sqlc.arg(last_id)::bigint))

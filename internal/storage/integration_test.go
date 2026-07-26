@@ -13,8 +13,6 @@ import (
 	"testing"
 	"time"
 
-	pb "file-indexer/internal/pb/service/v1"
-
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
@@ -219,28 +217,38 @@ func TestWalk(t *testing.T) {
 	s, client, bucket := setupBucket(t)
 	ctx := context.Background()
 
-	want := map[string]bool{"walk-1.txt": true, "walk-2.txt": true, "walk-3.txt": true}
+	// The nested key guards against non-recursive listings, which return
+	// common prefixes ("sub/") instead of the objects beneath them.
+	want := map[string]bool{"walk-1.txt": true, "walk-2.txt": true, "sub/dir/walk-3.txt": true}
 	for key := range want {
 		putObject(t, client, bucket, key, "x", "text/plain")
 	}
 
-	got := map[string]bool{}
-	err := s.Walk(ctx, func(ref *pb.FileRef) error {
-		got[ref.GetKey()] = true
+	got := map[string]ObjectInfo{}
+	err := s.Walk(ctx, func(info ObjectInfo) error {
+		got[info.Key] = info
 		return nil
 	})
 	if err != nil {
 		t.Fatalf("Walk: %v", err)
 	}
 	for key := range want {
-		if !got[key] {
+		info, ok := got[key]
+		if !ok {
 			t.Errorf("Walk did not visit %q (visited: %v)", key, got)
+			continue
+		}
+		if info.Size != 1 {
+			t.Errorf("Walk(%q).Size = %d, want 1", key, info.Size)
+		}
+		if info.LastModified.IsZero() {
+			t.Errorf("Walk(%q).LastModified is zero", key)
 		}
 	}
 
 	// Callback errors must propagate.
 	wantErr := fmt.Errorf("callback failure")
-	err = s.Walk(ctx, func(*pb.FileRef) error { return wantErr })
+	err = s.Walk(ctx, func(ObjectInfo) error { return wantErr })
 	if err == nil {
 		t.Fatal("Walk with failing callback: want error, got nil")
 	}

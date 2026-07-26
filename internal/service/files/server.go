@@ -17,8 +17,8 @@ type ObjectStore interface {
 }
 
 type FileIndex interface {
-	GetFile(ctx context.Context, id int64) (db.File, error)
-	GetFilesByIDs(ctx context.Context, ids []int64) ([]db.File, error)
+	GetFile(ctx context.Context, id int64) (db.FileInfo, error)
+	GetFilesByIDs(ctx context.Context, ids []int64) ([]db.FileInfo, error)
 	DeleteFile(ctx context.Context, id int64) (db.File, error)
 }
 
@@ -88,13 +88,22 @@ func (s *FilesServer) Serve() error {
 	return grpcServer.Serve(lis)
 }
 
-func dbFileToProto(f db.File) *pb.FileInfo {
-	return &pb.FileInfo{
+// dbFileToProto maps the file_infos read model to the API shape. Metadata
+// fields are NULL until a file is stat-indexed; timestamps stay unset (nil)
+// rather than encoding the zero time. created_at is discovery time and
+// updated_at is the object's last-modified time from the stat index.
+func dbFileToProto(f db.FileInfo) *pb.FileInfo {
+	info := &pb.FileInfo{
 		Id:          f.ID,
 		Key:         f.Key,
 		ContentType: f.ContentType.String,
 		SizeBytes:   f.SizeBytes.Int64,
-		CreatedAt:   timestamppb.New(f.CreatedAt.Time),
-		UpdatedAt:   timestamppb.New(f.UpdatedAt.Time),
 	}
+	if f.CreatedAt.Valid {
+		info.CreatedAt = timestamppb.New(f.CreatedAt.Time)
+	}
+	if f.LastModified.Valid {
+		info.UpdatedAt = timestamppb.New(f.LastModified.Time)
+	}
+	return info
 }

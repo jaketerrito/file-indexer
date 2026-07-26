@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	pb "file-indexer/internal/pb/service/v1"
 	"log/slog"
 	"net/url"
 	"time"
@@ -111,13 +110,19 @@ func (s *s3Storage) GetURL(ctx context.Context, key string) (string, error) {
 	return presignedURL.String(), nil
 }
 
-func (s *s3Storage) Walk(ctx context.Context, fn func(*pb.FileRef) error) error {
-	for obj := range s.client.ListObjectsIter(ctx, s.bucket, minio.ListObjectsOptions{}) {
+func (s *s3Storage) Walk(ctx context.Context, fn func(ObjectInfo) error) error {
+	// Recursive listing: without it S3 returns common prefixes ("dir/")
+	// instead of the objects beneath them.
+	for obj := range s.client.ListObjectsIter(ctx, s.bucket, minio.ListObjectsOptions{Recursive: true}) {
 		if obj.Err != nil {
 			return obj.Err
 		}
-		if err := fn(&pb.FileRef{
-			Key: obj.Key,
+		// Listings do not carry ContentType; ObjectInfo.ContentType stays
+		// empty and consumers needing it must Stat the key.
+		if err := fn(ObjectInfo{
+			Key:          obj.Key,
+			Size:         obj.Size,
+			LastModified: obj.LastModified,
 		}); err != nil {
 			return err
 		}

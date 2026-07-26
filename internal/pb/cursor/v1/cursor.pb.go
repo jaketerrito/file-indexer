@@ -38,8 +38,8 @@ type PageToken struct {
 	// ID of the last row on the previous page; keyset tie-breaker.
 	LastId int64 `protobuf:"varint,3,opt,name=last_id,json=lastId,proto3" json:"last_id,omitempty"`
 	// Sort value of the last row; only the field matching sort_field is set.
-	Key       string                 `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
-	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	Key          string                 `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
+	LastModified *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=last_modified,json=lastModified,proto3" json:"last_modified,omitempty"`
 	// Matches COALESCE(size_bytes, 0) in the list queries.
 	Size int64 `protobuf:"varint,6,opt,name=size,proto3" json:"size,omitempty"`
 	// Filters the token was issued for, stored raw (before LIKE escaping).
@@ -107,9 +107,9 @@ func (x *PageToken) GetKey() string {
 	return ""
 }
 
-func (x *PageToken) GetCreatedAt() *timestamppb.Timestamp {
+func (x *PageToken) GetLastModified() *timestamppb.Timestamp {
 	if x != nil {
-		return x.CreatedAt
+		return x.LastModified
 	}
 	return nil
 }
@@ -139,16 +139,15 @@ var File_cursor_v1_cursor_proto protoreflect.FileDescriptor
 
 const file_cursor_v1_cursor_proto_rawDesc = "" +
 	"\n" +
-	"\x16cursor/v1/cursor.proto\x12\tcursor.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17service/v1/search.proto\"\xac\x02\n" +
+	"\x16cursor/v1/cursor.proto\x12\tcursor.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17service/v1/search.proto\"\xb2\x02\n" +
 	"\tPageToken\x124\n" +
 	"\n" +
 	"sort_field\x18\x01 \x01(\x0e2\x15.service.v1.SortFieldR\tsortField\x124\n" +
 	"\n" +
 	"sort_order\x18\x02 \x01(\x0e2\x15.service.v1.SortOrderR\tsortOrder\x12\x17\n" +
 	"\alast_id\x18\x03 \x01(\x03R\x06lastId\x12\x10\n" +
-	"\x03key\x18\x04 \x01(\tR\x03key\x129\n" +
-	"\n" +
-	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x12\n" +
+	"\x03key\x18\x04 \x01(\tR\x03key\x12?\n" +
+	"\rlast_modified\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\flastModified\x12\x12\n" +
 	"\x04size\x18\x06 \x01(\x03R\x04size\x12\x16\n" +
 	"\x06prefix\x18\a \x01(\tR\x06prefix\x12!\n" +
 	"\fcontent_type\x18\b \x01(\tR\vcontentTypeB-Z+file-indexer/internal/pb/cursor/v1;cursorv1b\x06proto3"
@@ -175,7 +174,7 @@ var file_cursor_v1_cursor_proto_goTypes = []any{
 var file_cursor_v1_cursor_proto_depIdxs = []int32{
 	1, // 0: cursor.v1.PageToken.sort_field:type_name -> service.v1.SortField
 	2, // 1: cursor.v1.PageToken.sort_order:type_name -> service.v1.SortOrder
-	3, // 2: cursor.v1.PageToken.created_at:type_name -> google.protobuf.Timestamp
+	3, // 2: cursor.v1.PageToken.last_modified:type_name -> google.protobuf.Timestamp
 	3, // [3:3] is the sub-list for method output_type
 	3, // [3:3] is the sub-list for method input_type
 	3, // [3:3] is the sub-list for extension type_name

@@ -5,7 +5,7 @@ package db
 import (
 	"context"
 	"errors"
-	"file-indexer/internal/config"
+	"file-indexer/internal/db/dbtest"
 	"fmt"
 	"os"
 	"testing"
@@ -27,28 +27,27 @@ import (
 //	export DB_HOST=localhost DB_PORT=5432 DB_USER=postgres \
 //	       DB_PASSWORD=mysecretpassword DB_NAME=postgres
 //	go test -tags=integration -race ./internal/db/
-func testDSN(t *testing.T) string {
-	t.Helper()
-	if os.Getenv("DB_HOST") == "" {
-		t.Fatal("integration tests require DB_HOST to be set (see just test-integration)")
-	}
-	return config.Load().Database.URL()
+//
+// TestMain gives the whole package its own temporary database (see
+// internal/db/dbtest) so these tests never share mutable files/index_queue
+// state with another test binary or a real indexer/crawler daemon polling
+// the same Postgres instance (e.g. under Tilt).
+func TestMain(m *testing.M) {
+	os.Exit(dbtest.Main(m, RunMigrations))
 }
 
-// testConn runs migrations and returns a connection to the test database.
-// Running migrations here keeps the suite hermetic (runnable against a bare
-// postgres); under Tilt the migrate Job has already run, making this a no-op,
-// and the session lock in RunMigrations makes concurrent runs safe.
+// testDSN returns the temporary test database's DSN.
+func testDSN(t *testing.T) string {
+	t.Helper()
+	return dbtest.DSN()
+}
+
+// testConn returns a connection to the test database. Migrations already
+// ran once in TestMain.
 func testConn(t *testing.T) *pgx.Conn {
 	t.Helper()
-	dsn := testDSN(t)
-
 	ctx := context.Background()
-	if err := RunMigrations(ctx, "pgx", dsn); err != nil {
-		t.Fatalf("RunMigrations: %v", err)
-	}
-
-	conn, err := pgx.Connect(ctx, dsn)
+	conn, err := pgx.Connect(ctx, testDSN(t))
 	if err != nil {
 		t.Fatalf("pgx.Connect: %v", err)
 	}
@@ -68,26 +67,59 @@ func uniqueKey(t *testing.T) string {
 	return fmt.Sprintf("it/%s/%d", t.Name(), time.Now().UnixNano())
 }
 
-// createTestFile inserts a file row and registers cleanup to remove it.
-func createTestFile(t *testing.T, q *Queries, key string) File {
+// insertTestFile upserts a file key via the crawler path and returns the id.
+func insertTestFile(t *testing.T, conn *pgx.Conn, key string) int64 {
 	t.Helper()
-	ctx := context.Background()
-	now := time.Now().UTC().Truncate(time.Microsecond)
-
-	file, err := q.CreateFile(ctx, CreateFileParams{
-		Key:         key,
-		ContentType: pgtype.Text{String: "text/plain", Valid: true},
-		SizeBytes:   pgtype.Int8{Int64: 42, Valid: true},
-		CreatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt:   pgtype.Timestamptz{Time: now, Valid: true},
+	q := New(conn)
+	now := time.Now().UTC()
+	_, err := q.UpsertFiles(context.Background(), UpsertFilesParams{
+		Keys:      []string{key},
+		MarkedAts: []pgtype.Timestamptz{{Time: now, Valid: true}},
 	})
 	if err != nil {
-		t.Fatalf("CreateFile: %v", err)
+		t.Fatalf("UpsertFiles: %v", err)
 	}
-	t.Cleanup(func() {
-		// Best effort: the row may already be deleted by the test itself.
-		_, _ = q.DeleteFile(context.Background(), file.ID)
-	})
+	var id int64
+	if err := conn.QueryRow(context.Background(), `SELECT id FROM files WHERE key = $1`, key).Scan(&id); err != nil {
+		t.Fatalf("get file id for %q: %v", key, err)
+	}
+	t.Cleanup(func() { _, _ = q.DeleteFile(context.Background(), id) })
+	return id
+}
+
+// indexTestFile records stat results for a file, making its file_infos row
+// fully populated. Seed + complete via production queries; the queue status
+// flip and result write are a transaction in production (see
+// indexer.PGQueue.Complete) but run back-to-back here since nothing else is
+// racing them.
+func indexTestFile(t *testing.T, q *Queries, fileID int64, contentType string, size int64, lastModified time.Time) {
+	t.Helper()
+	ctx := context.Background()
+	if _, err := q.SeedIndexQueue(ctx, "stat"); err != nil {
+		t.Fatalf("SeedIndexQueue: %v", err)
+	}
+	if err := q.CompleteIndexQueue(ctx, CompleteIndexQueueParams{IndexType: "stat", FileID: fileID}); err != nil {
+		t.Fatalf("CompleteIndexQueue: %v", err)
+	}
+	if err := q.UpsertIndexStatResult(ctx, UpsertIndexStatResultParams{
+		FileID:       fileID,
+		ContentType:  contentType,
+		SizeBytes:    size,
+		LastModified: pgtype.Timestamptz{Time: lastModified, Valid: true},
+	}); err != nil {
+		t.Fatalf("UpsertIndexStatResult: %v", err)
+	}
+}
+
+// createTestFile inserts and stat-indexes a file, returning the file_infos row.
+func createTestFile(t *testing.T, conn *pgx.Conn, key string) FileInfo {
+	t.Helper()
+	id := insertTestFile(t, conn, key)
+	indexTestFile(t, New(conn), id, "text/plain", 42, time.Now().UTC())
+	file, err := New(conn).GetFile(context.Background(), id)
+	if err != nil {
+		t.Fatalf("GetFile: %v", err)
+	}
 	return file
 }
 
@@ -103,8 +135,6 @@ func TestRunMigrations(t *testing.T) {
 }
 
 func TestRunMigrationsUnknownDriver(t *testing.T) {
-	testDSN(t)
-
 	err := RunMigrations(context.Background(), "no-such-driver", "dsn")
 	if err == nil {
 		t.Fatal("RunMigrations with unknown driver: want error, got nil")
@@ -112,8 +142,6 @@ func TestRunMigrationsUnknownDriver(t *testing.T) {
 }
 
 func TestRunMigrationsUnreachableDB(t *testing.T) {
-	testDSN(t)
-
 	dsn := "host=127.0.0.1 port=1 user=nobody password=nope dbname=none sslmode=disable connect_timeout=1"
 	err := RunMigrations(context.Background(), "pgx", dsn)
 	if err == nil {
@@ -127,10 +155,10 @@ func TestCreateAndGetFile(t *testing.T) {
 	ctx := context.Background()
 
 	key := uniqueKey(t)
-	created := createTestFile(t, q, key)
+	created := createTestFile(t, conn, key)
 
 	if created.ID == 0 {
-		t.Error("CreateFile returned zero ID")
+		t.Error("createTestFile returned zero ID")
 	}
 	if created.Key != key {
 		t.Errorf("Key = %q, want %q", created.Key, key)
@@ -151,25 +179,6 @@ func TestCreateAndGetFile(t *testing.T) {
 	}
 }
 
-func TestCreateFileDuplicateKey(t *testing.T) {
-	conn := testConn(t)
-	q := New(conn)
-	ctx := context.Background()
-
-	key := uniqueKey(t)
-	createTestFile(t, q, key)
-
-	now := time.Now().UTC().Truncate(time.Microsecond)
-	_, err := q.CreateFile(ctx, CreateFileParams{
-		Key:       key,
-		CreatedAt: pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt: pgtype.Timestamptz{Time: now, Valid: true},
-	})
-	if err == nil {
-		t.Fatal("CreateFile with duplicate key: want error, got nil")
-	}
-}
-
 func TestGetFileNotFound(t *testing.T) {
 	conn := testConn(t)
 	q := New(conn)
@@ -185,8 +194,8 @@ func TestGetFilesByIDs(t *testing.T) {
 	q := New(conn)
 	ctx := context.Background()
 
-	a := createTestFile(t, q, uniqueKey(t)+"-a")
-	b := createTestFile(t, q, uniqueKey(t)+"-b")
+	a := createTestFile(t, conn, uniqueKey(t)+"-a")
+	b := createTestFile(t, conn, uniqueKey(t)+"-b")
 
 	files, err := q.GetFilesByIDs(ctx, []int64{a.ID, b.ID})
 	if err != nil {
@@ -195,7 +204,7 @@ func TestGetFilesByIDs(t *testing.T) {
 	if len(files) != 2 {
 		t.Fatalf("GetFilesByIDs returned %d files, want 2", len(files))
 	}
-	got := map[int64]File{files[0].ID: files[0], files[1].ID: files[1]}
+	got := map[int64]FileInfo{files[0].ID: files[0], files[1].ID: files[1]}
 	if got[a.ID] != a || got[b.ID] != b {
 		t.Errorf("GetFilesByIDs = %+v, want %+v and %+v", files, a, b)
 	}
@@ -215,14 +224,15 @@ func TestDeleteFile(t *testing.T) {
 	q := New(conn)
 	ctx := context.Background()
 
-	created := createTestFile(t, q, uniqueKey(t))
+	created := createTestFile(t, conn, uniqueKey(t))
 
 	deleted, err := q.DeleteFile(ctx, created.ID)
 	if err != nil {
 		t.Fatalf("DeleteFile: %v", err)
 	}
-	if deleted != created {
-		t.Errorf("DeleteFile = %+v, want %+v", deleted, created)
+	// DeleteFile returns the files row (identity), not the read model.
+	if deleted.ID != created.ID || deleted.Key != created.Key {
+		t.Errorf("DeleteFile = %+v, want id %d key %q", deleted, created.ID, created.Key)
 	}
 
 	if _, err := q.GetFile(ctx, created.ID); !errors.Is(err, pgx.ErrNoRows) {
@@ -245,21 +255,25 @@ func TestWithTxRollback(t *testing.T) {
 	}
 
 	key := uniqueKey(t)
-	now := time.Now().UTC().Truncate(time.Microsecond)
-	created, err := q.WithTx(tx).CreateFile(ctx, CreateFileParams{
-		Key:       key,
-		CreatedAt: pgtype.Timestamptz{Time: now, Valid: true},
-		UpdatedAt: pgtype.Timestamptz{Time: now, Valid: true},
+	now := time.Now().UTC()
+	_, err = q.WithTx(tx).UpsertFiles(ctx, UpsertFilesParams{
+		Keys:      []string{key},
+		MarkedAts: []pgtype.Timestamptz{{Time: now, Valid: true}},
 	})
 	if err != nil {
-		t.Fatalf("CreateFile in tx: %v", err)
+		t.Fatalf("UpsertFiles in tx: %v", err)
+	}
+	// Grab the id within the same transaction.
+	var txID int64
+	if err := tx.QueryRow(ctx, `SELECT id FROM files WHERE key = $1`, key).Scan(&txID); err != nil {
+		t.Fatalf("scan id in tx: %v", err)
 	}
 
 	if err := tx.Rollback(ctx); err != nil {
 		t.Fatalf("Rollback: %v", err)
 	}
 
-	if _, err := q.GetFile(ctx, created.ID); !errors.Is(err, pgx.ErrNoRows) {
+	if _, err := q.GetFile(ctx, txID); !errors.Is(err, pgx.ErrNoRows) {
 		t.Errorf("GetFile after rollback error = %v, want pgx.ErrNoRows", err)
 	}
 }

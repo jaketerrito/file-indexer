@@ -22,7 +22,7 @@ message PageToken {
   int64 last_id = 3;
   // Sort value of the last row; only the field matching sort_field is set.
   string key = 4;
-  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp last_modified = 5;
   // Matches COALESCE(size_bytes, 0) in the list queries.
   int64 size = 6;
   // Filters the token was issued for, stored raw (before LIKE escaping).

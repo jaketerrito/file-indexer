@@ -14,7 +14,9 @@ service SearchService {
 enum SortField {
   SORT_FIELD_UNSPECIFIED = 0; // defaults to SORT_FIELD_KEY
   SORT_FIELD_KEY = 1;
-  SORT_FIELD_CREATED_AT = 2;
+  // Object last-modified time (from the stat index); unset until a file is
+  // indexed, sorting those files first ascending.
+  SORT_FIELD_LAST_MODIFIED = 2;
   SORT_FIELD_SIZE = 3;
 }
 

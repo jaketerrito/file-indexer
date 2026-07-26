@@ -122,7 +122,7 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
             }
           >
             <option value="key">Key</option>
-            <option value="createdAt">Created</option>
+            <option value="lastModified">Modified</option>
             <option value="size">Size</option>
           </select>
         </label>{' '}
