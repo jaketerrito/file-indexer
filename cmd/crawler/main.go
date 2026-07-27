@@ -40,7 +40,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	c := crawler.New(s3, db.New(pool))
+	c := crawler.New(s3, db.New(pool), cfg.IndexPrefix)
 	if err := c.Run(ctx); err != nil {
 		slog.Error("crawler failed", "error", err)
 		os.Exit(1)

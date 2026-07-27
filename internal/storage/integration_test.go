@@ -213,6 +213,54 @@ func TestGetURL(t *testing.T) {
 	}
 }
 
+func TestPutRoundTrip(t *testing.T) {
+	s, _, _ := setupBucket(t)
+	ctx := context.Background()
+
+	body := "hello preview"
+	if err := s.Put(ctx, "p/one.bin", strings.NewReader(body), int64(len(body)), "image/jpeg"); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+
+	obj, err := s.Get(ctx, "p/one.bin")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	defer func() { _ = obj.Reader.Close() }()
+
+	got, err := io.ReadAll(obj.Reader)
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+	if string(got) != body {
+		t.Errorf("body = %q, want %q", got, body)
+	}
+	// The content type, not the key extension, is how clients learn the
+	// format — preview keys carry no extension.
+	if obj.ContentType != "image/jpeg" {
+		t.Errorf("ContentType = %q, want image/jpeg", obj.ContentType)
+	}
+}
+
+func TestGetInlineURLServesInline(t *testing.T) {
+	s, client, bucket := setupBucket(t)
+	putObject(t, client, bucket, "p/two.txt", "inline body", "text/plain")
+
+	u, err := s.GetInlineURL(context.Background(), "p/two.txt")
+	if err != nil {
+		t.Fatalf("GetInlineURL: %v", err)
+	}
+	resp, err := http.Get(u) //nolint:gosec // presigned URL built by the code under test
+	if err != nil {
+		t.Fatalf("GET presigned URL: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if got := resp.Header.Get("Content-Disposition"); !strings.Contains(got, "inline") {
+		t.Errorf("Content-Disposition = %q, want it to contain \"inline\"", got)
+	}
+}
+
 func TestWalk(t *testing.T) {
 	s, client, bucket := setupBucket(t)
 	ctx := context.Background()

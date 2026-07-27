@@ -150,6 +150,15 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
                 .flatMap((page) => page.files)
                 .map((file) => (
                   <li key={file.id}>
+                    {file.previewUrl ? (
+                      <img
+                        src={file.previewUrl}
+                        alt=""
+                        width={file.previewWidth ?? undefined}
+                        height={file.previewHeight ?? undefined}
+                        loading="lazy"
+                      />
+                    ) : null}{' '}
                     <span>{file.key}</span>{' '}
                     <button type="button" onClick={() => void handleDownload(file.id)}>
                       Download

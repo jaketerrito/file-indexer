@@ -8,6 +8,7 @@ option go_package = "file-indexer/internal/pb/service/v1;pb";
 
 service FilesService {
   rpc GetDownloadURL(GetDownloadURLRequest) returns (GetDownloadURLResponse);
+  rpc GetPreviewURL(GetPreviewURLRequest) returns (GetPreviewURLResponse);
   rpc GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
 }
@@ -25,6 +26,21 @@ message GetDownloadURLResponse {
   repeated DownloadURLSpec download_urls = 1;
 }
 
+message GetPreviewURLRequest {
+  repeated int64 ids = 1;
+}
+
+message PreviewURLSpec {
+  int64 id = 1;
+  string url = 2;
+}
+
+message GetPreviewURLResponse {
+  // Only files that actually have a preview appear here; ids without one are
+  // omitted rather than returned with an empty url.
+  repeated PreviewURLSpec preview_urls = 1;
+}
+
 message GetFileInfoRequest {
   int64 id = 1;
 }
@@ -36,6 +52,13 @@ message FileInfo {
   int64 size_bytes = 4;
   google.protobuf.Timestamp created_at = 5;
   google.protobuf.Timestamp updated_at = 6;
+  // Object key of the generated preview image. Empty when the file has no
+  // preview: it is not an image, or the preview index has not run yet.
+  string preview_key = 7;
+  // Dimensions of the preview image; zero when preview_key is empty. Aspect
+  // ratio is preserved and sources are never upscaled, so these vary per file.
+  int32 preview_width = 8;
+  int32 preview_height = 9;
 }
 
 message GetFileInfoResponse {

@@ -18,6 +18,15 @@ export interface FileDto {
   contentType: string
   sizeBytes: number
   createdAt: string | null
+  /**
+   * Presigned inline URL for this file's preview image, or null when the file
+   * has no preview. Resolved server-side by listFilesImpl so the browser needs
+   * only one request per page.
+   */
+  previewUrl: string | null
+  /** Intrinsic dimensions of the preview, used to reserve layout space. */
+  previewWidth: number | null
+  previewHeight: number | null
 }
 
 export const SORT_FIELDS = ['key', 'lastModified', 'size'] as const
@@ -54,12 +63,17 @@ export interface ListFilesResult {
 }
 
 export function toFileDto(file: FileInfo): FileDto {
+  const hasPreview = file.previewKey !== ''
   return {
     id: file.id.toString(),
     key: file.key,
     contentType: file.contentType,
     sizeBytes: Number(file.sizeBytes),
     createdAt: file.createdAt ? timestampDate(file.createdAt).toISOString() : null,
+    // Filled in by listFilesImpl; toFileDto has no storage client.
+    previewUrl: null,
+    previewWidth: hasPreview ? file.previewWidth : null,
+    previewHeight: hasPreview ? file.previewHeight : null,
   }
 }
 
@@ -118,10 +132,11 @@ export function validateIdInput(input: unknown): { id: string } {
 }
 
 export async function listFilesImpl(
-  client: Client<typeof SearchService>,
+  search: Client<typeof SearchService>,
+  files: Client<typeof FilesService>,
   input: ListFilesInput,
 ): Promise<ListFilesResult> {
-  const res = await client.listFiles({
+  const res = await search.listFiles({
     pageSize: input.pageSize ?? 0,
     pageToken: input.pageToken ?? '',
     prefix: input.prefix ?? '',
@@ -130,10 +145,29 @@ export async function listFilesImpl(
     sortField: SORT_FIELD_PB[input.sortField ?? 'key'],
     sortOrder: SORT_ORDER_PB[input.sortOrder ?? 'asc'],
   })
-  return {
-    files: res.files.map(toFileDto),
-    nextPageToken: res.nextPageToken,
+
+  const dtos = res.files.map(toFileDto)
+
+  // Preview URLs are presigned here rather than fetched by the browser: the
+  // signature is computed locally (no storage round trip) and both hops are
+  // in-cluster, so a page of thumbnails costs a couple of milliseconds instead
+  // of a second client round trip.
+  const ids = res.files.filter((f) => f.previewKey !== '').map((f) => f.id)
+  if (ids.length > 0) {
+    try {
+      const previews = await files.getPreviewURL({ ids })
+      const byId = new Map(previews.previewUrls.map((p) => [p.id.toString(), p.url]))
+      for (const dto of dtos) {
+        dto.previewUrl = byId.get(dto.id) ?? null
+      }
+    } catch (err) {
+      // Thumbnails are decoration. Degrade to a list without them rather than
+      // failing the whole page.
+      console.error('preview URL lookup failed', err)
+    }
   }
+
+  return { files: dtos, nextPageToken: res.nextPageToken }
 }
 
 export async function getDownloadUrlImpl(
