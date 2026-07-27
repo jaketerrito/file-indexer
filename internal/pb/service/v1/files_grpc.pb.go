@@ -20,7 +20,6 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	FilesService_GetDownloadURL_FullMethodName = "/service.v1.FilesService/GetDownloadURL"
-	FilesService_GetPreviewURL_FullMethodName  = "/service.v1.FilesService/GetPreviewURL"
 	FilesService_GetFileInfo_FullMethodName    = "/service.v1.FilesService/GetFileInfo"
 	FilesService_DeleteFile_FullMethodName     = "/service.v1.FilesService/DeleteFile"
 )
@@ -30,7 +29,6 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FilesServiceClient interface {
 	GetDownloadURL(ctx context.Context, in *GetDownloadURLRequest, opts ...grpc.CallOption) (*GetDownloadURLResponse, error)
-	GetPreviewURL(ctx context.Context, in *GetPreviewURLRequest, opts ...grpc.CallOption) (*GetPreviewURLResponse, error)
 	GetFileInfo(ctx context.Context, in *GetFileInfoRequest, opts ...grpc.CallOption) (*GetFileInfoResponse, error)
 	DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error)
 }
@@ -47,16 +45,6 @@ func (c *filesServiceClient) GetDownloadURL(ctx context.Context, in *GetDownload
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetDownloadURLResponse)
 	err := c.cc.Invoke(ctx, FilesService_GetDownloadURL_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *filesServiceClient) GetPreviewURL(ctx context.Context, in *GetPreviewURLRequest, opts ...grpc.CallOption) (*GetPreviewURLResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetPreviewURLResponse)
-	err := c.cc.Invoke(ctx, FilesService_GetPreviewURL_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +76,6 @@ func (c *filesServiceClient) DeleteFile(ctx context.Context, in *DeleteFileReque
 // for forward compatibility.
 type FilesServiceServer interface {
 	GetDownloadURL(context.Context, *GetDownloadURLRequest) (*GetDownloadURLResponse, error)
-	GetPreviewURL(context.Context, *GetPreviewURLRequest) (*GetPreviewURLResponse, error)
 	GetFileInfo(context.Context, *GetFileInfoRequest) (*GetFileInfoResponse, error)
 	DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error)
 	mustEmbedUnimplementedFilesServiceServer()
@@ -103,9 +90,6 @@ type UnimplementedFilesServiceServer struct{}
 
 func (UnimplementedFilesServiceServer) GetDownloadURL(context.Context, *GetDownloadURLRequest) (*GetDownloadURLResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDownloadURL not implemented")
-}
-func (UnimplementedFilesServiceServer) GetPreviewURL(context.Context, *GetPreviewURLRequest) (*GetPreviewURLResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetPreviewURL not implemented")
 }
 func (UnimplementedFilesServiceServer) GetFileInfo(context.Context, *GetFileInfoRequest) (*GetFileInfoResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetFileInfo not implemented")
@@ -148,24 +132,6 @@ func _FilesService_GetDownloadURL_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(FilesServiceServer).GetDownloadURL(ctx, req.(*GetDownloadURLRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _FilesService_GetPreviewURL_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetPreviewURLRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(FilesServiceServer).GetPreviewURL(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: FilesService_GetPreviewURL_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FilesServiceServer).GetPreviewURL(ctx, req.(*GetPreviewURLRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -216,10 +182,6 @@ var FilesService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDownloadURL",
 			Handler:    _FilesService_GetDownloadURL_Handler,
-		},
-		{
-			MethodName: "GetPreviewURL",
-			Handler:    _FilesService_GetPreviewURL_Handler,
 		},
 		{
 			MethodName: "GetFileInfo",

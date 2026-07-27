@@ -29,16 +29,6 @@ type Storage interface {
 
 	GetURL(ctx context.Context, key string) (string, error)
 
-	// GetInlineURL is GetURL for content meant to be rendered in place (an
-	// <img> tag, say) rather than downloaded: it omits the attachment
-	// content-disposition that GetURL forces.
-	GetInlineURL(ctx context.Context, key string) (string, error)
-
-	// Put writes an object. size must be the exact number of bytes readable
-	// from r. contentType becomes the object's Content-Type and is what
-	// clients receive when fetching it, including via presigned URLs.
-	Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error
-
 	// Walk lists every object in the bucket and invokes fn with the metadata
 	// the listing provides (key, size, last-modified; ContentType is empty —
 	// S3 listings do not include it, use Stat). Walking stops at the first

@@ -39,9 +39,3 @@
 - content-type filter dropdown is hardcoded (image/, video/, ...); should be populated from the backend, e.g. a SearchService RPC returning distinct content-type categories (TODO in FileList.tsx)
 - SSR data fetching: the file list fetches client-side after hydration. consider router loader + react-query SSR integration so the first page renders server-side
 - tilt web dev loop does a full image rebuild per change (no live_update); iterate with `npm run dev` against the 50052/50053 port-forwards instead. consider live_update or a tilt-managed dev server later
-
-7/26/26
-- preview index writes derived images to the same bucket under INDEX_PREFIX (default .index/); crawler skips that prefix so derived objects never become files rows
-- orphaned preview blobs need a GC job: DeleteFile removes previews best-effort only, files deleted from s3 out of band never trigger it, and index_preview_result rows vanish by cascade without touching storage. Job should list INDEX_PREFIX + "previews/" and delete keys with no matching index_preview_result row
-- preview URLs are presigned per request, so the browser HTTP cache never hits across page loads. If thumbnail bandwidth becomes a problem, swap GetPreviewURL for a cacheable BFF route serving bytes with immutable cache headers
-- no HEIC/AVIF previews: no pure-Go decoder and the binaries are CGO_ENABLED=0 on scratch

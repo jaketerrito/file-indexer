@@ -232,17 +232,12 @@ func escapeLike(s string) string {
 // fields are NULL until a file is stat-indexed; timestamps stay unset (nil)
 // rather than encoding the zero time. created_at is discovery time and
 // updated_at is the object's last-modified time from the stat index.
-// preview_key/width/height come from the preview index and are empty/zero
-// until it runs (or the file isn't an image).
 func dbFileToProto(f db.FileInfo) *pb.FileInfo {
 	info := &pb.FileInfo{
-		Id:            f.ID,
-		Key:           f.Key,
-		ContentType:   f.ContentType.String,
-		SizeBytes:     f.SizeBytes.Int64,
-		PreviewKey:    f.PreviewKey.String,
-		PreviewWidth:  f.PreviewWidth.Int32,
-		PreviewHeight: f.PreviewHeight.Int32,
+		Id:          f.ID,
+		Key:         f.Key,
+		ContentType: f.ContentType.String,
+		SizeBytes:   f.SizeBytes.Int64,
 	}
 	if f.CreatedAt.Valid {
 		info.CreatedAt = timestamppb.New(f.CreatedAt.Time)

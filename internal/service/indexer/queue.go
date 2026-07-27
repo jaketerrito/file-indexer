@@ -39,10 +39,6 @@ var (
 	_ Queue[StatResult]       = (*PGQueue[StatResult])(nil)
 	_ ProcessFunc[StatResult] = (*StatIndexer)(nil).Process
 	_ StoreFunc[StatResult]   = StoreStatResult
-
-	_ Queue[PreviewResult]       = (*PGQueue[PreviewResult])(nil)
-	_ ProcessFunc[PreviewResult] = (*PreviewIndexer)(nil).Process
-	_ StoreFunc[PreviewResult]   = StorePreviewResult
 )
 
 // NewPGQueue constructs a PGQueue for one index type.
