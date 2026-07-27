@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"net/url"
 	"time"
@@ -95,19 +96,35 @@ func (s *s3Storage) Get(ctx context.Context, key string) (*Object, error) {
 	}, nil
 }
 
+// presignExpiry bounds how long a presigned URL stays valid.
+const presignExpiry = 1000 * time.Second
+
 func (s *s3Storage) GetURL(ctx context.Context, key string) (string, error) {
-	// Set request parameters
+	return s.presign(ctx, key, "attachment")
+}
+
+func (s *s3Storage) GetInlineURL(ctx context.Context, key string) (string, error) {
+	return s.presign(ctx, key, "inline")
+}
+
+// presign returns a time-limited GET URL for key, overriding the response's
+// content-disposition so the same object can be served as a download or
+// rendered in place.
+func (s *s3Storage) presign(ctx context.Context, key, disposition string) (string, error) {
 	reqParams := make(url.Values)
-	reqParams.Set("response-content-disposition", "attachment")
+	reqParams.Set("response-content-disposition", disposition)
 
-	expires := time.Duration(1000) * time.Second
-
-	// Gernerate presigned get object url.
-	presignedURL, err := s.presignClient.PresignedGetObject(ctx, s.bucket, key, expires, reqParams)
+	presignedURL, err := s.presignClient.PresignedGetObject(ctx, s.bucket, key, presignExpiry, reqParams)
 	if err != nil {
 		return "", err
 	}
 	return presignedURL.String(), nil
+}
+
+func (s *s3Storage) Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error {
+	_, err := s.client.PutObject(ctx, s.bucket, key, r, size,
+		minio.PutObjectOptions{ContentType: contentType})
+	return err
 }
 
 func (s *s3Storage) Walk(ctx context.Context, fn func(ObjectInfo) error) error {
