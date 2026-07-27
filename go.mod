@@ -19,7 +19,7 @@ require (
 	github.com/minio/minio-go/v7 v7.2.1
 	github.com/pressly/goose/v3 v3.27.2
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/image v0.38.0
+	golang.org/x/image v0.41.0
 	google.golang.org/grpc v1.82.1
 	google.golang.org/protobuf v1.36.11
 )
@@ -339,7 +339,7 @@ require (
 	github.com/uudashr/gocognit v1.2.1 // indirect
 	github.com/uudashr/iface v1.4.2 // indirect
 	github.com/vektra/mockery/v3 v3.7.1 // indirect
-	github.com/vladopajic/go-test-coverage/v2 v2.18.8 // indirect
+	github.com/vladopajic/go-test-coverage/v2 v2.18.9 // indirect
 	github.com/wasilibs/go-pgquery v0.0.0-20250409022910-10ac41983c07 // indirect
 	github.com/wasilibs/wazero-helpers v0.0.0-20240620070341-3dff1577cd52 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
