@@ -16,12 +16,23 @@ type File struct {
 }
 
 type FileInfo struct {
-	ID           int64
-	Key          string
-	CreatedAt    pgtype.Timestamptz
-	ContentType  pgtype.Text
-	SizeBytes    pgtype.Int8
-	LastModified pgtype.Timestamptz
+	ID            int64
+	Key           string
+	CreatedAt     pgtype.Timestamptz
+	ContentType   pgtype.Text
+	SizeBytes     pgtype.Int8
+	LastModified  pgtype.Timestamptz
+	PreviewKey    pgtype.Text
+	PreviewWidth  pgtype.Int4
+	PreviewHeight pgtype.Int4
+}
+
+type IndexPreviewResult struct {
+	FileID     int64
+	PreviewKey string
+	Width      int32
+	Height     int32
+	UpdatedAt  pgtype.Timestamptz
 }
 
 type IndexQueue struct {

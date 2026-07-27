@@ -84,6 +84,47 @@ func TestDeleteFile(t *testing.T) {
 	}
 }
 
+func TestDeleteFileRemovesPreview(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{
+		ID: 1, Key: "obj-key",
+		PreviewKey: pgtype.Text{String: ".index/previews/1", Valid: true},
+	}, nil)
+	queries.EXPECT().DeleteFile(mock.Anything, int64(1)).Return(db.File{ID: 1, Key: "obj-key"}, nil)
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().Delete(mock.Anything, "obj-key").Return(nil)
+	storage.EXPECT().Delete(mock.Anything, ".index/previews/1").Return(nil)
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	_, err := srv.DeleteFile(context.Background(), &pb.DeleteFileRequest{Id: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDeleteFileSurvivesPreviewDeleteFailure(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{
+		ID: 1, Key: "obj-key",
+		PreviewKey: pgtype.Text{String: ".index/previews/1", Valid: true},
+	}, nil)
+	// The file delete must still proceed even though the preview delete fails.
+	queries.EXPECT().DeleteFile(mock.Anything, int64(1)).Return(db.File{ID: 1, Key: "obj-key"}, nil)
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().Delete(mock.Anything, "obj-key").Return(nil)
+	storage.EXPECT().Delete(mock.Anything, ".index/previews/1").Return(errors.New("s3 error"))
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	_, err := srv.DeleteFile(context.Background(), &pb.DeleteFileRequest{Id: 1})
+	if err != nil {
+		t.Fatalf("DeleteFile should survive a preview delete failure, got: %v", err)
+	}
+}
+
 func TestDeleteFileStorageError(t *testing.T) {
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "obj-key"}, nil)
@@ -136,14 +177,20 @@ func TestDbFileToProto(t *testing.T) {
 	now := time.Now()
 	f := db.FileInfo{
 		ID: 1, Key: "k",
-		ContentType:  pgtype.Text{String: "image/png", Valid: true},
-		SizeBytes:    pgtype.Int8{Int64: 200, Valid: true},
-		CreatedAt:    pgtype.Timestamptz{Time: now, Valid: true},
-		LastModified: pgtype.Timestamptz{Time: now, Valid: true},
+		ContentType:   pgtype.Text{String: "image/png", Valid: true},
+		SizeBytes:     pgtype.Int8{Int64: 200, Valid: true},
+		CreatedAt:     pgtype.Timestamptz{Time: now, Valid: true},
+		LastModified:  pgtype.Timestamptz{Time: now, Valid: true},
+		PreviewKey:    pgtype.Text{String: ".index/previews/1", Valid: true},
+		PreviewWidth:  pgtype.Int4{Int32: 320, Valid: true},
+		PreviewHeight: pgtype.Int4{Int32: 160, Valid: true},
 	}
 	pf := dbFileToProto(f)
 	if pf.Id != 1 || pf.Key != "k" || pf.ContentType != "image/png" || pf.SizeBytes != 200 {
 		t.Errorf("dbFileToProto = %+v", pf)
+	}
+	if pf.PreviewKey != ".index/previews/1" || pf.PreviewWidth != 320 || pf.PreviewHeight != 160 {
+		t.Errorf("preview fields = %+v", pf)
 	}
 	if !pf.CreatedAt.AsTime().Equal(now) {
 		t.Errorf("CreatedAt mismatch: got %v, want %v", pf.CreatedAt.AsTime(), now)
@@ -160,6 +207,9 @@ func TestDbFileToProtoNullFields(t *testing.T) {
 	pf := dbFileToProto(f)
 	if pf.Id != 2 || pf.ContentType != "" || pf.SizeBytes != 0 {
 		t.Errorf("dbFileToProto = %+v", pf)
+	}
+	if pf.PreviewKey != "" || pf.PreviewWidth != 0 || pf.PreviewHeight != 0 {
+		t.Errorf("preview fields = %+v, want zero values for NULLs", pf)
 	}
 	if pf.CreatedAt != nil || pf.UpdatedAt != nil {
 		t.Errorf("timestamps = (%v, %v), want unset for NULLs", pf.CreatedAt, pf.UpdatedAt)
@@ -217,6 +267,71 @@ func TestGetDownloadURLStorageError(t *testing.T) {
 	srv := FilesServer{queries: queries, storage: storage}
 
 	_, err := srv.GetDownloadURL(context.Background(), &pb.GetDownloadURLRequest{Ids: []int64{1}})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestGetPreviewURL(t *testing.T) {
+	files := []db.FileInfo{
+		{ID: 1, Key: "obj-1", PreviewKey: pgtype.Text{String: ".index/previews/1", Valid: true}},
+		{ID: 2, Key: "obj-2"}, // no preview
+	}
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFilesByIDs(mock.Anything, []int64{1, 2}).Return(files, nil)
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().GetInlineURL(mock.Anything, ".index/previews/1").Return("https://example.com/preview-1", nil)
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	resp, err := srv.GetPreviewURL(context.Background(), &pb.GetPreviewURLRequest{Ids: []int64{1, 2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.PreviewUrls) != 1 {
+		t.Fatalf("got %d preview urls, want 1", len(resp.PreviewUrls))
+	}
+	if resp.PreviewUrls[0].Id != 1 || resp.PreviewUrls[0].Url != "https://example.com/preview-1" {
+		t.Errorf("GetPreviewURL = %+v", resp.PreviewUrls[0])
+	}
+}
+
+func TestGetPreviewURLSkipsFilesWithoutPreview(t *testing.T) {
+	files := []db.FileInfo{{ID: 1, Key: "obj-1"}}
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFilesByIDs(mock.Anything, []int64{1}).Return(files, nil)
+
+	storage := NewMockObjectStore(t)
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	resp, err := srv.GetPreviewURL(context.Background(), &pb.GetPreviewURLRequest{Ids: []int64{1}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.PreviewUrls) != 0 {
+		t.Errorf("got %d preview urls, want 0", len(resp.PreviewUrls))
+	}
+	storage.AssertNotCalled(t, "GetInlineURL", mock.Anything, mock.Anything)
+}
+
+func TestGetPreviewURLStorageError(t *testing.T) {
+	files := []db.FileInfo{
+		{ID: 1, Key: "obj-1", PreviewKey: pgtype.Text{String: ".index/previews/1", Valid: true}},
+	}
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFilesByIDs(mock.Anything, []int64{1}).Return(files, nil)
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().GetInlineURL(mock.Anything, ".index/previews/1").Return("", errors.New("s3 error"))
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	_, err := srv.GetPreviewURL(context.Background(), &pb.GetPreviewURLRequest{Ids: []int64{1}})
 	if err == nil {
 		t.Fatal("expected error")
 	}

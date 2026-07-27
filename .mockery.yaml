@@ -11,6 +11,7 @@ packages:
   file-indexer/internal/service/indexer:
     interfaces:
       ObjectStore:
+      PreviewObjectStore:
       Queries:
   file-indexer/internal/service/crawler:
     interfaces:

@@ -5,6 +5,7 @@ import (
 	"file-indexer/internal/db"
 	"file-indexer/internal/storage"
 	"log/slog"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -28,19 +29,30 @@ type FileStore interface {
 // compare their stored mark against files.marked_at to detect edits and
 // re-enqueue stale results automatically.
 type Crawler struct {
-	store     ObjectStore
-	files     FileStore
-	batchSize int
+	store        ObjectStore
+	files        FileStore
+	batchSize    int
+	ignorePrefix string
 }
 
-func New(store ObjectStore, files FileStore) *Crawler {
-	return &Crawler{store: store, files: files, batchSize: defaultBatchSize}
+// New constructs a Crawler. ignorePrefix is the key prefix holding
+// index-generated objects (see config.IndexPrefix); objects beneath it are
+// skipped so derived artifacts never become files rows — without this the
+// preview index type would generate previews of its own previews, forever.
+// Pass "" to disable skipping.
+func New(store ObjectStore, files FileStore, ignorePrefix string) *Crawler {
+	return &Crawler{
+		store:        store,
+		files:        files,
+		batchSize:    defaultBatchSize,
+		ignorePrefix: ignorePrefix,
+	}
 }
 
 func (c *Crawler) Run(ctx context.Context) error {
 	slog.Info("crawl starting", "batchSize", c.batchSize)
 
-	var discovered int64
+	var discovered, skipped int64
 	batch := db.UpsertFilesParams{}
 
 	flush := func() error {
@@ -57,6 +69,11 @@ func (c *Crawler) Run(ctx context.Context) error {
 	}
 
 	err := c.store.Walk(ctx, func(info storage.ObjectInfo) error {
+		if c.ignorePrefix != "" && strings.HasPrefix(info.Key, c.ignorePrefix) {
+			skipped++
+			return nil
+		}
+
 		batch.Keys = append(batch.Keys, info.Key)
 		batch.MarkedAts = append(batch.MarkedAts,
 			pgtype.Timestamptz{Time: info.LastModified, Valid: true})
@@ -73,6 +90,6 @@ func (c *Crawler) Run(ctx context.Context) error {
 		return err
 	}
 
-	slog.Info("crawl finished", "discovered", discovered)
+	slog.Info("crawl finished", "discovered", discovered, "skipped", skipped)
 	return nil
 }
