@@ -49,9 +49,9 @@ func claimOurs(t *testing.T, q *Queries, indexType string, staleTimeout pgtype.I
 	var ours []ClaimIndexQueueRow
 	for {
 		rows, err := q.ClaimIndexQueue(context.Background(), ClaimIndexQueueParams{
-			IndexType:    indexType,
+			IndexType:   indexType,
 			StaleTimeout: staleTimeout,
-			BatchSize:    claimBatch,
+			BatchSize:   claimBatch,
 		})
 		if err != nil {
 			t.Fatalf("ClaimIndexQueue: %v", err)
@@ -389,9 +389,9 @@ func TestClaimIndexQueueSkipLocked(t *testing.T) {
 
 	claim := func(tx pgx.Tx) map[int64]bool {
 		rows, err := New(conn).WithTx(tx).ClaimIndexQueue(ctx, ClaimIndexQueueParams{
-			IndexType:    statType,
+			IndexType:   statType,
 			StaleTimeout: noStale,
-			BatchSize:    claimBatch,
+			BatchSize:   claimBatch,
 		})
 		if err != nil {
 			t.Fatalf("ClaimIndexQueue in tx: %v", err)

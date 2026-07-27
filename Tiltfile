@@ -32,8 +32,7 @@ if not k8s_context().startswith('kind-'):
     fail('expected a kind k8s context (see `just cluster-up`), got "%s"' % k8s_context())
 
 docker_build('migrate', '.', build_args={'BUILD_TARGET': './cmd/migrate'})
-docker_build('index-stat', '.', build_args={'BUILD_TARGET': './cmd/index-stat'})
-docker_build('index-preview', '.', build_args={'BUILD_TARGET': './cmd/index-preview'})
+docker_build('indexer', '.', build_args={'BUILD_TARGET': './cmd/indexer'})
 docker_build('files', '.', build_args={'BUILD_TARGET': './cmd/files'})
 docker_build('search', '.', build_args={'BUILD_TARGET': './cmd/search'})
 docker_build('crawler', '.', build_args={'BUILD_TARGET': './cmd/crawler'})
@@ -51,8 +50,7 @@ k8s_resource(
 k8s_resource('postgres', port_forwards=5432)
 
 k8s_resource('migrate', resource_deps=['postgres'])
-k8s_resource('index-stat', resource_deps=['postgres', 'migrate', 'local-s3'])
-k8s_resource('index-preview', resource_deps=['postgres', 'migrate', 'local-s3'])
+k8s_resource('indexer', resource_deps=['postgres', 'migrate', 'local-s3'])
 k8s_resource('files', resource_deps=['postgres', 'migrate', 'local-s3'], port_forwards='50052:50051')
 k8s_resource('search', resource_deps=['postgres', 'migrate'], port_forwards='50053:50051')
 k8s_resource(

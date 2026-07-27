@@ -1,15 +1,13 @@
 import { create } from '@bufbuild/protobuf'
 import { timestampFromDate } from '@bufbuild/protobuf/wkt'
 import type { Client } from '@connectrpc/connect'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   DeleteFileResponseSchema,
   DownloadURLSpecSchema,
   FileInfoSchema,
   type FilesService,
   GetDownloadURLResponseSchema,
-  GetPreviewURLResponseSchema,
-  PreviewURLSpecSchema,
 } from '../gen/service/v1/files_pb'
 import {
   ListFilesResponseSchema,
@@ -28,32 +26,14 @@ import {
 
 const CREATED_AT = new Date('2026-01-02T03:04:05.000Z')
 
-function fileInfo(
-  overrides: {
-    id?: bigint
-    key?: string
-    previewKey?: string
-    previewWidth?: number
-    previewHeight?: number
-  } = {},
-) {
+function fileInfo(overrides: { id?: bigint; key?: string } = {}) {
   return create(FileInfoSchema, {
     id: overrides.id ?? 1n,
     key: overrides.key ?? 'docs/report.pdf',
     contentType: 'application/pdf',
     sizeBytes: 1024n,
     createdAt: timestampFromDate(CREATED_AT),
-    previewKey: overrides.previewKey ?? '',
-    previewWidth: overrides.previewWidth ?? 0,
-    previewHeight: overrides.previewHeight ?? 0,
   })
-}
-
-/** A no-op files client stub for listFilesImpl calls that expect no previews. */
-function noPreviewFilesClient(): Client<typeof FilesService> {
-  return {
-    getPreviewURL: vi.fn(),
-  } as unknown as Client<typeof FilesService>
 }
 
 describe('toFileDto', () => {
@@ -66,31 +46,12 @@ describe('toFileDto', () => {
       contentType: 'application/pdf',
       sizeBytes: 1024,
       createdAt: '2026-01-02T03:04:05.000Z',
-      previewUrl: null,
-      previewWidth: null,
-      previewHeight: null,
     })
   })
 
   it('maps a missing created_at to null', () => {
     const file = create(FileInfoSchema, { id: 1n, key: 'a' })
     expect(toFileDto(file).createdAt).toBeNull()
-  })
-
-  it('carries preview dimensions when the file has a preview', () => {
-    const dto = toFileDto(
-      fileInfo({ previewKey: '.index/previews/1', previewWidth: 320, previewHeight: 160 }),
-    )
-    expect(dto.previewWidth).toBe(320)
-    expect(dto.previewHeight).toBe(160)
-    // previewUrl is resolved later by listFilesImpl, not by toFileDto itself.
-    expect(dto.previewUrl).toBeNull()
-  })
-
-  it('reports null preview dimensions when the file has no preview', () => {
-    const dto = toFileDto(fileInfo())
-    expect(dto.previewWidth).toBeNull()
-    expect(dto.previewHeight).toBeNull()
   })
 })
 
@@ -164,10 +125,6 @@ describe('validateIdInput', () => {
 })
 
 describe('listFilesImpl', () => {
-  afterEach(() => {
-    vi.restoreAllMocks()
-  })
-
   it('passes pagination params through and maps the response', async () => {
     const listFiles = vi.fn().mockResolvedValue(
       create(ListFilesResponseSchema, {
@@ -175,12 +132,9 @@ describe('listFilesImpl', () => {
         nextPageToken: 'token-2',
       }),
     )
-    const search = { listFiles } as unknown as Client<typeof SearchService>
+    const client = { listFiles } as unknown as Client<typeof SearchService>
 
-    const result = await listFilesImpl(search, noPreviewFilesClient(), {
-      pageSize: 25,
-      pageToken: 'token-1',
-    })
+    const result = await listFilesImpl(client, { pageSize: 25, pageToken: 'token-1' })
 
     expect(listFiles).toHaveBeenCalledWith({
       pageSize: 25,
@@ -198,9 +152,9 @@ describe('listFilesImpl', () => {
     const listFiles = vi
       .fn()
       .mockResolvedValue(create(ListFilesResponseSchema, { files: [], nextPageToken: '' }))
-    const search = { listFiles } as unknown as Client<typeof SearchService>
+    const client = { listFiles } as unknown as Client<typeof SearchService>
 
-    await listFilesImpl(search, noPreviewFilesClient(), {
+    await listFilesImpl(client, {
       prefix: 'docs/',
       contentType: 'image/',
       sortField: 'size',
@@ -221,9 +175,9 @@ describe('listFilesImpl', () => {
     const listFiles = vi
       .fn()
       .mockResolvedValue(create(ListFilesResponseSchema, { files: [], nextPageToken: '' }))
-    const search = { listFiles } as unknown as Client<typeof SearchService>
+    const client = { listFiles } as unknown as Client<typeof SearchService>
 
-    const result = await listFilesImpl(search, noPreviewFilesClient(), {})
+    const result = await listFilesImpl(client, {})
 
     expect(listFiles).toHaveBeenCalledWith({
       pageSize: 0,
@@ -237,78 +191,10 @@ describe('listFilesImpl', () => {
   })
 
   it('propagates client errors', async () => {
-    const search = {
+    const client = {
       listFiles: vi.fn().mockRejectedValue(new Error('unavailable')),
     } as unknown as Client<typeof SearchService>
-    await expect(listFilesImpl(search, noPreviewFilesClient(), {})).rejects.toThrow('unavailable')
-  })
-
-  it('merges preview URLs onto matching dtos, requesting only ids with a preview', async () => {
-    const listFiles = vi.fn().mockResolvedValue(
-      create(ListFilesResponseSchema, {
-        files: [
-          fileInfo({
-            id: 1n,
-            previewKey: '.index/previews/1',
-            previewWidth: 320,
-            previewHeight: 160,
-          }),
-          fileInfo({ id: 2n, key: 'no-preview.txt' }),
-        ],
-        nextPageToken: '',
-      }),
-    )
-    const search = { listFiles } as unknown as Client<typeof SearchService>
-
-    const getPreviewURL = vi.fn().mockResolvedValue(
-      create(GetPreviewURLResponseSchema, {
-        previewUrls: [
-          create(PreviewURLSpecSchema, { id: 1n, url: 'https://example.com/preview-1' }),
-        ],
-      }),
-    )
-    const files = { getPreviewURL } as unknown as Client<typeof FilesService>
-
-    const result = await listFilesImpl(search, files, {})
-
-    expect(getPreviewURL).toHaveBeenCalledWith({ ids: [1n] })
-    const byId = new Map(result.files.map((f) => [f.id, f]))
-    expect(byId.get('1')?.previewUrl).toBe('https://example.com/preview-1')
-    expect(byId.get('2')?.previewUrl).toBeNull()
-  })
-
-  it('does not call getPreviewURL when no file has a preview', async () => {
-    const listFiles = vi.fn().mockResolvedValue(
-      create(ListFilesResponseSchema, {
-        files: [fileInfo({ id: 1n })],
-        nextPageToken: '',
-      }),
-    )
-    const search = { listFiles } as unknown as Client<typeof SearchService>
-    const files = noPreviewFilesClient()
-
-    await listFilesImpl(search, files, {})
-
-    expect(files.getPreviewURL).not.toHaveBeenCalled()
-  })
-
-  it('degrades to previewUrl: null when the preview lookup fails', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    const listFiles = vi.fn().mockResolvedValue(
-      create(ListFilesResponseSchema, {
-        files: [fileInfo({ id: 1n, previewKey: '.index/previews/1' })],
-        nextPageToken: '',
-      }),
-    )
-    const search = { listFiles } as unknown as Client<typeof SearchService>
-    const files = {
-      getPreviewURL: vi.fn().mockRejectedValue(new Error('files service unavailable')),
-    } as unknown as Client<typeof FilesService>
-
-    const result = await listFilesImpl(search, files, {})
-
-    expect(result.files[0].previewUrl).toBeNull()
+    await expect(listFilesImpl(client, {})).rejects.toThrow('unavailable')
   })
 })
 

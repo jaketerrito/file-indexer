@@ -28,9 +28,6 @@ function page(keys: string[], startId: number, nextPageToken = ''): ListFilesRes
       contentType: 'text/plain',
       sizeBytes: 1,
       createdAt: null,
-      previewUrl: null,
-      previewWidth: null,
-      previewHeight: null,
     })),
     nextPageToken,
   }
@@ -225,41 +222,6 @@ describe('FileList', () => {
       expect(getDownloadUrlMock).toHaveBeenCalledWith({ data: { id: '7' } })
       expect(openSpy).toHaveBeenCalledWith('http://s3/presigned', '_blank', 'noopener')
     })
-  })
-
-  it('renders a preview image for files that have one', async () => {
-    listFilesMock.mockResolvedValue({
-      files: [
-        {
-          id: '1',
-          key: 'photo.jpg',
-          contentType: 'image/jpeg',
-          sizeBytes: 1,
-          createdAt: null,
-          previewUrl: 'https://example.com/preview-1',
-          previewWidth: 320,
-          previewHeight: 160,
-        },
-      ],
-      nextPageToken: '',
-    })
-
-    renderFileList()
-    await screen.findByText('photo.jpg')
-
-    const img = screen.getByRole('presentation') as HTMLImageElement
-    expect(img.src).toBe('https://example.com/preview-1')
-    expect(img.width).toBe(320)
-    expect(img.height).toBe(160)
-  })
-
-  it('renders no image for files without a preview', async () => {
-    listFilesMock.mockResolvedValue(page(['a.txt'], 1))
-
-    renderFileList()
-    await screen.findByText('a.txt')
-
-    expect(screen.queryByRole('presentation')).toBeNull()
   })
 
   it('deletes a file and refetches the list', async () => {

@@ -60,7 +60,7 @@ func TestRun(t *testing.T) {
 		UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("a", "b"))).
 		Return(2, nil)
 
-	if err := New(store, files, "").Run(context.Background()); err != nil {
+	if err := New(store, files).Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -74,7 +74,7 @@ func TestRunFlushesFullBatches(t *testing.T) {
 	files.EXPECT().UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("a", "b"))).Return(2, nil)
 	files.EXPECT().UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("c"))).Return(1, nil)
 
-	c := New(store, files, "")
+	c := New(store, files)
 	c.batchSize = 2
 	if err := c.Run(context.Background()); err != nil {
 		t.Fatal(err)
@@ -90,7 +90,7 @@ func TestRunPassesDuplicateKeysToBatch(t *testing.T) {
 	// SQL-level dedup via GROUP BY handles in-batch duplicates now.
 	files.EXPECT().UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("a", "a", "b"))).Return(1, nil)
 
-	if err := New(store, files, "").Run(context.Background()); err != nil {
+	if err := New(store, files).Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -101,7 +101,7 @@ func TestRunEmptyBucket(t *testing.T) {
 
 	files := NewMockFileStore(t)
 
-	if err := New(store, files, "").Run(context.Background()); err != nil {
+	if err := New(store, files).Run(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	files.AssertNotCalled(t, "UpsertFiles", mock.Anything, mock.Anything)
@@ -115,7 +115,7 @@ func TestRunUpsertError(t *testing.T) {
 	files := NewMockFileStore(t)
 	files.EXPECT().UpsertFiles(mock.Anything, mock.Anything).Return(0, errors.New("db error"))
 
-	if err := New(store, files, "").Run(context.Background()); err == nil {
+	if err := New(store, files).Run(context.Background()); err == nil {
 		t.Fatal("expected error")
 	}
 }
@@ -126,44 +126,8 @@ func TestRunWalkError(t *testing.T) {
 
 	files := NewMockFileStore(t)
 
-	if err := New(store, files, "").Run(context.Background()); err == nil {
+	if err := New(store, files).Run(context.Background()); err == nil {
 		t.Fatal("expected error")
-	}
-	files.AssertNotCalled(t, "UpsertFiles", mock.Anything, mock.Anything)
-}
-
-func TestRunSkipsIgnoredPrefix(t *testing.T) {
-	store := NewMockObjectStore(t)
-	store.EXPECT().Walk(mock.Anything, mock.Anything).
-		RunAndReturn(walkOver(
-			objectInfo("a"),
-			objectInfo(".index/previews/1"),
-			objectInfo(".index/previews/2"),
-			// Not under the prefix: the trailing slash makes this a path
-			// boundary, not a substring match.
-			objectInfo(".indexnotours"),
-			objectInfo("b"),
-		))
-
-	files := NewMockFileStore(t)
-	files.EXPECT().
-		UpsertFiles(mock.Anything, mock.MatchedBy(upsertMatcher("a", ".indexnotours", "b"))).
-		Return(3, nil)
-
-	if err := New(store, files, ".index/").Run(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func TestRunSkipsEveryObject(t *testing.T) {
-	store := NewMockObjectStore(t)
-	store.EXPECT().Walk(mock.Anything, mock.Anything).
-		RunAndReturn(walkOver(objectInfo(".index/previews/1")))
-
-	files := NewMockFileStore(t)
-
-	if err := New(store, files, ".index/").Run(context.Background()); err != nil {
-		t.Fatal(err)
 	}
 	files.AssertNotCalled(t, "UpsertFiles", mock.Anything, mock.Anything)
 }

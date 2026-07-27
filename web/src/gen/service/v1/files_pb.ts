@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file service/v1/files.proto.
  */
 export const file_service_v1_files: GenFile = /*@__PURE__*/
-  fileDesc("ChZzZXJ2aWNlL3YxL2ZpbGVzLnByb3RvEgpzZXJ2aWNlLnYxIiQKFUdldERvd25sb2FkVVJMUmVxdWVzdBILCgNpZHMYASADKAMiKgoPRG93bmxvYWRVUkxTcGVjEgoKAmlkGAEgASgDEgsKA3VybBgCIAEoCSJMChZHZXREb3dubG9hZFVSTFJlc3BvbnNlEjIKDWRvd25sb2FkX3VybHMYASADKAsyGy5zZXJ2aWNlLnYxLkRvd25sb2FkVVJMU3BlYyIjChRHZXRQcmV2aWV3VVJMUmVxdWVzdBILCgNpZHMYASADKAMiKQoOUHJldmlld1VSTFNwZWMSCgoCaWQYASABKAMSCwoDdXJsGAIgASgJIkkKFUdldFByZXZpZXdVUkxSZXNwb25zZRIwCgxwcmV2aWV3X3VybHMYASADKAsyGi5zZXJ2aWNlLnYxLlByZXZpZXdVUkxTcGVjIiAKEkdldEZpbGVJbmZvUmVxdWVzdBIKCgJpZBgBIAEoAyLxAQoIRmlsZUluZm8SCgoCaWQYASABKAMSCwoDa2V5GAIgASgJEhQKDGNvbnRlbnRfdHlwZRgDIAEoCRISCgpzaXplX2J5dGVzGAQgASgDEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC3ByZXZpZXdfa2V5GAcgASgJEhUKDXByZXZpZXdfd2lkdGgYCCABKAUSFgoOcHJldmlld19oZWlnaHQYCSABKAUiOQoTR2V0RmlsZUluZm9SZXNwb25zZRIiCgRmaWxlGAEgASgLMhQuc2VydmljZS52MS5GaWxlSW5mbyIfChFEZWxldGVGaWxlUmVxdWVzdBIKCgJpZBgBIAEoAyIUChJEZWxldGVGaWxlUmVzcG9uc2Uy2gIKDEZpbGVzU2VydmljZRJXCg5HZXREb3dubG9hZFVSTBIhLnNlcnZpY2UudjEuR2V0RG93bmxvYWRVUkxSZXF1ZXN0GiIuc2VydmljZS52MS5HZXREb3dubG9hZFVSTFJlc3BvbnNlElQKDUdldFByZXZpZXdVUkwSIC5zZXJ2aWNlLnYxLkdldFByZXZpZXdVUkxSZXF1ZXN0GiEuc2VydmljZS52MS5HZXRQcmV2aWV3VVJMUmVzcG9uc2USTgoLR2V0RmlsZUluZm8SHi5zZXJ2aWNlLnYxLkdldEZpbGVJbmZvUmVxdWVzdBofLnNlcnZpY2UudjEuR2V0RmlsZUluZm9SZXNwb25zZRJLCgpEZWxldGVGaWxlEh0uc2VydmljZS52MS5EZWxldGVGaWxlUmVxdWVzdBoeLnNlcnZpY2UudjEuRGVsZXRlRmlsZVJlc3BvbnNlQihaJmZpbGUtaW5kZXhlci9pbnRlcm5hbC9wYi9zZXJ2aWNlL3YxO3BiYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChZzZXJ2aWNlL3YxL2ZpbGVzLnByb3RvEgpzZXJ2aWNlLnYxIiQKFUdldERvd25sb2FkVVJMUmVxdWVzdBILCgNpZHMYASADKAMiKgoPRG93bmxvYWRVUkxTcGVjEgoKAmlkGAEgASgDEgsKA3VybBgCIAEoCSJMChZHZXREb3dubG9hZFVSTFJlc3BvbnNlEjIKDWRvd25sb2FkX3VybHMYASADKAsyGy5zZXJ2aWNlLnYxLkRvd25sb2FkVVJMU3BlYyIgChJHZXRGaWxlSW5mb1JlcXVlc3QSCgoCaWQYASABKAMirQEKCEZpbGVJbmZvEgoKAmlkGAEgASgDEgsKA2tleRgCIAEoCRIUCgxjb250ZW50X3R5cGUYAyABKAkSEgoKc2l6ZV9ieXRlcxgEIAEoAxIuCgpjcmVhdGVkX2F0GAUgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIuCgp1cGRhdGVkX2F0GAYgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCI5ChNHZXRGaWxlSW5mb1Jlc3BvbnNlEiIKBGZpbGUYASABKAsyFC5zZXJ2aWNlLnYxLkZpbGVJbmZvIh8KEURlbGV0ZUZpbGVSZXF1ZXN0EgoKAmlkGAEgASgDIhQKEkRlbGV0ZUZpbGVSZXNwb25zZTKEAgoMRmlsZXNTZXJ2aWNlElcKDkdldERvd25sb2FkVVJMEiEuc2VydmljZS52MS5HZXREb3dubG9hZFVSTFJlcXVlc3QaIi5zZXJ2aWNlLnYxLkdldERvd25sb2FkVVJMUmVzcG9uc2USTgoLR2V0RmlsZUluZm8SHi5zZXJ2aWNlLnYxLkdldEZpbGVJbmZvUmVxdWVzdBofLnNlcnZpY2UudjEuR2V0RmlsZUluZm9SZXNwb25zZRJLCgpEZWxldGVGaWxlEh0uc2VydmljZS52MS5EZWxldGVGaWxlUmVxdWVzdBoeLnNlcnZpY2UudjEuRGVsZXRlRmlsZVJlc3BvbnNlQihaJmZpbGUtaW5kZXhlci9pbnRlcm5hbC9wYi9zZXJ2aWNlL3YxO3BiYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message service.v1.GetDownloadURLRequest
@@ -71,65 +71,6 @@ export const GetDownloadURLResponseSchema: GenMessage<GetDownloadURLResponse> = 
   messageDesc(file_service_v1_files, 2);
 
 /**
- * @generated from message service.v1.GetPreviewURLRequest
- */
-export type GetPreviewURLRequest = Message<"service.v1.GetPreviewURLRequest"> & {
-  /**
-   * @generated from field: repeated int64 ids = 1;
-   */
-  ids: bigint[];
-};
-
-/**
- * Describes the message service.v1.GetPreviewURLRequest.
- * Use `create(GetPreviewURLRequestSchema)` to create a new message.
- */
-export const GetPreviewURLRequestSchema: GenMessage<GetPreviewURLRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 3);
-
-/**
- * @generated from message service.v1.PreviewURLSpec
- */
-export type PreviewURLSpec = Message<"service.v1.PreviewURLSpec"> & {
-  /**
-   * @generated from field: int64 id = 1;
-   */
-  id: bigint;
-
-  /**
-   * @generated from field: string url = 2;
-   */
-  url: string;
-};
-
-/**
- * Describes the message service.v1.PreviewURLSpec.
- * Use `create(PreviewURLSpecSchema)` to create a new message.
- */
-export const PreviewURLSpecSchema: GenMessage<PreviewURLSpec> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 4);
-
-/**
- * @generated from message service.v1.GetPreviewURLResponse
- */
-export type GetPreviewURLResponse = Message<"service.v1.GetPreviewURLResponse"> & {
-  /**
-   * Only files that actually have a preview appear here; ids without one are
-   * omitted rather than returned with an empty url.
-   *
-   * @generated from field: repeated service.v1.PreviewURLSpec preview_urls = 1;
-   */
-  previewUrls: PreviewURLSpec[];
-};
-
-/**
- * Describes the message service.v1.GetPreviewURLResponse.
- * Use `create(GetPreviewURLResponseSchema)` to create a new message.
- */
-export const GetPreviewURLResponseSchema: GenMessage<GetPreviewURLResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 5);
-
-/**
  * @generated from message service.v1.GetFileInfoRequest
  */
 export type GetFileInfoRequest = Message<"service.v1.GetFileInfoRequest"> & {
@@ -144,7 +85,7 @@ export type GetFileInfoRequest = Message<"service.v1.GetFileInfoRequest"> & {
  * Use `create(GetFileInfoRequestSchema)` to create a new message.
  */
 export const GetFileInfoRequestSchema: GenMessage<GetFileInfoRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 6);
+  messageDesc(file_service_v1_files, 3);
 
 /**
  * @generated from message service.v1.FileInfo
@@ -179,27 +120,6 @@ export type FileInfo = Message<"service.v1.FileInfo"> & {
    * @generated from field: google.protobuf.Timestamp updated_at = 6;
    */
   updatedAt?: Timestamp | undefined;
-
-  /**
-   * Object key of the generated preview image. Empty when the file has no
-   * preview: it is not an image, or the preview index has not run yet.
-   *
-   * @generated from field: string preview_key = 7;
-   */
-  previewKey: string;
-
-  /**
-   * Dimensions of the preview image; zero when preview_key is empty. Aspect
-   * ratio is preserved and sources are never upscaled, so these vary per file.
-   *
-   * @generated from field: int32 preview_width = 8;
-   */
-  previewWidth: number;
-
-  /**
-   * @generated from field: int32 preview_height = 9;
-   */
-  previewHeight: number;
 };
 
 /**
@@ -207,7 +127,7 @@ export type FileInfo = Message<"service.v1.FileInfo"> & {
  * Use `create(FileInfoSchema)` to create a new message.
  */
 export const FileInfoSchema: GenMessage<FileInfo> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 7);
+  messageDesc(file_service_v1_files, 4);
 
 /**
  * @generated from message service.v1.GetFileInfoResponse
@@ -224,7 +144,7 @@ export type GetFileInfoResponse = Message<"service.v1.GetFileInfoResponse"> & {
  * Use `create(GetFileInfoResponseSchema)` to create a new message.
  */
 export const GetFileInfoResponseSchema: GenMessage<GetFileInfoResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 8);
+  messageDesc(file_service_v1_files, 5);
 
 /**
  * @generated from message service.v1.DeleteFileRequest
@@ -241,7 +161,7 @@ export type DeleteFileRequest = Message<"service.v1.DeleteFileRequest"> & {
  * Use `create(DeleteFileRequestSchema)` to create a new message.
  */
 export const DeleteFileRequestSchema: GenMessage<DeleteFileRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 9);
+  messageDesc(file_service_v1_files, 6);
 
 /**
  * @generated from message service.v1.DeleteFileResponse
@@ -254,7 +174,7 @@ export type DeleteFileResponse = Message<"service.v1.DeleteFileResponse"> & {
  * Use `create(DeleteFileResponseSchema)` to create a new message.
  */
 export const DeleteFileResponseSchema: GenMessage<DeleteFileResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 10);
+  messageDesc(file_service_v1_files, 7);
 
 /**
  * @generated from service service.v1.FilesService
@@ -267,14 +187,6 @@ export const FilesService: GenService<{
     methodKind: "unary";
     input: typeof GetDownloadURLRequestSchema;
     output: typeof GetDownloadURLResponseSchema;
-  },
-  /**
-   * @generated from rpc service.v1.FilesService.GetPreviewURL
-   */
-  getPreviewURL: {
-    methodKind: "unary";
-    input: typeof GetPreviewURLRequestSchema;
-    output: typeof GetPreviewURLResponseSchema;
   },
   /**
    * @generated from rpc service.v1.FilesService.GetFileInfo

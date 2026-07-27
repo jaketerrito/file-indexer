@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: index-stat
+  name: indexer
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: index-stat
+      app: indexer
   template:
     metadata:
       labels:
-        app: index-stat
+        app: indexer
     spec:
       securityContext:
         runAsNonRoot: true
@@ -19,8 +19,8 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: index-stat
-          image: index-stat
+        - name: indexer
+          image: indexer
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
