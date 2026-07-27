@@ -1,12 +1,17 @@
-apiVersion: batch/v1
-kind: Job
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: crawler
+  name: index-preview
 spec:
-  ttlSecondsAfterFinished: 300
+  replicas: 1
+  selector:
+    matchLabels:
+      app: index-preview
   template:
+    metadata:
+      labels:
+        app: index-preview
     spec:
-      restartPolicy: OnFailure
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -14,8 +19,8 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: crawler
-          image: crawler
+        - name: index-preview
+          image: index-preview
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -36,6 +41,15 @@ spec:
                 name: s3-secret
             - configMapRef:
                 name: index-config
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              # Peak usage is the source bytes plus a decoded RGBA buffer
+              # (~4 bytes/pixel), bounded by PREVIEW_MAX_SOURCE_PIXELS. The
+              # runner is single-threaded, so only one image is in flight.
+              memory: 512Mi
       volumes:
         - name: tmp
           emptyDir: {}
