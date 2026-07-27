@@ -1,8 +1,9 @@
-// The indexer is a stateless daemon (no server): it polls the index_queue
-// table in postgres for files needing stat indexing, fetches metadata from
-// S3, and records the results. Files enter the queue by self-seeding from
-// the files table, which the crawler (and later the API) populates. It has
-// no in-process concurrency; scale out by running more replicas.
+// The preview indexer is a stateless daemon (no server): it polls the
+// index_queue table for files needing a preview, downloads image objects from
+// S3, generates a downscaled preview image, and writes it back to the same
+// bucket under INDEX_PREFIX. Files that are not images are marked done with no
+// result row. It has no in-process concurrency; scale out by running more
+// replicas.
 package main
 
 import (
@@ -39,13 +40,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	queue := indexer.NewPGQueue(pool, "stat", indexer.StoreStatResult)
-	stat := indexer.NewStatIndexer(s3)
+	queue := indexer.NewPGQueue(pool, "preview", indexer.StorePreviewResult)
+	preview := indexer.NewPreviewIndexer(s3, cfg.IndexPrefix, indexer.PreviewConfig(cfg.Preview))
 
 	indexerCfg := indexer.Config(cfg.Indexer)
 
-	if err := indexer.Run(ctx, "stat", indexerCfg, queue, stat.Process); err != nil {
-		slog.Error("indexer failed", "error", err)
+	if err := indexer.Run(ctx, "preview", indexerCfg, queue, preview.Process); err != nil {
+		slog.Error("preview indexer failed", "error", err)
 		os.Exit(1)
 	}
 }

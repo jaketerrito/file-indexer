@@ -13,7 +13,7 @@ import {
 
 export const listFiles = createServerFn({ method: 'GET' })
   .validator(validateListFilesInput)
-  .handler(({ data }) => listFilesImpl(getSearchClient(), data))
+  .handler(({ data }) => listFilesImpl(getSearchClient(), getFilesClient(), data))
 
 export const getDownloadUrl = createServerFn({ method: 'GET' })
   .validator(validateIdInput)

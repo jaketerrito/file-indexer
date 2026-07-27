@@ -2,11 +2,15 @@
 [![trivy](https://github.com/jaketerrito/file-indexer/actions/workflows/trivy.yml/badge.svg)](https://github.com/jaketerrito/file-indexer/actions/workflows/trivy.yml)
 
 ## Components
-### Indexer
-Builds searchable database from files in s3 bucket
+### Stat
+Builds searchable database from basic file metadata (content type, size, last modified) in s3 bucket
+
+### Preview
+Generates downscaled preview images for image files, written back to the same s3 bucket under a
+configurable key prefix (`INDEX_PREFIX`) that the crawler ignores
 
 ### Crawler
-Searches for new files in s3 bucket, sending to indexer
+Searches for new files in s3 bucket, sending to the index workers (index-stat, index-preview)
 
 ### File Manager
 Crud operations on files
@@ -37,7 +41,7 @@ SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) i
 ### Getting started
 Run `just` to see all available commands.
 
-`just up` — Launches local kind cluster and usese Tilt to provision resources, runs DB migrations, builds and deploys the app containers (indexer, files), and keeps them live-reloading on code changes. Code generation (sqlc, protobuf) runs automatically. Opens the Tilt web UI at http://localhost:10350.
+`just up` — Launches local kind cluster and usese Tilt to provision resources, runs DB migrations, builds and deploys the app containers (index-stat, index-preview, files), and keeps them live-reloading on code changes. Code generation (sqlc, protobuf) runs automatically. Opens the Tilt web UI at http://localhost:10350.
 
 ### Testing
 `just test` runs unit tests only
