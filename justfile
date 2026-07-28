@@ -3,7 +3,9 @@ help:
     @just --list
 
 # Regenerate all generated code (sqlc, protobuf, web TS clients). The web
-# codegen requires npm: protoc-gen-es comes from web/node_modules.
+# codegen requires npm: protoc-gen-es comes from web/node_modules. Run this
+# after touching migrations, sqlc queries, .proto files, or interfaces listed
+# in .mockery.yaml, and commit the regenerated output.
 generate:
     go generate ./...
     npm --prefix web ci
