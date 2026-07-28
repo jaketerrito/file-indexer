@@ -72,12 +72,11 @@ Indexer can be parameterized to generate different sets of metadata
 - idempotent indexing
 
 # Plan
-1. crawler script for filesystem --
-1. standalone api for indexing --
-1. build database --
-1. standalone api with crud and search --
-1. metadata gen functions
-1. web client that relies on the api -- 
+1. crawler script for filesystem -- DONE
+1. standalone api for indexing --DONE
+1. build database -- DONE
+1. standalone api with crud and search -- Partially DONE- MISING Upload method
+1. metadata gen functions -- DONE
+1. web client that relies on the api -- DONE
 1. Integrate indexing triggered via the api (using event queue)
-1. add more complex metadata
 1. kubernetes deployment
