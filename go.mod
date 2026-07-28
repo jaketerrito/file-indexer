@@ -19,7 +19,7 @@ require (
 	github.com/minio/minio-go/v7 v7.2.1
 	github.com/pressly/goose/v3 v3.27.2
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/image v0.41.0
+	golang.org/x/image v0.44.0
 	google.golang.org/grpc v1.82.1
 	google.golang.org/protobuf v1.36.11
 )
