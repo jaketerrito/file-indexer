@@ -45,3 +45,29 @@
 - orphaned preview blobs need a GC job: DeleteFile removes previews best-effort only, files deleted from s3 out of band never trigger it, and index_preview_result rows vanish by cascade without touching storage. Job should list INDEX_PREFIX + "previews/" and delete keys with no matching index_preview_result row
 - preview URLs are presigned per request, so the browser HTTP cache never hits across page loads. If thumbnail bandwidth becomes a problem, swap GetPreviewURL for a cacheable BFF route serving bytes with immutable cache headers
 - no HEIC/AVIF previews: no pure-Go decoder and the binaries are CGO_ENABLED=0 on scratch
+
+7/27/26
+- exif index type added (github.com/evanoberholster/imagemeta, pure Go, CGO_ENABLED=0-safe):
+  extracts EXIF + XMP into index_exif_result. Not joined into file_infos or exposed via
+  proto/web yet — deliberately scoped out, revisit once there's a concrete search/sort need
+  (e.g. sort by taken_at)
+- taken_at is TIMESTAMP not TIMESTAMPTZ on purpose: EXIF DateTimeOriginal carries no time zone,
+  so attaching one (UTC or otherwise) would fabricate an offset the source never specified.
+  gps_at and xmp_create_date are the opposite — TIMESTAMPTZ — since GPSTimeStamp is spec'd UTC
+  and XMP xmp:CreateDate genuinely carries a parsed offset; verified both empirically against
+  the library before picking column types, don't assume "it's a timestamp near EXIF" implies
+  naive
+- GPS lat/lon/alt stored at full precision (single-tenant bucket for now); if this ever goes
+  multi-tenant or gets exposed externally, revisit before joining these columns into any shared
+  view or API response
+- known imagemeta MakerNote issue: some Sony ARW lens fields come back garbled (upstream
+  reverse-offset bug) — sanitize()/maxSanitizedFieldLen bounds the damage but doesn't fix it
+- candidate gate is content-type `image/` OR a fixed RAW extension allowlist: S3/MinIO reports
+  camera RAW objects as application/octet-stream (no registered MIME type), so a content-type-only
+  gate (as index-preview uses) would silently skip every RAW file
+- two-tier bounded read (header, then full-file fallback only if the header read was truncated
+  and found nothing): measured every modern format's metadata resolves within ~200KB and forward-only,
+  Canon's legacy CRW format is the only one needing the fallback (its directory is at EOF)
+- no video/audio/PDF metadata yet — imagemeta covers images + camera RAW only; a future
+  mp4/id3 extractor could reuse index_exif_result's common columns (make, model, taken_at, gps,
+  dimensions) rather than inventing a parallel schema

@@ -220,6 +220,140 @@ func TestPGQueueEndToEndPreviewSkipped(t *testing.T) {
 	}
 }
 
+// TestPGQueueEndToEndExif exercises the exif index type's StoreFunc
+// (StoreExifResult / UpsertIndexExifResult) end-to-end. Unlike stat/preview,
+// exif result columns are not joined into file_infos (see NOTES.md), so this
+// reads index_exif_result directly instead of going through GetFile.
+func TestPGQueueEndToEndExif(t *testing.T) {
+	pool := testPool(t)
+	ctx := context.Background()
+	indexType := "exif"
+
+	key := fmt.Sprintf("it/%s/%d", t.Name(), time.Now().UnixNano())
+	fileID := insertTestFile(t, pool, key, time.Now().UTC())
+
+	queue := NewPGQueue(pool, indexType, StoreExifResult)
+
+	if _, err := queue.Seed(ctx); err != nil {
+		t.Fatalf("Seed: %v", err)
+	}
+	jobs, err := queue.Claim(ctx, 10, time.Hour)
+	if err != nil || len(jobs) != 1 {
+		t.Fatalf("Claim: jobs=%v err=%v", jobs, err)
+	}
+
+	iso := int32(400)
+	takenAt := time.Date(2022, 6, 1, 12, 0, 0, 0, time.UTC)
+	result := ExifResult{
+		ImageType:   "image/jpeg",
+		CameraMake:  "Canon",
+		CameraModel: "Canon EOS R5",
+		TakenAt:     &takenAt,
+		ISO:         &iso,
+		XMPKeywords: []string{"a", "b"},
+		HasExif:     true,
+		HasXMP:      true,
+	}
+	if err := queue.Complete(ctx, fileID, result); err != nil {
+		t.Fatalf("Complete: %v", err)
+	}
+
+	var cameraMake, cameraModel, imageType string
+	var gotISO int32
+	var gotTakenAt time.Time
+	var keywords []string
+	var hasExif, hasXMP bool
+	if err := pool.QueryRow(ctx,
+		`SELECT image_type, camera_make, camera_model, iso, taken_at, xmp_keywords, has_exif, has_xmp
+		 FROM index_exif_result WHERE file_id = $1`, fileID,
+	).Scan(&imageType, &cameraMake, &cameraModel, &gotISO, &gotTakenAt, &keywords, &hasExif, &hasXMP); err != nil {
+		t.Fatalf("read index_exif_result: %v", err)
+	}
+	if imageType != result.ImageType || cameraMake != result.CameraMake || cameraModel != result.CameraModel {
+		t.Errorf("got image_type=%q camera_make=%q camera_model=%q, want %q/%q/%q",
+			imageType, cameraMake, cameraModel, result.ImageType, result.CameraMake, result.CameraModel)
+	}
+	if gotISO != iso || !gotTakenAt.Equal(takenAt) {
+		t.Errorf("got iso=%d taken_at=%v, want %d/%v", gotISO, gotTakenAt, iso, takenAt)
+	}
+	if len(keywords) != 2 || keywords[0] != "a" || keywords[1] != "b" {
+		t.Errorf("xmp_keywords = %v, want [a b]", keywords)
+	}
+	if !hasExif || !hasXMP {
+		t.Errorf("has_exif=%v has_xmp=%v, want both true", hasExif, hasXMP)
+	}
+
+	var status string
+	if err := pool.QueryRow(ctx,
+		`SELECT status FROM index_queue WHERE index_type = $1 AND file_id = $2`,
+		indexType, fileID).Scan(&status); err != nil {
+		t.Fatalf("read index_queue status: %v", err)
+	}
+	if status != "done" {
+		t.Errorf("index_queue status = %q, want done", status)
+	}
+
+	// Re-running Complete (as would happen after a claim-TTL expiry retry)
+	// must upsert cleanly rather than erroring on the primary key.
+	result.CameraModel = "Canon EOS R5 Mark II"
+	if err := queue.Complete(ctx, fileID, result); err != nil {
+		t.Fatalf("Complete (second run): %v", err)
+	}
+	var updatedModel string
+	if err := pool.QueryRow(ctx,
+		`SELECT camera_model FROM index_exif_result WHERE file_id = $1`, fileID,
+	).Scan(&updatedModel); err != nil {
+		t.Fatalf("read index_exif_result after re-run: %v", err)
+	}
+	if updatedModel != result.CameraModel {
+		t.Errorf("camera_model after re-run = %q, want %q", updatedModel, result.CameraModel)
+	}
+}
+
+// TestPGQueueEndToEndExifSkipped confirms a skipped exif result writes no
+// index_exif_result row while still marking the queue row done.
+func TestPGQueueEndToEndExifSkipped(t *testing.T) {
+	pool := testPool(t)
+	ctx := context.Background()
+	indexType := "exif"
+
+	key := fmt.Sprintf("it/%s/%d", t.Name(), time.Now().UnixNano())
+	fileID := insertTestFile(t, pool, key, time.Now().UTC())
+
+	queue := NewPGQueue(pool, indexType, StoreExifResult)
+
+	if _, err := queue.Seed(ctx); err != nil {
+		t.Fatalf("Seed: %v", err)
+	}
+	if _, err := queue.Claim(ctx, 10, time.Hour); err != nil {
+		t.Fatalf("Claim: %v", err)
+	}
+
+	if err := queue.Complete(ctx, fileID, ExifResult{Skipped: true}); err != nil {
+		t.Fatalf("Complete: %v", err)
+	}
+
+	var exists bool
+	if err := pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM index_exif_result WHERE file_id = $1)`, fileID,
+	).Scan(&exists); err != nil {
+		t.Fatalf("check index_exif_result: %v", err)
+	}
+	if exists {
+		t.Error("expected no index_exif_result row for a skipped result")
+	}
+
+	var status string
+	if err := pool.QueryRow(ctx,
+		`SELECT status FROM index_queue WHERE index_type = $1 AND file_id = $2`,
+		indexType, fileID).Scan(&status); err != nil {
+		t.Fatalf("read index_queue status: %v", err)
+	}
+	if status != "done" {
+		t.Errorf("index_queue status = %q, want done", status)
+	}
+}
+
 func TestPGQueueCompleteRollsBackOnStoreError(t *testing.T) {
 	pool := testPool(t)
 	ctx := context.Background()

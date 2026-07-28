@@ -9,8 +9,14 @@ Builds searchable database from basic file metadata (content type, size, last mo
 Generates downscaled preview images for image files, written back to the same s3 bucket under a
 configurable key prefix (`INDEX_PREFIX`) that the crawler ignores
 
+### Exif
+Extracts EXIF and XMP metadata (camera make/model, capture time, exposure settings, GPS, XMP
+title/rating/keywords) from image and camera-RAW files (JPEG, TIFF, PNG, HEIC/HEIF/AVIF,
+CR2/CR3/CRW, DNG, NEF, ARW, RW2). Files with neither EXIF nor XMP are marked done with no result
+row.
+
 ### Crawler
-Searches for new files in s3 bucket, sending to the index workers (index-stat, index-preview)
+Searches for new files in s3 bucket, sending to the index workers (index-stat, index-preview, index-exif)
 
 ### File Manager
 Crud operations on files

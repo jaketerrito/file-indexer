@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: index-exif
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: index-exif
+  template:
+    metadata:
+      labels:
+        app: index-exif
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: index-exif
+          image: index-exif
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          envFrom:
+            - secretRef:
+                name: db-secret
+            - secretRef:
+                name: s3-secret
+            - configMapRef:
+                name: index-config
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              # Peak usage is bounded by EXIF_MAX_SOURCE_BYTES (default
+              # 64MiB) on the rare full-file fallback path: io.ReadAll grows
+              # by repeated append, so a full-size read can transiently hold
+              # both the old and new backing arrays at once before GC, well
+              # above the nominal 64MiB. No decoded pixel buffer like
+              # index-preview, but matching its limit for the same
+              # source-size bound rather than risking an OOMKill on the
+              # fallback path.
+              memory: 512Mi
+      volumes:
+        - name: tmp
+          emptyDir: {}

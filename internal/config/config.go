@@ -54,6 +54,21 @@ type PreviewConfig struct {
 	MaxSourcePixels int64
 }
 
+// ExifConfig tunes the exif index type's metadata extraction. Both limits
+// bound memory and network use against untrusted object content, mirroring
+// PreviewConfig's rationale.
+type ExifConfig struct {
+	// MaxHeaderBytes bounds the first read attempt. EXIF/XMP metadata lives
+	// near the start of every modern format (JPEG, HEIC, AVIF, and every
+	// TIFF-based RAW), so this only needs to be generously larger than that,
+	// not sized to any one format exactly.
+	MaxHeaderBytes int64
+	// MaxSourceBytes bounds the fallback full read, used only when the
+	// header read found no metadata and had more data beyond it (legacy
+	// formats like Canon CRW keep their directory at end-of-file).
+	MaxSourceBytes int64
+}
+
 // IndexerConfig tunes the indexer's claim/process loop. Zero values use
 // built-in defaults set during Load, so only the knobs that matter need
 // to be set.
@@ -86,6 +101,7 @@ type Config struct {
 	S3          S3Config
 	Indexer     IndexerConfig
 	Preview     PreviewConfig
+	Exif        ExifConfig
 }
 
 func getEnvDefault(key, def string) string {
@@ -182,6 +198,10 @@ func Load() *Config {
 			Quality:         getEnvInt("PREVIEW_QUALITY", 80),
 			MaxSourceBytes:  getEnvInt64("PREVIEW_MAX_SOURCE_BYTES", 64<<20),
 			MaxSourcePixels: getEnvInt64("PREVIEW_MAX_SOURCE_PIXELS", 40_000_000),
+		},
+		Exif: ExifConfig{
+			MaxHeaderBytes: getEnvInt64("EXIF_MAX_HEADER_BYTES", 1<<20),
+			MaxSourceBytes: getEnvInt64("EXIF_MAX_SOURCE_BYTES", 64<<20),
 		},
 	}
 }
