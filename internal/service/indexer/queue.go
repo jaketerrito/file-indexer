@@ -43,6 +43,10 @@ var (
 	_ Queue[PreviewResult]       = (*PGQueue[PreviewResult])(nil)
 	_ ProcessFunc[PreviewResult] = (*PreviewIndexer)(nil).Process
 	_ StoreFunc[PreviewResult]   = StorePreviewResult
+
+	_ Queue[ExifResult]       = (*PGQueue[ExifResult])(nil)
+	_ ProcessFunc[ExifResult] = (*ExifIndexer)(nil).Process
+	_ StoreFunc[ExifResult]   = StoreExifResult
 )
 
 // NewPGQueue constructs a PGQueue for one index type.
