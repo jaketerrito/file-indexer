@@ -121,6 +121,14 @@ func (s *s3Storage) presign(ctx context.Context, key, disposition string) (strin
 	return presignedURL.String(), nil
 }
 
+func (s *s3Storage) PutURL(ctx context.Context, key string) (string, error) {
+	presignedURL, err := s.presignClient.PresignedPutObject(ctx, s.bucket, key, presignExpiry)
+	if err != nil {
+		return "", err
+	}
+	return presignedURL.String(), nil
+}
+
 func (s *s3Storage) Put(ctx context.Context, key string, r io.Reader, size int64, contentType string) error {
 	_, err := s.client.PutObject(ctx, s.bucket, key, r, size,
 		minio.PutObjectOptions{ContentType: contentType})

@@ -34,6 +34,14 @@ type Storage interface {
 	// content-disposition that GetURL forces.
 	GetInlineURL(ctx context.Context, key string) (string, error)
 
+	// PutURL returns a time-limited presigned URL a client can PUT the
+	// object's bytes to directly, without routing them through this service.
+	// The client sets its own Content-Type header on the PUT; minio-go's
+	// presigned-PUT signing does not bind headers into the signature, so it
+	// is not verified here (see server.go for the reference-based indexing
+	// path that stats the object afterward instead of trusting the upload).
+	PutURL(ctx context.Context, key string) (string, error)
+
 	// Put writes an object. size must be the exact number of bytes readable
 	// from r. contentType becomes the object's Content-Type and is what
 	// clients receive when fetching it, including via presigned URLs.
