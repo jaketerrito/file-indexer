@@ -453,3 +453,69 @@ func (_c *MockFileIndex_GetFilesByIDs_Call) RunAndReturn(run func(ctx context.Co
 	_c.Call.Return(run)
 	return _c
 }
+
+// GetIndexExifResult provides a mock function for the type MockFileIndex
+func (_mock *MockFileIndex) GetIndexExifResult(ctx context.Context, fileID int64) (db.IndexExifResult, error) {
+	ret := _mock.Called(ctx, fileID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetIndexExifResult")
+	}
+
+	var r0 db.IndexExifResult
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) (db.IndexExifResult, error)); ok {
+		return returnFunc(ctx, fileID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64) db.IndexExifResult); ok {
+		r0 = returnFunc(ctx, fileID)
+	} else {
+		r0 = ret.Get(0).(db.IndexExifResult)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int64) error); ok {
+		r1 = returnFunc(ctx, fileID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileIndex_GetIndexExifResult_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetIndexExifResult'
+type MockFileIndex_GetIndexExifResult_Call struct {
+	*mock.Call
+}
+
+// GetIndexExifResult is a helper method to define mock.On call
+//   - ctx context.Context
+//   - fileID int64
+func (_e *MockFileIndex_Expecter) GetIndexExifResult(ctx any, fileID any) *MockFileIndex_GetIndexExifResult_Call {
+	return &MockFileIndex_GetIndexExifResult_Call{Call: _e.mock.On("GetIndexExifResult", ctx, fileID)}
+}
+
+func (_c *MockFileIndex_GetIndexExifResult_Call) Run(run func(ctx context.Context, fileID int64)) *MockFileIndex_GetIndexExifResult_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileIndex_GetIndexExifResult_Call) Return(indexExifResult db.IndexExifResult, err error) *MockFileIndex_GetIndexExifResult_Call {
+	_c.Call.Return(indexExifResult, err)
+	return _c
+}
+
+func (_c *MockFileIndex_GetIndexExifResult_Call) RunAndReturn(run func(ctx context.Context, fileID int64) (db.IndexExifResult, error)) *MockFileIndex_GetIndexExifResult_Call {
+	_c.Call.Return(run)
+	return _c
+}

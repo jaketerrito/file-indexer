@@ -12,13 +12,15 @@ vi.mock('../server/files', () => ({
   listFiles: vi.fn(),
   getDownloadUrl: vi.fn(),
   deleteFile: vi.fn(),
+  getFileMetadata: vi.fn(),
 }))
 
-import { deleteFile, getDownloadUrl, listFiles } from '../server/files'
+import { deleteFile, getDownloadUrl, getFileMetadata, listFiles } from '../server/files'
 
 const listFilesMock = vi.mocked(listFiles)
 const getDownloadUrlMock = vi.mocked(getDownloadUrl)
 const deleteFileMock = vi.mocked(deleteFile)
+const getFileMetadataMock = vi.mocked(getFileMetadata)
 
 function page(keys: string[], startId: number, nextPageToken = ''): ListFilesResult {
   return {
@@ -279,5 +281,68 @@ describe('FileList', () => {
       expect(listFilesMock).toHaveBeenCalledTimes(2)
     })
     await waitFor(() => expect(screen.queryByText('a.txt')).toBeNull())
+  })
+
+  it('opens the metadata modal with fetched details and closes it', async () => {
+    listFilesMock.mockResolvedValue(page(['a.txt'], 1))
+    getFileMetadataMock.mockResolvedValue({
+      id: '1',
+      key: 'a.txt',
+      contentType: 'text/plain',
+      sizeBytes: 2048,
+      createdAt: '2026-01-02T03:04:05.000Z',
+      updatedAt: null,
+      exif: null,
+    })
+
+    renderFileList()
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Metadata' }))
+
+    expect(await screen.findByRole('dialog')).toBeDefined()
+    expect(getFileMetadataMock).toHaveBeenCalledWith({ data: { id: '1' } })
+    expect(await screen.findByText('text/plain')).toBeDefined()
+    expect(screen.getByText('2.0 KB')).toBeDefined()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('shows exif metadata in the modal when present', async () => {
+    listFilesMock.mockResolvedValue(page(['photo.jpg'], 1))
+    getFileMetadataMock.mockResolvedValue({
+      id: '1',
+      key: 'photo.jpg',
+      contentType: 'image/jpeg',
+      sizeBytes: 2048,
+      createdAt: null,
+      updatedAt: null,
+      exif: {
+        cameraMake: 'Canon',
+        cameraModel: 'EOS R5',
+        xmpKeywords: [],
+        hasExif: true,
+        hasXmp: false,
+      },
+    })
+
+    renderFileList()
+    await screen.findByText('photo.jpg')
+    fireEvent.click(screen.getByRole('button', { name: 'Metadata' }))
+
+    expect(await screen.findByText('Canon')).toBeDefined()
+    expect(screen.getByText('EOS R5')).toBeDefined()
+  })
+
+  it('shows an error state when metadata fails to load', async () => {
+    listFilesMock.mockResolvedValue(page(['a.txt'], 1))
+    getFileMetadataMock.mockRejectedValue(new Error('boom'))
+
+    renderFileList()
+    await screen.findByText('a.txt')
+    fireEvent.click(screen.getByRole('button', { name: 'Metadata' }))
+
+    expect(await screen.findByRole('alert')).toBeDefined()
   })
 })

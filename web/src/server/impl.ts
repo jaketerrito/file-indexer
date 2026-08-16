@@ -1,6 +1,6 @@
 import { timestampDate } from '@bufbuild/protobuf/wkt'
 import type { Client } from '@connectrpc/connect'
-import type { FileInfo, FilesService } from '../gen/service/v1/files_pb'
+import type { ExifMetadata, FileInfo, FilesService } from '../gen/service/v1/files_pb'
 import { type SearchService, SortField, SortOrder } from '../gen/service/v1/search_pb'
 
 // Pure request/response logic for the server functions in files.ts, kept
@@ -27,6 +27,116 @@ export interface FileDto {
   /** Intrinsic dimensions of the preview, used to reserve layout space. */
   previewWidth: number | null
   previewHeight: number | null
+}
+
+/**
+ * Plain-JSON projection of service.v1.ExifMetadata. Present only when the
+ * file has been through the exif indexer and carries EXIF or XMP data;
+ * fields absent in the source (sparse by nature) stay undefined rather than
+ * being coerced to a zero value.
+ */
+export interface ExifMetadataDto {
+  imageType?: string
+  cameraMake?: string
+  cameraModel?: string
+  cameraSerial?: string
+  lensMake?: string
+  lensModel?: string
+  takenAt?: string
+  iso?: number
+  fNumber?: number
+  exposureTime?: number
+  focalLength?: number
+  focalLength35mm?: number
+  exposureProgram?: number
+  meteringMode?: number
+  flash?: number
+  orientation?: number
+  imageWidth?: number
+  imageHeight?: number
+  gpsLatitude?: number
+  gpsLongitude?: number
+  gpsAltitude?: number
+  gpsAt?: string
+  software?: string
+  artist?: string
+  copyright?: string
+  imageDescription?: string
+  xmpTitle?: string
+  xmpDescription?: string
+  xmpCreator?: string
+  xmpLabel?: string
+  xmpRating?: number
+  xmpKeywords: string[]
+  xmpCreateDate?: string
+  hasExif: boolean
+  hasXmp: boolean
+}
+
+/**
+ * Full metadata projection for the file metadata modal: everything in
+ * FileDto plus updatedAt and, when present, EXIF/XMP data.
+ */
+export interface FileMetadataDto {
+  id: string
+  key: string
+  contentType: string
+  sizeBytes: number
+  createdAt: string | null
+  updatedAt: string | null
+  exif: ExifMetadataDto | null
+}
+
+export function toExifMetadataDto(exif: ExifMetadata): ExifMetadataDto {
+  return {
+    imageType: exif.imageType,
+    cameraMake: exif.cameraMake,
+    cameraModel: exif.cameraModel,
+    cameraSerial: exif.cameraSerial,
+    lensMake: exif.lensMake,
+    lensModel: exif.lensModel,
+    takenAt: exif.takenAt ? timestampDate(exif.takenAt).toISOString() : undefined,
+    iso: exif.iso,
+    fNumber: exif.fNumber,
+    exposureTime: exif.exposureTime,
+    focalLength: exif.focalLength,
+    focalLength35mm: exif.focalLength35mm,
+    exposureProgram: exif.exposureProgram,
+    meteringMode: exif.meteringMode,
+    flash: exif.flash,
+    orientation: exif.orientation,
+    imageWidth: exif.imageWidth,
+    imageHeight: exif.imageHeight,
+    gpsLatitude: exif.gpsLatitude,
+    gpsLongitude: exif.gpsLongitude,
+    gpsAltitude: exif.gpsAltitude,
+    gpsAt: exif.gpsAt ? timestampDate(exif.gpsAt).toISOString() : undefined,
+    software: exif.software,
+    artist: exif.artist,
+    copyright: exif.copyright,
+    imageDescription: exif.imageDescription,
+    xmpTitle: exif.xmpTitle,
+    xmpDescription: exif.xmpDescription,
+    xmpCreator: exif.xmpCreator,
+    xmpLabel: exif.xmpLabel,
+    xmpRating: exif.xmpRating,
+    xmpKeywords: exif.xmpKeywords,
+    xmpCreateDate: exif.xmpCreateDate ? timestampDate(exif.xmpCreateDate).toISOString() : undefined,
+    hasExif: exif.hasExif,
+    hasXmp: exif.hasXmp,
+  }
+}
+
+export function toFileMetadataDto(file: FileInfo): FileMetadataDto {
+  return {
+    id: file.id.toString(),
+    key: file.key,
+    contentType: file.contentType,
+    sizeBytes: Number(file.sizeBytes),
+    createdAt: file.createdAt ? timestampDate(file.createdAt).toISOString() : null,
+    updatedAt: file.updatedAt ? timestampDate(file.updatedAt).toISOString() : null,
+    exif: file.exif ? toExifMetadataDto(file.exif) : null,
+  }
 }
 
 export const SORT_FIELDS = ['key', 'lastModified', 'size'] as const
@@ -180,6 +290,17 @@ export async function getDownloadUrlImpl(
     throw new Error(`no download URL returned for file ${id}`)
   }
   return { url: spec.url }
+}
+
+export async function getFileMetadataImpl(
+  client: Client<typeof FilesService>,
+  id: string,
+): Promise<FileMetadataDto> {
+  const res = await client.getFileInfo({ id: BigInt(id) })
+  if (!res.file) {
+    throw new Error(`no file returned for id ${id}`)
+  }
+  return toFileMetadataDto(res.file)
 }
 
 export async function deleteFileImpl(

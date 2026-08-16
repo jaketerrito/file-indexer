@@ -1,0 +1,4 @@
+TODO (seed data)
+
+- [ ] Nothing real here — this is a sample text file for local dev seeding.
+- [ ] Used to exercise search/filter by content type ("text/plain") in the UI.

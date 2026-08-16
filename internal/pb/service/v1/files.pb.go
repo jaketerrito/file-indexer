@@ -363,6 +363,10 @@ type FileInfo struct {
 	// ratio is preserved and sources are never upscaled, so these vary per file.
 	PreviewWidth  int32 `protobuf:"varint,8,opt,name=preview_width,json=previewWidth,proto3" json:"preview_width,omitempty"`
 	PreviewHeight int32 `protobuf:"varint,9,opt,name=preview_height,json=previewHeight,proto3" json:"preview_height,omitempty"`
+	// EXIF/XMP metadata, present only for image/camera-RAW files that carry at
+	// least one of the two. Unset when the file has no exif index result yet,
+	// or has neither EXIF nor XMP data.
+	Exif          *ExifMetadata `protobuf:"bytes,10,opt,name=exif,proto3" json:"exif,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -460,6 +464,342 @@ func (x *FileInfo) GetPreviewHeight() int32 {
 	return 0
 }
 
+func (x *FileInfo) GetExif() *ExifMetadata {
+	if x != nil {
+		return x.Exif
+	}
+	return nil
+}
+
+// EXIF and XMP metadata extracted from an image or camera-RAW file. Mirrors
+// internal/db/migrations/003_exif.sql; every field is optional because
+// EXIF/XMP tags are sparse (most cameras omit most tags) and absence must be
+// distinguishable from a legitimate zero value.
+type ExifMetadata struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Sniffed image type from the metadata parser (e.g. "image/x-canon-cr2"),
+	// which may differ from FileInfo.content_type as reported by S3.
+	ImageType    *string `protobuf:"bytes,1,opt,name=image_type,json=imageType,proto3,oneof" json:"image_type,omitempty"`
+	CameraMake   *string `protobuf:"bytes,2,opt,name=camera_make,json=cameraMake,proto3,oneof" json:"camera_make,omitempty"`
+	CameraModel  *string `protobuf:"bytes,3,opt,name=camera_model,json=cameraModel,proto3,oneof" json:"camera_model,omitempty"`
+	CameraSerial *string `protobuf:"bytes,4,opt,name=camera_serial,json=cameraSerial,proto3,oneof" json:"camera_serial,omitempty"`
+	LensMake     *string `protobuf:"bytes,5,opt,name=lens_make,json=lensMake,proto3,oneof" json:"lens_make,omitempty"`
+	LensModel    *string `protobuf:"bytes,6,opt,name=lens_model,json=lensModel,proto3,oneof" json:"lens_model,omitempty"`
+	// Naive (zone-less) local capture time as recorded by the camera clock.
+	// EXIF DateTimeOriginal carries no offset, so no timezone is attached.
+	TakenAt          *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=taken_at,json=takenAt,proto3" json:"taken_at,omitempty"`
+	Iso              *int32                 `protobuf:"varint,8,opt,name=iso,proto3,oneof" json:"iso,omitempty"`
+	FNumber          *float32               `protobuf:"fixed32,9,opt,name=f_number,json=fNumber,proto3,oneof" json:"f_number,omitempty"`
+	ExposureTime     *float32               `protobuf:"fixed32,10,opt,name=exposure_time,json=exposureTime,proto3,oneof" json:"exposure_time,omitempty"`            // seconds
+	FocalLength      *float32               `protobuf:"fixed32,11,opt,name=focal_length,json=focalLength,proto3,oneof" json:"focal_length,omitempty"`               // millimeters
+	FocalLength_35Mm *float32               `protobuf:"fixed32,12,opt,name=focal_length_35mm,json=focalLength35mm,proto3,oneof" json:"focal_length_35mm,omitempty"` // millimeters, 35mm-equivalent
+	ExposureProgram  *int32                 `protobuf:"varint,13,opt,name=exposure_program,json=exposureProgram,proto3,oneof" json:"exposure_program,omitempty"`
+	MeteringMode     *int32                 `protobuf:"varint,14,opt,name=metering_mode,json=meteringMode,proto3,oneof" json:"metering_mode,omitempty"`
+	Flash            *int32                 `protobuf:"varint,15,opt,name=flash,proto3,oneof" json:"flash,omitempty"`
+	Orientation      *int32                 `protobuf:"varint,16,opt,name=orientation,proto3,oneof" json:"orientation,omitempty"`
+	ImageWidth       *int32                 `protobuf:"varint,17,opt,name=image_width,json=imageWidth,proto3,oneof" json:"image_width,omitempty"`
+	ImageHeight      *int32                 `protobuf:"varint,18,opt,name=image_height,json=imageHeight,proto3,oneof" json:"image_height,omitempty"`
+	// GPS, kept at full precision (private, single-tenant bucket).
+	GpsLatitude  *float64 `protobuf:"fixed64,19,opt,name=gps_latitude,json=gpsLatitude,proto3,oneof" json:"gps_latitude,omitempty"`
+	GpsLongitude *float64 `protobuf:"fixed64,20,opt,name=gps_longitude,json=gpsLongitude,proto3,oneof" json:"gps_longitude,omitempty"`
+	GpsAltitude  *float32 `protobuf:"fixed32,21,opt,name=gps_altitude,json=gpsAltitude,proto3,oneof" json:"gps_altitude,omitempty"`
+	// Unlike taken_at, GPS timestamps are unambiguously UTC per the EXIF spec.
+	GpsAt            *timestamppb.Timestamp `protobuf:"bytes,22,opt,name=gps_at,json=gpsAt,proto3" json:"gps_at,omitempty"`
+	Software         *string                `protobuf:"bytes,23,opt,name=software,proto3,oneof" json:"software,omitempty"`
+	Artist           *string                `protobuf:"bytes,24,opt,name=artist,proto3,oneof" json:"artist,omitempty"`
+	Copyright        *string                `protobuf:"bytes,25,opt,name=copyright,proto3,oneof" json:"copyright,omitempty"`
+	ImageDescription *string                `protobuf:"bytes,26,opt,name=image_description,json=imageDescription,proto3,oneof" json:"image_description,omitempty"`
+	XmpTitle         *string                `protobuf:"bytes,27,opt,name=xmp_title,json=xmpTitle,proto3,oneof" json:"xmp_title,omitempty"`
+	XmpDescription   *string                `protobuf:"bytes,28,opt,name=xmp_description,json=xmpDescription,proto3,oneof" json:"xmp_description,omitempty"`
+	XmpCreator       *string                `protobuf:"bytes,29,opt,name=xmp_creator,json=xmpCreator,proto3,oneof" json:"xmp_creator,omitempty"`
+	XmpLabel         *string                `protobuf:"bytes,30,opt,name=xmp_label,json=xmpLabel,proto3,oneof" json:"xmp_label,omitempty"`
+	XmpRating        *int32                 `protobuf:"varint,31,opt,name=xmp_rating,json=xmpRating,proto3,oneof" json:"xmp_rating,omitempty"`
+	XmpKeywords      []string               `protobuf:"bytes,32,rep,name=xmp_keywords,json=xmpKeywords,proto3" json:"xmp_keywords,omitempty"`
+	// XMP xmp:CreateDate carries a zone offset, unlike taken_at.
+	XmpCreateDate *timestamppb.Timestamp `protobuf:"bytes,33,opt,name=xmp_create_date,json=xmpCreateDate,proto3" json:"xmp_create_date,omitempty"`
+	// Which of EXIF/XMP contributed to this metadata, so an absent field can
+	// be told apart from "no EXIF/XMP block was present at all".
+	HasExif       bool `protobuf:"varint,34,opt,name=has_exif,json=hasExif,proto3" json:"has_exif,omitempty"`
+	HasXmp        bool `protobuf:"varint,35,opt,name=has_xmp,json=hasXmp,proto3" json:"has_xmp,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExifMetadata) Reset() {
+	*x = ExifMetadata{}
+	mi := &file_service_v1_files_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExifMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExifMetadata) ProtoMessage() {}
+
+func (x *ExifMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExifMetadata.ProtoReflect.Descriptor instead.
+func (*ExifMetadata) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ExifMetadata) GetImageType() string {
+	if x != nil && x.ImageType != nil {
+		return *x.ImageType
+	}
+	return ""
+}
+
+func (x *ExifMetadata) GetCameraMake() string {
+	if x != nil && x.CameraMake != nil {
+		return *x.CameraMake
+	}
+	return ""
+}
+
+func (x *ExifMetadata) GetCameraModel() string {
+	if x != nil && x.CameraModel != nil {
+		return *x.CameraModel
+	}
+	return ""
+}
+
+func (x *ExifMetadata) GetCameraSerial() string {
+	if x != nil && x.CameraSerial != nil {
+		return *x.CameraSerial
+	}
+	return ""
+}
+
+func (x *ExifMetadata) GetLensMake() string {
+	if x != nil && x.LensMake != nil {
+		return *x.LensMake
+	}
+	return ""
+}
+
+func (x *ExifMetadata) GetLensModel() string {
+	if x != nil && x.LensModel != nil {
+		return *x.LensModel
+	}
+	return ""
+}
+
+func (x *ExifMetadata) GetTakenAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.TakenAt
+	}
+	return nil
+}
+
+func (x *ExifMetadata) GetIso() int32 {
+	if x != nil && x.Iso != nil {
+		return *x.Iso
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetFNumber() float32 {
+	if x != nil && x.FNumber != nil {
+		return *x.FNumber
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetExposureTime() float32 {
+	if x != nil && x.ExposureTime != nil {
+		return *x.ExposureTime
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetFocalLength() float32 {
+	if x != nil && x.FocalLength != nil {
+		return *x.FocalLength
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetFocalLength_35Mm() float32 {
+	if x != nil && x.FocalLength_35Mm != nil {
+		return *x.FocalLength_35Mm
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetExposureProgram() int32 {
+	if x != nil && x.ExposureProgram != nil {
+		return *x.ExposureProgram
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetMeteringMode() int32 {
+	if x != nil && x.MeteringMode != nil {
+		return *x.MeteringMode
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetFlash() int32 {
+	if x != nil && x.Flash != nil {
+		return *x.Flash
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetOrientation() int32 {
+	if x != nil && x.Orientation != nil {
+		return *x.Orientation
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetImageWidth() int32 {
+	if x != nil && x.ImageWidth != nil {
+		return *x.ImageWidth
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetImageHeight() int32 {
+	if x != nil && x.ImageHeight != nil {
+		return *x.ImageHeight
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetGpsLatitude() float64 {
+	if x != nil && x.GpsLatitude != nil {
+		return *x.GpsLatitude
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetGpsLongitude() float64 {
+	if x != nil && x.GpsLongitude != nil {
+		return *x.GpsLongitude
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetGpsAltitude() float32 {
+	if x != nil && x.GpsAltitude != nil {
+		return *x.GpsAltitude
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetGpsAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.GpsAt
+	}
+	return nil
+}
+
+func (x *ExifMetadata) GetSoftware() string {
+	if x != nil && x.Software != nil {
+		return *x.Software
+	}
+	return ""
+}
+
+func (x *ExifMetadata) GetArtist() string {
+	if x != nil && x.Artist != nil {
+		return *x.Artist
+	}
+	return ""
+}
+
+func (x *ExifMetadata) GetCopyright() string {
+	if x != nil && x.Copyright != nil {
+		return *x.Copyright
+	}
+	return ""
+}
+
+func (x *ExifMetadata) GetImageDescription() string {
+	if x != nil && x.ImageDescription != nil {
+		return *x.ImageDescription
+	}
+	return ""
+}
+
+func (x *ExifMetadata) GetXmpTitle() string {
+	if x != nil && x.XmpTitle != nil {
+		return *x.XmpTitle
+	}
+	return ""
+}
+
+func (x *ExifMetadata) GetXmpDescription() string {
+	if x != nil && x.XmpDescription != nil {
+		return *x.XmpDescription
+	}
+	return ""
+}
+
+func (x *ExifMetadata) GetXmpCreator() string {
+	if x != nil && x.XmpCreator != nil {
+		return *x.XmpCreator
+	}
+	return ""
+}
+
+func (x *ExifMetadata) GetXmpLabel() string {
+	if x != nil && x.XmpLabel != nil {
+		return *x.XmpLabel
+	}
+	return ""
+}
+
+func (x *ExifMetadata) GetXmpRating() int32 {
+	if x != nil && x.XmpRating != nil {
+		return *x.XmpRating
+	}
+	return 0
+}
+
+func (x *ExifMetadata) GetXmpKeywords() []string {
+	if x != nil {
+		return x.XmpKeywords
+	}
+	return nil
+}
+
+func (x *ExifMetadata) GetXmpCreateDate() *timestamppb.Timestamp {
+	if x != nil {
+		return x.XmpCreateDate
+	}
+	return nil
+}
+
+func (x *ExifMetadata) GetHasExif() bool {
+	if x != nil {
+		return x.HasExif
+	}
+	return false
+}
+
+func (x *ExifMetadata) GetHasXmp() bool {
+	if x != nil {
+		return x.HasXmp
+	}
+	return false
+}
+
 type GetFileInfoResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	File          *FileInfo              `protobuf:"bytes,1,opt,name=file,proto3" json:"file,omitempty"`
@@ -469,7 +809,7 @@ type GetFileInfoResponse struct {
 
 func (x *GetFileInfoResponse) Reset() {
 	*x = GetFileInfoResponse{}
-	mi := &file_service_v1_files_proto_msgTypes[8]
+	mi := &file_service_v1_files_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -481,7 +821,7 @@ func (x *GetFileInfoResponse) String() string {
 func (*GetFileInfoResponse) ProtoMessage() {}
 
 func (x *GetFileInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[8]
+	mi := &file_service_v1_files_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -494,7 +834,7 @@ func (x *GetFileInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFileInfoResponse.ProtoReflect.Descriptor instead.
 func (*GetFileInfoResponse) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{8}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetFileInfoResponse) GetFile() *FileInfo {
@@ -513,7 +853,7 @@ type DeleteFileRequest struct {
 
 func (x *DeleteFileRequest) Reset() {
 	*x = DeleteFileRequest{}
-	mi := &file_service_v1_files_proto_msgTypes[9]
+	mi := &file_service_v1_files_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -525,7 +865,7 @@ func (x *DeleteFileRequest) String() string {
 func (*DeleteFileRequest) ProtoMessage() {}
 
 func (x *DeleteFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[9]
+	mi := &file_service_v1_files_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -538,7 +878,7 @@ func (x *DeleteFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFileRequest.ProtoReflect.Descriptor instead.
 func (*DeleteFileRequest) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{9}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *DeleteFileRequest) GetId() int64 {
@@ -556,7 +896,7 @@ type DeleteFileResponse struct {
 
 func (x *DeleteFileResponse) Reset() {
 	*x = DeleteFileResponse{}
-	mi := &file_service_v1_files_proto_msgTypes[10]
+	mi := &file_service_v1_files_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -568,7 +908,7 @@ func (x *DeleteFileResponse) String() string {
 func (*DeleteFileResponse) ProtoMessage() {}
 
 func (x *DeleteFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[10]
+	mi := &file_service_v1_files_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -581,7 +921,7 @@ func (x *DeleteFileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFileResponse.ProtoReflect.Descriptor instead.
 func (*DeleteFileResponse) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{10}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{11}
 }
 
 var File_service_v1_files_proto protoreflect.FileDescriptor
@@ -605,7 +945,7 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\x15GetPreviewURLResponse\x12=\n" +
 	"\fpreview_urls\x18\x01 \x03(\v2\x1a.service.v1.PreviewURLSpecR\vpreviewUrls\"$\n" +
 	"\x12GetFileInfoRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"\xd1\x02\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\xff\x02\n" +
 	"\bFileInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x10\n" +
 	"\x03key\x18\x02 \x01(\tR\x03key\x12!\n" +
@@ -619,7 +959,86 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\vpreview_key\x18\a \x01(\tR\n" +
 	"previewKey\x12#\n" +
 	"\rpreview_width\x18\b \x01(\x05R\fpreviewWidth\x12%\n" +
-	"\x0epreview_height\x18\t \x01(\x05R\rpreviewHeight\"?\n" +
+	"\x0epreview_height\x18\t \x01(\x05R\rpreviewHeight\x12,\n" +
+	"\x04exif\x18\n" +
+	" \x01(\v2\x18.service.v1.ExifMetadataR\x04exif\"\xb0\x0e\n" +
+	"\fExifMetadata\x12\"\n" +
+	"\n" +
+	"image_type\x18\x01 \x01(\tH\x00R\timageType\x88\x01\x01\x12$\n" +
+	"\vcamera_make\x18\x02 \x01(\tH\x01R\n" +
+	"cameraMake\x88\x01\x01\x12&\n" +
+	"\fcamera_model\x18\x03 \x01(\tH\x02R\vcameraModel\x88\x01\x01\x12(\n" +
+	"\rcamera_serial\x18\x04 \x01(\tH\x03R\fcameraSerial\x88\x01\x01\x12 \n" +
+	"\tlens_make\x18\x05 \x01(\tH\x04R\blensMake\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"lens_model\x18\x06 \x01(\tH\x05R\tlensModel\x88\x01\x01\x125\n" +
+	"\btaken_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\atakenAt\x12\x15\n" +
+	"\x03iso\x18\b \x01(\x05H\x06R\x03iso\x88\x01\x01\x12\x1e\n" +
+	"\bf_number\x18\t \x01(\x02H\aR\afNumber\x88\x01\x01\x12(\n" +
+	"\rexposure_time\x18\n" +
+	" \x01(\x02H\bR\fexposureTime\x88\x01\x01\x12&\n" +
+	"\ffocal_length\x18\v \x01(\x02H\tR\vfocalLength\x88\x01\x01\x12/\n" +
+	"\x11focal_length_35mm\x18\f \x01(\x02H\n" +
+	"R\x0ffocalLength35mm\x88\x01\x01\x12.\n" +
+	"\x10exposure_program\x18\r \x01(\x05H\vR\x0fexposureProgram\x88\x01\x01\x12(\n" +
+	"\rmetering_mode\x18\x0e \x01(\x05H\fR\fmeteringMode\x88\x01\x01\x12\x19\n" +
+	"\x05flash\x18\x0f \x01(\x05H\rR\x05flash\x88\x01\x01\x12%\n" +
+	"\vorientation\x18\x10 \x01(\x05H\x0eR\vorientation\x88\x01\x01\x12$\n" +
+	"\vimage_width\x18\x11 \x01(\x05H\x0fR\n" +
+	"imageWidth\x88\x01\x01\x12&\n" +
+	"\fimage_height\x18\x12 \x01(\x05H\x10R\vimageHeight\x88\x01\x01\x12&\n" +
+	"\fgps_latitude\x18\x13 \x01(\x01H\x11R\vgpsLatitude\x88\x01\x01\x12(\n" +
+	"\rgps_longitude\x18\x14 \x01(\x01H\x12R\fgpsLongitude\x88\x01\x01\x12&\n" +
+	"\fgps_altitude\x18\x15 \x01(\x02H\x13R\vgpsAltitude\x88\x01\x01\x121\n" +
+	"\x06gps_at\x18\x16 \x01(\v2\x1a.google.protobuf.TimestampR\x05gpsAt\x12\x1f\n" +
+	"\bsoftware\x18\x17 \x01(\tH\x14R\bsoftware\x88\x01\x01\x12\x1b\n" +
+	"\x06artist\x18\x18 \x01(\tH\x15R\x06artist\x88\x01\x01\x12!\n" +
+	"\tcopyright\x18\x19 \x01(\tH\x16R\tcopyright\x88\x01\x01\x120\n" +
+	"\x11image_description\x18\x1a \x01(\tH\x17R\x10imageDescription\x88\x01\x01\x12 \n" +
+	"\txmp_title\x18\x1b \x01(\tH\x18R\bxmpTitle\x88\x01\x01\x12,\n" +
+	"\x0fxmp_description\x18\x1c \x01(\tH\x19R\x0exmpDescription\x88\x01\x01\x12$\n" +
+	"\vxmp_creator\x18\x1d \x01(\tH\x1aR\n" +
+	"xmpCreator\x88\x01\x01\x12 \n" +
+	"\txmp_label\x18\x1e \x01(\tH\x1bR\bxmpLabel\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"xmp_rating\x18\x1f \x01(\x05H\x1cR\txmpRating\x88\x01\x01\x12!\n" +
+	"\fxmp_keywords\x18  \x03(\tR\vxmpKeywords\x12B\n" +
+	"\x0fxmp_create_date\x18! \x01(\v2\x1a.google.protobuf.TimestampR\rxmpCreateDate\x12\x19\n" +
+	"\bhas_exif\x18\" \x01(\bR\ahasExif\x12\x17\n" +
+	"\ahas_xmp\x18# \x01(\bR\x06hasXmpB\r\n" +
+	"\v_image_typeB\x0e\n" +
+	"\f_camera_makeB\x0f\n" +
+	"\r_camera_modelB\x10\n" +
+	"\x0e_camera_serialB\f\n" +
+	"\n" +
+	"_lens_makeB\r\n" +
+	"\v_lens_modelB\x06\n" +
+	"\x04_isoB\v\n" +
+	"\t_f_numberB\x10\n" +
+	"\x0e_exposure_timeB\x0f\n" +
+	"\r_focal_lengthB\x14\n" +
+	"\x12_focal_length_35mmB\x13\n" +
+	"\x11_exposure_programB\x10\n" +
+	"\x0e_metering_modeB\b\n" +
+	"\x06_flashB\x0e\n" +
+	"\f_orientationB\x0e\n" +
+	"\f_image_widthB\x0f\n" +
+	"\r_image_heightB\x0f\n" +
+	"\r_gps_latitudeB\x10\n" +
+	"\x0e_gps_longitudeB\x0f\n" +
+	"\r_gps_altitudeB\v\n" +
+	"\t_softwareB\t\n" +
+	"\a_artistB\f\n" +
+	"\n" +
+	"_copyrightB\x14\n" +
+	"\x12_image_descriptionB\f\n" +
+	"\n" +
+	"_xmp_titleB\x12\n" +
+	"\x10_xmp_descriptionB\x0e\n" +
+	"\f_xmp_creatorB\f\n" +
+	"\n" +
+	"_xmp_labelB\r\n" +
+	"\v_xmp_rating\"?\n" +
 	"\x13GetFileInfoResponse\x12(\n" +
 	"\x04file\x18\x01 \x01(\v2\x14.service.v1.FileInfoR\x04file\"#\n" +
 	"\x11DeleteFileRequest\x12\x0e\n" +
@@ -644,7 +1063,7 @@ func file_service_v1_files_proto_rawDescGZIP() []byte {
 	return file_service_v1_files_proto_rawDescData
 }
 
-var file_service_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_service_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_service_v1_files_proto_goTypes = []any{
 	(*GetDownloadURLRequest)(nil),  // 0: service.v1.GetDownloadURLRequest
 	(*DownloadURLSpec)(nil),        // 1: service.v1.DownloadURLSpec
@@ -654,30 +1073,35 @@ var file_service_v1_files_proto_goTypes = []any{
 	(*GetPreviewURLResponse)(nil),  // 5: service.v1.GetPreviewURLResponse
 	(*GetFileInfoRequest)(nil),     // 6: service.v1.GetFileInfoRequest
 	(*FileInfo)(nil),               // 7: service.v1.FileInfo
-	(*GetFileInfoResponse)(nil),    // 8: service.v1.GetFileInfoResponse
-	(*DeleteFileRequest)(nil),      // 9: service.v1.DeleteFileRequest
-	(*DeleteFileResponse)(nil),     // 10: service.v1.DeleteFileResponse
-	(*timestamppb.Timestamp)(nil),  // 11: google.protobuf.Timestamp
+	(*ExifMetadata)(nil),           // 8: service.v1.ExifMetadata
+	(*GetFileInfoResponse)(nil),    // 9: service.v1.GetFileInfoResponse
+	(*DeleteFileRequest)(nil),      // 10: service.v1.DeleteFileRequest
+	(*DeleteFileResponse)(nil),     // 11: service.v1.DeleteFileResponse
+	(*timestamppb.Timestamp)(nil),  // 12: google.protobuf.Timestamp
 }
 var file_service_v1_files_proto_depIdxs = []int32{
 	1,  // 0: service.v1.GetDownloadURLResponse.download_urls:type_name -> service.v1.DownloadURLSpec
 	4,  // 1: service.v1.GetPreviewURLResponse.preview_urls:type_name -> service.v1.PreviewURLSpec
-	11, // 2: service.v1.FileInfo.created_at:type_name -> google.protobuf.Timestamp
-	11, // 3: service.v1.FileInfo.updated_at:type_name -> google.protobuf.Timestamp
-	7,  // 4: service.v1.GetFileInfoResponse.file:type_name -> service.v1.FileInfo
-	0,  // 5: service.v1.FilesService.GetDownloadURL:input_type -> service.v1.GetDownloadURLRequest
-	3,  // 6: service.v1.FilesService.GetPreviewURL:input_type -> service.v1.GetPreviewURLRequest
-	6,  // 7: service.v1.FilesService.GetFileInfo:input_type -> service.v1.GetFileInfoRequest
-	9,  // 8: service.v1.FilesService.DeleteFile:input_type -> service.v1.DeleteFileRequest
-	2,  // 9: service.v1.FilesService.GetDownloadURL:output_type -> service.v1.GetDownloadURLResponse
-	5,  // 10: service.v1.FilesService.GetPreviewURL:output_type -> service.v1.GetPreviewURLResponse
-	8,  // 11: service.v1.FilesService.GetFileInfo:output_type -> service.v1.GetFileInfoResponse
-	10, // 12: service.v1.FilesService.DeleteFile:output_type -> service.v1.DeleteFileResponse
-	9,  // [9:13] is the sub-list for method output_type
-	5,  // [5:9] is the sub-list for method input_type
-	5,  // [5:5] is the sub-list for extension type_name
-	5,  // [5:5] is the sub-list for extension extendee
-	0,  // [0:5] is the sub-list for field type_name
+	12, // 2: service.v1.FileInfo.created_at:type_name -> google.protobuf.Timestamp
+	12, // 3: service.v1.FileInfo.updated_at:type_name -> google.protobuf.Timestamp
+	8,  // 4: service.v1.FileInfo.exif:type_name -> service.v1.ExifMetadata
+	12, // 5: service.v1.ExifMetadata.taken_at:type_name -> google.protobuf.Timestamp
+	12, // 6: service.v1.ExifMetadata.gps_at:type_name -> google.protobuf.Timestamp
+	12, // 7: service.v1.ExifMetadata.xmp_create_date:type_name -> google.protobuf.Timestamp
+	7,  // 8: service.v1.GetFileInfoResponse.file:type_name -> service.v1.FileInfo
+	0,  // 9: service.v1.FilesService.GetDownloadURL:input_type -> service.v1.GetDownloadURLRequest
+	3,  // 10: service.v1.FilesService.GetPreviewURL:input_type -> service.v1.GetPreviewURLRequest
+	6,  // 11: service.v1.FilesService.GetFileInfo:input_type -> service.v1.GetFileInfoRequest
+	10, // 12: service.v1.FilesService.DeleteFile:input_type -> service.v1.DeleteFileRequest
+	2,  // 13: service.v1.FilesService.GetDownloadURL:output_type -> service.v1.GetDownloadURLResponse
+	5,  // 14: service.v1.FilesService.GetPreviewURL:output_type -> service.v1.GetPreviewURLResponse
+	9,  // 15: service.v1.FilesService.GetFileInfo:output_type -> service.v1.GetFileInfoResponse
+	11, // 16: service.v1.FilesService.DeleteFile:output_type -> service.v1.DeleteFileResponse
+	13, // [13:17] is the sub-list for method output_type
+	9,  // [9:13] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_service_v1_files_proto_init() }
@@ -685,13 +1109,14 @@ func file_service_v1_files_proto_init() {
 	if File_service_v1_files_proto != nil {
 		return
 	}
+	file_service_v1_files_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_v1_files_proto_rawDesc), len(file_service_v1_files_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

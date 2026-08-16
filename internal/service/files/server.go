@@ -2,11 +2,14 @@ package files
 
 import (
 	"context"
+	"errors"
 	"file-indexer/internal/db"
 	pb "file-indexer/internal/pb/service/v1"
 	"log/slog"
 	"net"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -21,6 +24,9 @@ type FileIndex interface {
 	GetFile(ctx context.Context, id int64) (db.FileInfo, error)
 	GetFilesByIDs(ctx context.Context, ids []int64) ([]db.FileInfo, error)
 	DeleteFile(ctx context.Context, id int64) (db.File, error)
+	// GetIndexExifResult returns pgx.ErrNoRows when the file has neither EXIF
+	// nor XMP data (or hasn't reached the exif indexer yet).
+	GetIndexExifResult(ctx context.Context, fileID int64) (db.IndexExifResult, error)
 }
 
 type FilesServer struct {
@@ -85,7 +91,18 @@ func (s *FilesServer) GetFileInfo(ctx context.Context, req *pb.GetFileInfoReques
 	if err != nil {
 		return nil, err
 	}
-	return &pb.GetFileInfoResponse{File: dbFileToProto(file)}, nil
+	info := dbFileToProto(file)
+	exif, err := s.queries.GetIndexExifResult(ctx, req.GetId())
+	switch {
+	case err == nil:
+		info.Exif = exifToProto(exif)
+	case errors.Is(err, pgx.ErrNoRows):
+		// No exif index result yet, or the file has neither EXIF nor XMP:
+		// leave Exif unset.
+	default:
+		return nil, err
+	}
+	return &pb.GetFileInfoResponse{File: info}, nil
 }
 
 func (s *FilesServer) DeleteFile(ctx context.Context, req *pb.DeleteFileRequest) (*pb.DeleteFileResponse, error) {
@@ -144,4 +161,91 @@ func dbFileToProto(f db.FileInfo) *pb.FileInfo {
 		info.UpdatedAt = timestamppb.New(f.LastModified.Time)
 	}
 	return info
+}
+
+// exifToProto maps an index_exif_result row to the API shape. Every scalar
+// is nullable in the schema (see internal/db/migrations/003_exif.sql), so
+// each field is converted individually rather than zero-valued: a NULL must
+// stay unset, not become e.g. ISO 0 or rating 0.
+func exifToProto(e db.IndexExifResult) *pb.ExifMetadata {
+	m := &pb.ExifMetadata{
+		ImageType:        textPtr(e.ImageType),
+		CameraMake:       textPtr(e.CameraMake),
+		CameraModel:      textPtr(e.CameraModel),
+		CameraSerial:     textPtr(e.CameraSerial),
+		LensMake:         textPtr(e.LensMake),
+		LensModel:        textPtr(e.LensModel),
+		Iso:              int4Ptr(e.Iso),
+		FNumber:          float4Ptr(e.FNumber),
+		ExposureTime:     float4Ptr(e.ExposureTime),
+		FocalLength:      float4Ptr(e.FocalLength),
+		FocalLength_35Mm: float4Ptr(e.FocalLength35mm),
+		ExposureProgram:  int2Ptr(e.ExposureProgram),
+		MeteringMode:     int2Ptr(e.MeteringMode),
+		Flash:            int2Ptr(e.Flash),
+		Orientation:      int2Ptr(e.Orientation),
+		ImageWidth:       int4Ptr(e.ImageWidth),
+		ImageHeight:      int4Ptr(e.ImageHeight),
+		GpsLatitude:      float8Ptr(e.GpsLatitude),
+		GpsLongitude:     float8Ptr(e.GpsLongitude),
+		GpsAltitude:      float4Ptr(e.GpsAltitude),
+		Software:         textPtr(e.Software),
+		Artist:           textPtr(e.Artist),
+		Copyright:        textPtr(e.Copyright),
+		ImageDescription: textPtr(e.ImageDescription),
+		XmpTitle:         textPtr(e.XmpTitle),
+		XmpDescription:   textPtr(e.XmpDescription),
+		XmpCreator:       textPtr(e.XmpCreator),
+		XmpLabel:         textPtr(e.XmpLabel),
+		XmpRating:        int2Ptr(e.XmpRating),
+		XmpKeywords:      e.XmpKeywords,
+		HasExif:          e.HasExif,
+		HasXmp:           e.HasXmp,
+	}
+	if e.TakenAt.Valid {
+		m.TakenAt = timestamppb.New(e.TakenAt.Time)
+	}
+	if e.GpsAt.Valid {
+		m.GpsAt = timestamppb.New(e.GpsAt.Time)
+	}
+	if e.XmpCreateDate.Valid {
+		m.XmpCreateDate = timestamppb.New(e.XmpCreateDate.Time)
+	}
+	return m
+}
+
+func textPtr(t pgtype.Text) *string {
+	if !t.Valid {
+		return nil
+	}
+	return &t.String
+}
+
+func int2Ptr(i pgtype.Int2) *int32 {
+	if !i.Valid {
+		return nil
+	}
+	v := int32(i.Int16)
+	return &v
+}
+
+func int4Ptr(i pgtype.Int4) *int32 {
+	if !i.Valid {
+		return nil
+	}
+	return &i.Int32
+}
+
+func float4Ptr(f pgtype.Float4) *float32 {
+	if !f.Valid {
+		return nil
+	}
+	return &f.Float32
+}
+
+func float8Ptr(f pgtype.Float8) *float64 {
+	if !f.Valid {
+		return nil
+	}
+	return &f.Float64
 }

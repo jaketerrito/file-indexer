@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file service/v1/files.proto.
  */
 export const file_service_v1_files: GenFile = /*@__PURE__*/
-  fileDesc("ChZzZXJ2aWNlL3YxL2ZpbGVzLnByb3RvEgpzZXJ2aWNlLnYxIiQKFUdldERvd25sb2FkVVJMUmVxdWVzdBILCgNpZHMYASADKAMiKgoPRG93bmxvYWRVUkxTcGVjEgoKAmlkGAEgASgDEgsKA3VybBgCIAEoCSJMChZHZXREb3dubG9hZFVSTFJlc3BvbnNlEjIKDWRvd25sb2FkX3VybHMYASADKAsyGy5zZXJ2aWNlLnYxLkRvd25sb2FkVVJMU3BlYyIjChRHZXRQcmV2aWV3VVJMUmVxdWVzdBILCgNpZHMYASADKAMiKQoOUHJldmlld1VSTFNwZWMSCgoCaWQYASABKAMSCwoDdXJsGAIgASgJIkkKFUdldFByZXZpZXdVUkxSZXNwb25zZRIwCgxwcmV2aWV3X3VybHMYASADKAsyGi5zZXJ2aWNlLnYxLlByZXZpZXdVUkxTcGVjIiAKEkdldEZpbGVJbmZvUmVxdWVzdBIKCgJpZBgBIAEoAyLxAQoIRmlsZUluZm8SCgoCaWQYASABKAMSCwoDa2V5GAIgASgJEhQKDGNvbnRlbnRfdHlwZRgDIAEoCRISCgpzaXplX2J5dGVzGAQgASgDEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC3ByZXZpZXdfa2V5GAcgASgJEhUKDXByZXZpZXdfd2lkdGgYCCABKAUSFgoOcHJldmlld19oZWlnaHQYCSABKAUiOQoTR2V0RmlsZUluZm9SZXNwb25zZRIiCgRmaWxlGAEgASgLMhQuc2VydmljZS52MS5GaWxlSW5mbyIfChFEZWxldGVGaWxlUmVxdWVzdBIKCgJpZBgBIAEoAyIUChJEZWxldGVGaWxlUmVzcG9uc2Uy2gIKDEZpbGVzU2VydmljZRJXCg5HZXREb3dubG9hZFVSTBIhLnNlcnZpY2UudjEuR2V0RG93bmxvYWRVUkxSZXF1ZXN0GiIuc2VydmljZS52MS5HZXREb3dubG9hZFVSTFJlc3BvbnNlElQKDUdldFByZXZpZXdVUkwSIC5zZXJ2aWNlLnYxLkdldFByZXZpZXdVUkxSZXF1ZXN0GiEuc2VydmljZS52MS5HZXRQcmV2aWV3VVJMUmVzcG9uc2USTgoLR2V0RmlsZUluZm8SHi5zZXJ2aWNlLnYxLkdldEZpbGVJbmZvUmVxdWVzdBofLnNlcnZpY2UudjEuR2V0RmlsZUluZm9SZXNwb25zZRJLCgpEZWxldGVGaWxlEh0uc2VydmljZS52MS5EZWxldGVGaWxlUmVxdWVzdBoeLnNlcnZpY2UudjEuRGVsZXRlRmlsZVJlc3BvbnNlQihaJmZpbGUtaW5kZXhlci9pbnRlcm5hbC9wYi9zZXJ2aWNlL3YxO3BiYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChZzZXJ2aWNlL3YxL2ZpbGVzLnByb3RvEgpzZXJ2aWNlLnYxIiQKFUdldERvd25sb2FkVVJMUmVxdWVzdBILCgNpZHMYASADKAMiKgoPRG93bmxvYWRVUkxTcGVjEgoKAmlkGAEgASgDEgsKA3VybBgCIAEoCSJMChZHZXREb3dubG9hZFVSTFJlc3BvbnNlEjIKDWRvd25sb2FkX3VybHMYASADKAsyGy5zZXJ2aWNlLnYxLkRvd25sb2FkVVJMU3BlYyIjChRHZXRQcmV2aWV3VVJMUmVxdWVzdBILCgNpZHMYASADKAMiKQoOUHJldmlld1VSTFNwZWMSCgoCaWQYASABKAMSCwoDdXJsGAIgASgJIkkKFUdldFByZXZpZXdVUkxSZXNwb25zZRIwCgxwcmV2aWV3X3VybHMYASADKAsyGi5zZXJ2aWNlLnYxLlByZXZpZXdVUkxTcGVjIiAKEkdldEZpbGVJbmZvUmVxdWVzdBIKCgJpZBgBIAEoAyKZAgoIRmlsZUluZm8SCgoCaWQYASABKAMSCwoDa2V5GAIgASgJEhQKDGNvbnRlbnRfdHlwZRgDIAEoCRISCgpzaXplX2J5dGVzGAQgASgDEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC3ByZXZpZXdfa2V5GAcgASgJEhUKDXByZXZpZXdfd2lkdGgYCCABKAUSFgoOcHJldmlld19oZWlnaHQYCSABKAUSJgoEZXhpZhgKIAEoCzIYLnNlcnZpY2UudjEuRXhpZk1ldGFkYXRhIpQLCgxFeGlmTWV0YWRhdGESFwoKaW1hZ2VfdHlwZRgBIAEoCUgAiAEBEhgKC2NhbWVyYV9tYWtlGAIgASgJSAGIAQESGQoMY2FtZXJhX21vZGVsGAMgASgJSAKIAQESGgoNY2FtZXJhX3NlcmlhbBgEIAEoCUgDiAEBEhYKCWxlbnNfbWFrZRgFIAEoCUgEiAEBEhcKCmxlbnNfbW9kZWwYBiABKAlIBYgBARIsCgh0YWtlbl9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoDaXNvGAggASgFSAaIAQESFQoIZl9udW1iZXIYCSABKAJIB4gBARIaCg1leHBvc3VyZV90aW1lGAogASgCSAiIAQESGQoMZm9jYWxfbGVuZ3RoGAsgASgCSAmIAQESHgoRZm9jYWxfbGVuZ3RoXzM1bW0YDCABKAJICogBARIdChBleHBvc3VyZV9wcm9ncmFtGA0gASgFSAuIAQESGgoNbWV0ZXJpbmdfbW9kZRgOIAEoBUgMiAEBEhIKBWZsYXNoGA8gASgFSA2IAQESGAoLb3JpZW50YXRpb24YECABKAVIDogBARIYCgtpbWFnZV93aWR0aBgRIAEoBUgPiAEBEhkKDGltYWdlX2hlaWdodBgSIAEoBUgQiAEBEhkKDGdwc19sYXRpdHVkZRgTIAEoAUgRiAEBEhoKDWdwc19sb25naXR1ZGUYFCABKAFIEogBARIZCgxncHNfYWx0aXR1ZGUYFSABKAJIE4gBARIqCgZncHNfYXQYFiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKCHNvZnR3YXJlGBcgASgJSBSIAQESEwoGYXJ0aXN0GBggASgJSBWIAQESFgoJY29weXJpZ2h0GBkgASgJSBaIAQESHgoRaW1hZ2VfZGVzY3JpcHRpb24YGiABKAlIF4gBARIWCgl4bXBfdGl0bGUYGyABKAlIGIgBARIcCg94bXBfZGVzY3JpcHRpb24YHCABKAlIGYgBARIYCgt4bXBfY3JlYXRvchgdIAEoCUgaiAEBEhYKCXhtcF9sYWJlbBgeIAEoCUgbiAEBEhcKCnhtcF9yYXRpbmcYHyABKAVIHIgBARIUCgx4bXBfa2V5d29yZHMYICADKAkSMwoPeG1wX2NyZWF0ZV9kYXRlGCEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghoYXNfZXhpZhgiIAEoCBIPCgdoYXNfeG1wGCMgASgIQg0KC19pbWFnZV90eXBlQg4KDF9jYW1lcmFfbWFrZUIPCg1fY2FtZXJhX21vZGVsQhAKDl9jYW1lcmFfc2VyaWFsQgwKCl9sZW5zX21ha2VCDQoLX2xlbnNfbW9kZWxCBgoEX2lzb0ILCglfZl9udW1iZXJCEAoOX2V4cG9zdXJlX3RpbWVCDwoNX2ZvY2FsX2xlbmd0aEIUChJfZm9jYWxfbGVuZ3RoXzM1bW1CEwoRX2V4cG9zdXJlX3Byb2dyYW1CEAoOX21ldGVyaW5nX21vZGVCCAoGX2ZsYXNoQg4KDF9vcmllbnRhdGlvbkIOCgxfaW1hZ2Vfd2lkdGhCDwoNX2ltYWdlX2hlaWdodEIPCg1fZ3BzX2xhdGl0dWRlQhAKDl9ncHNfbG9uZ2l0dWRlQg8KDV9ncHNfYWx0aXR1ZGVCCwoJX3NvZnR3YXJlQgkKB19hcnRpc3RCDAoKX2NvcHlyaWdodEIUChJfaW1hZ2VfZGVzY3JpcHRpb25CDAoKX3htcF90aXRsZUISChBfeG1wX2Rlc2NyaXB0aW9uQg4KDF94bXBfY3JlYXRvckIMCgpfeG1wX2xhYmVsQg0KC194bXBfcmF0aW5nIjkKE0dldEZpbGVJbmZvUmVzcG9uc2USIgoEZmlsZRgBIAEoCzIULnNlcnZpY2UudjEuRmlsZUluZm8iHwoRRGVsZXRlRmlsZVJlcXVlc3QSCgoCaWQYASABKAMiFAoSRGVsZXRlRmlsZVJlc3BvbnNlMtoCCgxGaWxlc1NlcnZpY2USVwoOR2V0RG93bmxvYWRVUkwSIS5zZXJ2aWNlLnYxLkdldERvd25sb2FkVVJMUmVxdWVzdBoiLnNlcnZpY2UudjEuR2V0RG93bmxvYWRVUkxSZXNwb25zZRJUCg1HZXRQcmV2aWV3VVJMEiAuc2VydmljZS52MS5HZXRQcmV2aWV3VVJMUmVxdWVzdBohLnNlcnZpY2UudjEuR2V0UHJldmlld1VSTFJlc3BvbnNlEk4KC0dldEZpbGVJbmZvEh4uc2VydmljZS52MS5HZXRGaWxlSW5mb1JlcXVlc3QaHy5zZXJ2aWNlLnYxLkdldEZpbGVJbmZvUmVzcG9uc2USSwoKRGVsZXRlRmlsZRIdLnNlcnZpY2UudjEuRGVsZXRlRmlsZVJlcXVlc3QaHi5zZXJ2aWNlLnYxLkRlbGV0ZUZpbGVSZXNwb25zZUIoWiZmaWxlLWluZGV4ZXIvaW50ZXJuYWwvcGIvc2VydmljZS92MTtwYmIGcHJvdG8z", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message service.v1.GetDownloadURLRequest
@@ -200,6 +200,15 @@ export type FileInfo = Message<"service.v1.FileInfo"> & {
    * @generated from field: int32 preview_height = 9;
    */
   previewHeight: number;
+
+  /**
+   * EXIF/XMP metadata, present only for image/camera-RAW files that carry at
+   * least one of the two. Unset when the file has no exif index result yet,
+   * or has neither EXIF nor XMP data.
+   *
+   * @generated from field: service.v1.ExifMetadata exif = 10;
+   */
+  exif?: ExifMetadata | undefined;
 };
 
 /**
@@ -208,6 +217,219 @@ export type FileInfo = Message<"service.v1.FileInfo"> & {
  */
 export const FileInfoSchema: GenMessage<FileInfo> = /*@__PURE__*/
   messageDesc(file_service_v1_files, 7);
+
+/**
+ * EXIF and XMP metadata extracted from an image or camera-RAW file. Mirrors
+ * internal/db/migrations/003_exif.sql; every field is optional because
+ * EXIF/XMP tags are sparse (most cameras omit most tags) and absence must be
+ * distinguishable from a legitimate zero value.
+ *
+ * @generated from message service.v1.ExifMetadata
+ */
+export type ExifMetadata = Message<"service.v1.ExifMetadata"> & {
+  /**
+   * Sniffed image type from the metadata parser (e.g. "image/x-canon-cr2"),
+   * which may differ from FileInfo.content_type as reported by S3.
+   *
+   * @generated from field: optional string image_type = 1;
+   */
+  imageType?: string | undefined;
+
+  /**
+   * @generated from field: optional string camera_make = 2;
+   */
+  cameraMake?: string | undefined;
+
+  /**
+   * @generated from field: optional string camera_model = 3;
+   */
+  cameraModel?: string | undefined;
+
+  /**
+   * @generated from field: optional string camera_serial = 4;
+   */
+  cameraSerial?: string | undefined;
+
+  /**
+   * @generated from field: optional string lens_make = 5;
+   */
+  lensMake?: string | undefined;
+
+  /**
+   * @generated from field: optional string lens_model = 6;
+   */
+  lensModel?: string | undefined;
+
+  /**
+   * Naive (zone-less) local capture time as recorded by the camera clock.
+   * EXIF DateTimeOriginal carries no offset, so no timezone is attached.
+   *
+   * @generated from field: google.protobuf.Timestamp taken_at = 7;
+   */
+  takenAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: optional int32 iso = 8;
+   */
+  iso?: number | undefined;
+
+  /**
+   * @generated from field: optional float f_number = 9;
+   */
+  fNumber?: number | undefined;
+
+  /**
+   * seconds
+   *
+   * @generated from field: optional float exposure_time = 10;
+   */
+  exposureTime?: number | undefined;
+
+  /**
+   * millimeters
+   *
+   * @generated from field: optional float focal_length = 11;
+   */
+  focalLength?: number | undefined;
+
+  /**
+   * millimeters, 35mm-equivalent
+   *
+   * @generated from field: optional float focal_length_35mm = 12;
+   */
+  focalLength35mm?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 exposure_program = 13;
+   */
+  exposureProgram?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 metering_mode = 14;
+   */
+  meteringMode?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 flash = 15;
+   */
+  flash?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 orientation = 16;
+   */
+  orientation?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 image_width = 17;
+   */
+  imageWidth?: number | undefined;
+
+  /**
+   * @generated from field: optional int32 image_height = 18;
+   */
+  imageHeight?: number | undefined;
+
+  /**
+   * GPS, kept at full precision (private, single-tenant bucket).
+   *
+   * @generated from field: optional double gps_latitude = 19;
+   */
+  gpsLatitude?: number | undefined;
+
+  /**
+   * @generated from field: optional double gps_longitude = 20;
+   */
+  gpsLongitude?: number | undefined;
+
+  /**
+   * @generated from field: optional float gps_altitude = 21;
+   */
+  gpsAltitude?: number | undefined;
+
+  /**
+   * Unlike taken_at, GPS timestamps are unambiguously UTC per the EXIF spec.
+   *
+   * @generated from field: google.protobuf.Timestamp gps_at = 22;
+   */
+  gpsAt?: Timestamp | undefined;
+
+  /**
+   * @generated from field: optional string software = 23;
+   */
+  software?: string | undefined;
+
+  /**
+   * @generated from field: optional string artist = 24;
+   */
+  artist?: string | undefined;
+
+  /**
+   * @generated from field: optional string copyright = 25;
+   */
+  copyright?: string | undefined;
+
+  /**
+   * @generated from field: optional string image_description = 26;
+   */
+  imageDescription?: string | undefined;
+
+  /**
+   * @generated from field: optional string xmp_title = 27;
+   */
+  xmpTitle?: string | undefined;
+
+  /**
+   * @generated from field: optional string xmp_description = 28;
+   */
+  xmpDescription?: string | undefined;
+
+  /**
+   * @generated from field: optional string xmp_creator = 29;
+   */
+  xmpCreator?: string | undefined;
+
+  /**
+   * @generated from field: optional string xmp_label = 30;
+   */
+  xmpLabel?: string | undefined;
+
+  /**
+   * @generated from field: optional int32 xmp_rating = 31;
+   */
+  xmpRating?: number | undefined;
+
+  /**
+   * @generated from field: repeated string xmp_keywords = 32;
+   */
+  xmpKeywords: string[];
+
+  /**
+   * XMP xmp:CreateDate carries a zone offset, unlike taken_at.
+   *
+   * @generated from field: google.protobuf.Timestamp xmp_create_date = 33;
+   */
+  xmpCreateDate?: Timestamp | undefined;
+
+  /**
+   * Which of EXIF/XMP contributed to this metadata, so an absent field can
+   * be told apart from "no EXIF/XMP block was present at all".
+   *
+   * @generated from field: bool has_exif = 34;
+   */
+  hasExif: boolean;
+
+  /**
+   * @generated from field: bool has_xmp = 35;
+   */
+  hasXmp: boolean;
+};
+
+/**
+ * Describes the message service.v1.ExifMetadata.
+ * Use `create(ExifMetadataSchema)` to create a new message.
+ */
+export const ExifMetadataSchema: GenMessage<ExifMetadata> = /*@__PURE__*/
+  messageDesc(file_service_v1_files, 8);
 
 /**
  * @generated from message service.v1.GetFileInfoResponse
@@ -224,7 +446,7 @@ export type GetFileInfoResponse = Message<"service.v1.GetFileInfoResponse"> & {
  * Use `create(GetFileInfoResponseSchema)` to create a new message.
  */
 export const GetFileInfoResponseSchema: GenMessage<GetFileInfoResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 8);
+  messageDesc(file_service_v1_files, 9);
 
 /**
  * @generated from message service.v1.DeleteFileRequest
@@ -241,7 +463,7 @@ export type DeleteFileRequest = Message<"service.v1.DeleteFileRequest"> & {
  * Use `create(DeleteFileRequestSchema)` to create a new message.
  */
 export const DeleteFileRequestSchema: GenMessage<DeleteFileRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 9);
+  messageDesc(file_service_v1_files, 10);
 
 /**
  * @generated from message service.v1.DeleteFileResponse
@@ -254,7 +476,7 @@ export type DeleteFileResponse = Message<"service.v1.DeleteFileResponse"> & {
  * Use `create(DeleteFileResponseSchema)` to create a new message.
  */
 export const DeleteFileResponseSchema: GenMessage<DeleteFileResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 10);
+  messageDesc(file_service_v1_files, 11);
 
 /**
  * @generated from service service.v1.FilesService
