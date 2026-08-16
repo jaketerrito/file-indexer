@@ -59,6 +59,69 @@ message FileInfo {
   // ratio is preserved and sources are never upscaled, so these vary per file.
   int32 preview_width = 8;
   int32 preview_height = 9;
+  // EXIF/XMP metadata, present only for image/camera-RAW files that carry at
+  // least one of the two. Unset when the file has no exif index result yet,
+  // or has neither EXIF nor XMP data.
+  ExifMetadata exif = 10;
+}
+
+// EXIF and XMP metadata extracted from an image or camera-RAW file. Mirrors
+// internal/db/migrations/003_exif.sql; every field is optional because
+// EXIF/XMP tags are sparse (most cameras omit most tags) and absence must be
+// distinguishable from a legitimate zero value.
+message ExifMetadata {
+  // Sniffed image type from the metadata parser (e.g. "image/x-canon-cr2"),
+  // which may differ from FileInfo.content_type as reported by S3.
+  optional string image_type = 1;
+
+  optional string camera_make = 2;
+  optional string camera_model = 3;
+  optional string camera_serial = 4;
+  optional string lens_make = 5;
+  optional string lens_model = 6;
+
+  // Naive (zone-less) local capture time as recorded by the camera clock.
+  // EXIF DateTimeOriginal carries no offset, so no timezone is attached.
+  google.protobuf.Timestamp taken_at = 7;
+
+  optional int32 iso = 8;
+  optional float f_number = 9;
+  optional float exposure_time = 10; // seconds
+  optional float focal_length = 11; // millimeters
+  optional float focal_length_35mm = 12; // millimeters, 35mm-equivalent
+  optional int32 exposure_program = 13;
+  optional int32 metering_mode = 14;
+  optional int32 flash = 15;
+
+  optional int32 orientation = 16;
+  optional int32 image_width = 17;
+  optional int32 image_height = 18;
+
+  // GPS, kept at full precision (private, single-tenant bucket).
+  optional double gps_latitude = 19;
+  optional double gps_longitude = 20;
+  optional float gps_altitude = 21;
+  // Unlike taken_at, GPS timestamps are unambiguously UTC per the EXIF spec.
+  google.protobuf.Timestamp gps_at = 22;
+
+  optional string software = 23;
+  optional string artist = 24;
+  optional string copyright = 25;
+  optional string image_description = 26;
+
+  optional string xmp_title = 27;
+  optional string xmp_description = 28;
+  optional string xmp_creator = 29;
+  optional string xmp_label = 30;
+  optional int32 xmp_rating = 31;
+  repeated string xmp_keywords = 32;
+  // XMP xmp:CreateDate carries a zone offset, unlike taken_at.
+  google.protobuf.Timestamp xmp_create_date = 33;
+
+  // Which of EXIF/XMP contributed to this metadata, so an absent field can
+  // be told apart from "no EXIF/XMP block was present at all".
+  bool has_exif = 34;
+  bool has_xmp = 35;
 }
 
 message GetFileInfoResponse {

@@ -1,0 +1,5 @@
+Sample seed file for local development.
+
+This file exists so the file-indexer dev environment has non-image content
+to index too: the stat indexer records its content type and size, and the
+crawler treats it like any other object in the bucket.

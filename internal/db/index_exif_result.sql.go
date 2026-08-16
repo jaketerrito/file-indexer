@@ -11,8 +11,62 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const upsertIndexExifResult = `-- name: UpsertIndexExifResult :exec
+const getIndexExifResult = `-- name: GetIndexExifResult :one
 
+SELECT file_id, image_type, camera_make, camera_model, camera_serial, lens_make, lens_model, taken_at, iso, f_number, exposure_time, focal_length, focal_length_35mm, exposure_program, metering_mode, flash, orientation, image_width, image_height, gps_latitude, gps_longitude, gps_altitude, gps_at, software, artist, copyright, image_description, xmp_title, xmp_description, xmp_creator, xmp_label, xmp_rating, xmp_keywords, xmp_create_date, has_exif, has_xmp, updated_at FROM index_exif_result
+WHERE file_id = $1
+`
+
+// Result storage for the exif index type. Written inside the same
+// transaction as CompleteIndexQueue('exif', ...).
+// Absent row means the file has neither EXIF nor XMP (or hasn't reached the
+// exif indexer yet); callers must handle pgx.ErrNoRows as "no exif data".
+func (q *Queries) GetIndexExifResult(ctx context.Context, fileID int64) (IndexExifResult, error) {
+	row := q.db.QueryRow(ctx, getIndexExifResult, fileID)
+	var i IndexExifResult
+	err := row.Scan(
+		&i.FileID,
+		&i.ImageType,
+		&i.CameraMake,
+		&i.CameraModel,
+		&i.CameraSerial,
+		&i.LensMake,
+		&i.LensModel,
+		&i.TakenAt,
+		&i.Iso,
+		&i.FNumber,
+		&i.ExposureTime,
+		&i.FocalLength,
+		&i.FocalLength35mm,
+		&i.ExposureProgram,
+		&i.MeteringMode,
+		&i.Flash,
+		&i.Orientation,
+		&i.ImageWidth,
+		&i.ImageHeight,
+		&i.GpsLatitude,
+		&i.GpsLongitude,
+		&i.GpsAltitude,
+		&i.GpsAt,
+		&i.Software,
+		&i.Artist,
+		&i.Copyright,
+		&i.ImageDescription,
+		&i.XmpTitle,
+		&i.XmpDescription,
+		&i.XmpCreator,
+		&i.XmpLabel,
+		&i.XmpRating,
+		&i.XmpKeywords,
+		&i.XmpCreateDate,
+		&i.HasExif,
+		&i.HasXmp,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertIndexExifResult = `-- name: UpsertIndexExifResult :exec
 INSERT INTO index_exif_result (
     file_id, image_type,
     camera_make, camera_model, camera_serial, lens_make, lens_model,
@@ -114,8 +168,6 @@ type UpsertIndexExifResultParams struct {
 	HasXmp           bool
 }
 
-// Result storage for the exif index type. Written inside the same
-// transaction as CompleteIndexQueue('exif', ...).
 func (q *Queries) UpsertIndexExifResult(ctx context.Context, arg UpsertIndexExifResultParams) error {
 	_, err := q.db.Exec(ctx, upsertIndexExifResult,
 		arg.FileID,

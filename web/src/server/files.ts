@@ -3,6 +3,7 @@ import { getFilesClient, getSearchClient } from './clients'
 import {
   deleteFileImpl,
   getDownloadUrlImpl,
+  getFileMetadataImpl,
   listFilesImpl,
   validateIdInput,
   validateListFilesInput,
@@ -22,3 +23,7 @@ export const getDownloadUrl = createServerFn({ method: 'GET' })
 export const deleteFile = createServerFn({ method: 'POST' })
   .validator(validateIdInput)
   .handler(({ data }) => deleteFileImpl(getFilesClient(), data.id))
+
+export const getFileMetadata = createServerFn({ method: 'GET' })
+  .validator(validateIdInput)
+  .handler(({ data }) => getFileMetadataImpl(getFilesClient(), data.id))

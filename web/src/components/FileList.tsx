@@ -1,7 +1,8 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import type { FileFilters } from '../lib/fileFilters'
-import { deleteFile, getDownloadUrl, listFiles } from '../server/files'
+import { deleteFile, getDownloadUrl, getFileMetadata, listFiles } from '../server/files'
+import { FileMetadataModal } from './FileMetadataModal'
 
 const PAGE_SIZE = 50
 const PREFIX_DEBOUNCE_MS = 300
@@ -86,6 +87,8 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
     window.open(url, '_blank', 'noopener')
   }
 
+  const [metadataId, setMetadataId] = useState<string | null>(null)
+
   const isFiltered = filters.prefix !== '' || filters.type !== ''
 
   return (
@@ -163,6 +166,9 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
                     <button type="button" onClick={() => void handleDownload(file.id)}>
                       Download
                     </button>{' '}
+                    <button type="button" onClick={() => setMetadataId(file.id)}>
+                      Metadata
+                    </button>{' '}
                     <button
                       type="button"
                       onClick={() => deleteMutation.mutate(file.id)}
@@ -178,6 +184,11 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
           {isFetchingNextPage ? <p>Loading more…</p> : null}
         </>
       )}
+      <FileMetadataModal
+        fileId={metadataId}
+        onClose={() => setMetadataId(null)}
+        getFileMetadata={getFileMetadata}
+      />
     </div>
   )
 }

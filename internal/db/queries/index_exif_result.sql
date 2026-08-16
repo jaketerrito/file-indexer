@@ -1,6 +1,12 @@
 -- Result storage for the exif index type. Written inside the same
 -- transaction as CompleteIndexQueue('exif', ...).
 
+-- name: GetIndexExifResult :one
+-- Absent row means the file has neither EXIF nor XMP (or hasn't reached the
+-- exif indexer yet); callers must handle pgx.ErrNoRows as "no exif data".
+SELECT * FROM index_exif_result
+WHERE file_id = $1;
+
 -- name: UpsertIndexExifResult :exec
 INSERT INTO index_exif_result (
     file_id, image_type,
