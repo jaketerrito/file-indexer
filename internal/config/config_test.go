@@ -163,6 +163,31 @@ func TestLoadPreviewConfigDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadExifConfig(t *testing.T) {
+	t.Setenv("EXIF_MAX_HEADER_BYTES", "123")
+	t.Setenv("EXIF_MAX_SOURCE_BYTES", "456")
+
+	e := Load().Exif
+	if e.MaxHeaderBytes != 123 {
+		t.Errorf("MaxHeaderBytes = %d, want 123", e.MaxHeaderBytes)
+	}
+	if e.MaxSourceBytes != 456 {
+		t.Errorf("MaxSourceBytes = %d, want 456", e.MaxSourceBytes)
+	}
+}
+
+func TestLoadExifConfigDefaults(t *testing.T) {
+	t.Setenv("EXIF_MAX_HEADER_BYTES", "not-an-int")
+
+	e := Load().Exif
+	if e.MaxHeaderBytes != 1<<20 {
+		t.Errorf("MaxHeaderBytes = %d, want %d default for malformed value", e.MaxHeaderBytes, int64(1<<20))
+	}
+	if e.MaxSourceBytes != 64<<20 {
+		t.Errorf("MaxSourceBytes = %d, want %d default when unset", e.MaxSourceBytes, int64(64<<20))
+	}
+}
+
 func TestLoadDefaultGRPCAddr(t *testing.T) {
 	t.Setenv("DB_HOST", "h")
 	t.Setenv("DB_PORT", "1")

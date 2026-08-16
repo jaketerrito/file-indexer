@@ -27,6 +27,46 @@ type FileInfo struct {
 	PreviewHeight pgtype.Int4
 }
 
+type IndexExifResult struct {
+	FileID           int64
+	ImageType        pgtype.Text
+	CameraMake       pgtype.Text
+	CameraModel      pgtype.Text
+	CameraSerial     pgtype.Text
+	LensMake         pgtype.Text
+	LensModel        pgtype.Text
+	TakenAt          pgtype.Timestamp
+	Iso              pgtype.Int4
+	FNumber          pgtype.Float4
+	ExposureTime     pgtype.Float4
+	FocalLength      pgtype.Float4
+	FocalLength35mm  pgtype.Float4
+	ExposureProgram  pgtype.Int2
+	MeteringMode     pgtype.Int2
+	Flash            pgtype.Int2
+	Orientation      pgtype.Int2
+	ImageWidth       pgtype.Int4
+	ImageHeight      pgtype.Int4
+	GpsLatitude      pgtype.Float8
+	GpsLongitude     pgtype.Float8
+	GpsAltitude      pgtype.Float4
+	GpsAt            pgtype.Timestamptz
+	Software         pgtype.Text
+	Artist           pgtype.Text
+	Copyright        pgtype.Text
+	ImageDescription pgtype.Text
+	XmpTitle         pgtype.Text
+	XmpDescription   pgtype.Text
+	XmpCreator       pgtype.Text
+	XmpLabel         pgtype.Text
+	XmpRating        pgtype.Int2
+	XmpKeywords      []string
+	XmpCreateDate    pgtype.Timestamptz
+	HasExif          bool
+	HasXmp           bool
+	UpdatedAt        pgtype.Timestamptz
+}
+
 type IndexPreviewResult struct {
 	FileID     int64
 	PreviewKey string
