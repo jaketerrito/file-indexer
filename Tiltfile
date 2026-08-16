@@ -42,6 +42,16 @@ docker_build('web', 'web')
 
 k8s_yaml(kustomize('deploy'))
 
+# seed-data (minio.yaml's seed sidecar, see deploy/seed.md) is generated here
+# rather than via kustomize's configMapGenerator: that only accepts explicit
+# file paths, not a directory or glob. This way every file dropped into
+# deploy/seed/ is picked up automatically, with no list to keep in sync.
+watch_file('deploy/seed')
+k8s_yaml(local(
+    'kubectl create configmap seed-data --from-file=deploy/seed --dry-run=client -o yaml',
+    quiet=True,
+))
+
 k8s_resource(
     'local-s3',
     port_forwards=[

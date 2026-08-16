@@ -5,9 +5,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DeleteFileResponseSchema,
   DownloadURLSpecSchema,
+  ExifMetadataSchema,
   FileInfoSchema,
   type FilesService,
   GetDownloadURLResponseSchema,
+  GetFileInfoResponseSchema,
   GetPreviewURLResponseSchema,
   PreviewURLSpecSchema,
 } from '../gen/service/v1/files_pb'
@@ -20,8 +22,10 @@ import {
 import {
   deleteFileImpl,
   getDownloadUrlImpl,
+  getFileMetadataImpl,
   listFilesImpl,
   toFileDto,
+  toFileMetadataDto,
   validateIdInput,
   validateListFilesInput,
 } from './impl'
@@ -133,14 +137,12 @@ describe('validateListFilesInput', () => {
     expect(() => validateListFilesInput(input)).toThrow(want)
   })
 
-  it.each([
-    [{ pageSize: 0 }],
-    [{ pageSize: -1 }],
-    [{ pageSize: 1.5 }],
-    [{ pageSize: '10' }],
-  ])('rejects invalid pageSize %j', (input) => {
-    expect(() => validateListFilesInput(input)).toThrow(/pageSize/)
-  })
+  it.each([[{ pageSize: 0 }], [{ pageSize: -1 }], [{ pageSize: 1.5 }], [{ pageSize: '10' }]])(
+    'rejects invalid pageSize %j',
+    (input) => {
+      expect(() => validateListFilesInput(input)).toThrow(/pageSize/)
+    },
+  )
 
   it('rejects a non-string pageToken', () => {
     expect(() => validateListFilesInput({ pageToken: 42 })).toThrow(/pageToken/)
@@ -152,15 +154,12 @@ describe('validateIdInput', () => {
     expect(validateIdInput({ id: '123' })).toEqual({ id: '123' })
   })
 
-  it.each([
-    [{}],
-    [{ id: 123 }],
-    [{ id: 'abc' }],
-    [{ id: '' }],
-    [{ id: '12x' }],
-  ])('rejects %j', (input) => {
-    expect(() => validateIdInput(input)).toThrow(/id/)
-  })
+  it.each([[{}], [{ id: 123 }], [{ id: 'abc' }], [{ id: '' }], [{ id: '12x' }]])(
+    'rejects %j',
+    (input) => {
+      expect(() => validateIdInput(input)).toThrow(/id/)
+    },
+  )
 })
 
 describe('listFilesImpl', () => {
@@ -344,5 +343,82 @@ describe('deleteFileImpl', () => {
     await deleteFileImpl(client, '7')
 
     expect(deleteFile).toHaveBeenCalledWith({ id: 7n })
+  })
+})
+
+const TAKEN_AT = new Date('2025-06-01T12:00:00.000Z')
+
+describe('toFileMetadataDto', () => {
+  it('maps stat/preview fields, with exif null when absent', () => {
+    const dto = toFileMetadataDto(fileInfo({ id: 5n }))
+    expect(dto).toEqual({
+      id: '5',
+      key: 'docs/report.pdf',
+      contentType: 'application/pdf',
+      sizeBytes: 1024,
+      createdAt: '2026-01-02T03:04:05.000Z',
+      updatedAt: null,
+      exif: null,
+    })
+  })
+
+  it('maps exif fields when present', () => {
+    const file = create(FileInfoSchema, {
+      id: 1n,
+      key: 'photo.jpg',
+      contentType: 'image/jpeg',
+      exif: create(ExifMetadataSchema, {
+        cameraMake: 'Canon',
+        cameraModel: 'EOS R5',
+        iso: 400,
+        takenAt: timestampFromDate(TAKEN_AT),
+        gpsLatitude: 51.5,
+        gpsLongitude: -0.1,
+        xmpKeywords: ['vacation', 'beach'],
+        hasExif: true,
+        hasXmp: false,
+      }),
+    })
+
+    const dto = toFileMetadataDto(file)
+
+    expect(dto.exif).toEqual(
+      expect.objectContaining({
+        cameraMake: 'Canon',
+        cameraModel: 'EOS R5',
+        iso: 400,
+        takenAt: '2025-06-01T12:00:00.000Z',
+        gpsLatitude: 51.5,
+        gpsLongitude: -0.1,
+        xmpKeywords: ['vacation', 'beach'],
+        hasExif: true,
+        hasXmp: false,
+      }),
+    )
+  })
+})
+
+describe('getFileMetadataImpl', () => {
+  it('requests the id and maps the response', async () => {
+    const getFileInfo = vi.fn().mockResolvedValue(
+      create(GetFileInfoResponseSchema, {
+        file: fileInfo({ id: 42n }),
+      }),
+    )
+    const client = { getFileInfo } as unknown as Client<typeof FilesService>
+
+    const result = await getFileMetadataImpl(client, '42')
+
+    expect(getFileInfo).toHaveBeenCalledWith({ id: 42n })
+    expect(result.id).toBe('42')
+    expect(result.exif).toBeNull()
+  })
+
+  it('throws when the response has no file', async () => {
+    const client = {
+      getFileInfo: vi.fn().mockResolvedValue(create(GetFileInfoResponseSchema, {})),
+    } as unknown as Client<typeof FilesService>
+
+    await expect(getFileMetadataImpl(client, '42')).rejects.toThrow('no file returned')
   })
 })

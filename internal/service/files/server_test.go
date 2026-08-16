@@ -10,6 +10,7 @@ import (
 
 	pb "file-indexer/internal/pb/service/v1"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
@@ -44,6 +45,7 @@ func TestGetFileInfo(t *testing.T) {
 	}
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(want, nil)
+	queries.EXPECT().GetIndexExifResult(mock.Anything, int64(1)).Return(db.IndexExifResult{}, pgx.ErrNoRows)
 
 	srv := FilesServer{queries: queries}
 
@@ -53,6 +55,60 @@ func TestGetFileInfo(t *testing.T) {
 	}
 	if resp.File.Id != 1 || resp.File.Key != "obj-key" {
 		t.Errorf("GetFileInfo = %+v", resp.File)
+	}
+	if resp.File.Exif != nil {
+		t.Errorf("Exif = %+v, want nil (no exif row)", resp.File.Exif)
+	}
+}
+
+func TestGetFileInfoWithExif(t *testing.T) {
+	now := time.Now()
+	want := db.FileInfo{
+		ID: 1, Key: "obj-key",
+		ContentType: pgtype.Text{String: "image/jpeg", Valid: true},
+	}
+	exif := db.IndexExifResult{
+		FileID:      1,
+		CameraMake:  pgtype.Text{String: "Canon", Valid: true},
+		CameraModel: pgtype.Text{String: "EOS R5", Valid: true},
+		Iso:         pgtype.Int4{Int32: 400, Valid: true},
+		TakenAt:     pgtype.Timestamp{Time: now, Valid: true},
+		HasExif:     true,
+	}
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(want, nil)
+	queries.EXPECT().GetIndexExifResult(mock.Anything, int64(1)).Return(exif, nil)
+
+	srv := FilesServer{queries: queries}
+
+	resp, err := srv.GetFileInfo(context.Background(), &pb.GetFileInfoRequest{Id: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.File.Exif == nil {
+		t.Fatal("Exif = nil, want populated")
+	}
+	if resp.File.Exif.GetCameraMake() != "Canon" || resp.File.Exif.GetCameraModel() != "EOS R5" {
+		t.Errorf("Exif = %+v", resp.File.Exif)
+	}
+	if resp.File.Exif.GetIso() != 400 {
+		t.Errorf("Iso = %d, want 400", resp.File.Exif.GetIso())
+	}
+	if !resp.File.Exif.GetTakenAt().AsTime().Equal(now) {
+		t.Errorf("TakenAt mismatch")
+	}
+}
+
+func TestGetFileInfoExifQueryError(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "obj-key"}, nil)
+	queries.EXPECT().GetIndexExifResult(mock.Anything, int64(1)).Return(db.IndexExifResult{}, errors.New("db error"))
+
+	srv := FilesServer{queries: queries}
+
+	_, err := srv.GetFileInfo(context.Background(), &pb.GetFileInfoRequest{Id: 1})
+	if err == nil {
+		t.Fatal("expected error")
 	}
 }
 
@@ -365,6 +421,7 @@ func TestServe(t *testing.T) {
 
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().GetFile(mock.Anything, int64(7)).Return(file, nil)
+	queries.EXPECT().GetIndexExifResult(mock.Anything, int64(7)).Return(db.IndexExifResult{}, pgx.ErrNoRows)
 
 	store := NewMockObjectStore(t)
 

@@ -49,6 +49,11 @@ Run `just` to see all available commands.
 
 `just up` — Launches local kind cluster and usese Tilt to provision resources, runs DB migrations, builds and deploys the app containers (index-stat, index-preview, files), and keeps them live-reloading on code changes. Code generation (sqlc, protobuf) runs automatically. Opens the Tilt web UI at http://localhost:10350.
 
+The MinIO bucket comes pre-seeded with a small sample dataset (see
+`deploy/seed/`) — a few EXIF-bearing photos and text files. The crawler is
+manual-trigger in Tilt (click it in the web UI) since it's not something you
+want running on every code change; trigger it once to index the seed data.
+
 ### Testing
 `just test` runs unit tests only
 
