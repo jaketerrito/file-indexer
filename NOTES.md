@@ -75,3 +75,24 @@
 - no video/audio/PDF metadata yet — imagemeta covers images + camera RAW only; a future
   mp4/id3 extractor could reuse index_exif_result's common columns (make, model, taken_at, gps,
   dimensions) rather than inventing a parallel schema
+
+8/16/26
+- upload finally implemented (deferred 6/16), presigned-PUT approach: FilesService.GetUploadURL
+  returns a presigned PUT URL (browser writes bytes straight to S3, no bytes transit the API);
+  FilesService.CommitUpload then stats the key itself (never trusts the client) and upserts a
+  files row via the same UpsertFiles path the crawler uses, so the next index-queue seed picks it
+  up. No new Storage method for content-type binding: minio-go's PresignedPutObject doesn't sign
+  headers, so the client's Content-Type header on the PUT isn't verified — acceptable since
+  CommitUpload's Stat reads back whatever S3 actually stored rather than trusting the request.
+- key collisions overwrite (idempotent upsert), which also happens to give free re-indexing (bumped
+  marked_at re-seeds the queue) if a client re-uploads an existing key.
+- frontend: FileList's Upload button uploads multiple selected files sequentially (not
+  concurrently) so one failure doesn't leave a pile of in-flight requests; each file does
+  presign -> PUT -> commit in turn.
+- considered a full folder-browsing UI (breadcrumb nav, separate from search) since we do expect
+  hierarchical dirs (docs/important, docs/housing, ...); deferred — no delimiter-based "list
+  immediate children" query exists yet (current ListFilesBy* are recursive LIKE 'prefix%', not
+  S3-Delimiter-style), so folder rows would need a new backend query. Landed the cheap version
+  instead: an "Upload to" text input (web/src/lib/uploadPath.ts normalizes it — trailing slash,
+  collapsed//, trimmed) decoupled from the search prefix, so typing a search term can never change
+  where an upload lands. Revisit real folder browsing if the flat-search UX proves annoying.

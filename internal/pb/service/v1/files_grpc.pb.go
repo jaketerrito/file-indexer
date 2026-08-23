@@ -23,6 +23,8 @@ const (
 	FilesService_GetPreviewURL_FullMethodName  = "/service.v1.FilesService/GetPreviewURL"
 	FilesService_GetFileInfo_FullMethodName    = "/service.v1.FilesService/GetFileInfo"
 	FilesService_DeleteFile_FullMethodName     = "/service.v1.FilesService/DeleteFile"
+	FilesService_GetUploadURL_FullMethodName   = "/service.v1.FilesService/GetUploadURL"
+	FilesService_CommitUpload_FullMethodName   = "/service.v1.FilesService/CommitUpload"
 )
 
 // FilesServiceClient is the client API for FilesService service.
@@ -33,6 +35,8 @@ type FilesServiceClient interface {
 	GetPreviewURL(ctx context.Context, in *GetPreviewURLRequest, opts ...grpc.CallOption) (*GetPreviewURLResponse, error)
 	GetFileInfo(ctx context.Context, in *GetFileInfoRequest, opts ...grpc.CallOption) (*GetFileInfoResponse, error)
 	DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error)
+	GetUploadURL(ctx context.Context, in *GetUploadURLRequest, opts ...grpc.CallOption) (*GetUploadURLResponse, error)
+	CommitUpload(ctx context.Context, in *CommitUploadRequest, opts ...grpc.CallOption) (*CommitUploadResponse, error)
 }
 
 type filesServiceClient struct {
@@ -83,6 +87,26 @@ func (c *filesServiceClient) DeleteFile(ctx context.Context, in *DeleteFileReque
 	return out, nil
 }
 
+func (c *filesServiceClient) GetUploadURL(ctx context.Context, in *GetUploadURLRequest, opts ...grpc.CallOption) (*GetUploadURLResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUploadURLResponse)
+	err := c.cc.Invoke(ctx, FilesService_GetUploadURL_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *filesServiceClient) CommitUpload(ctx context.Context, in *CommitUploadRequest, opts ...grpc.CallOption) (*CommitUploadResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CommitUploadResponse)
+	err := c.cc.Invoke(ctx, FilesService_CommitUpload_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FilesServiceServer is the server API for FilesService service.
 // All implementations must embed UnimplementedFilesServiceServer
 // for forward compatibility.
@@ -91,6 +115,8 @@ type FilesServiceServer interface {
 	GetPreviewURL(context.Context, *GetPreviewURLRequest) (*GetPreviewURLResponse, error)
 	GetFileInfo(context.Context, *GetFileInfoRequest) (*GetFileInfoResponse, error)
 	DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error)
+	GetUploadURL(context.Context, *GetUploadURLRequest) (*GetUploadURLResponse, error)
+	CommitUpload(context.Context, *CommitUploadRequest) (*CommitUploadResponse, error)
 	mustEmbedUnimplementedFilesServiceServer()
 }
 
@@ -112,6 +138,12 @@ func (UnimplementedFilesServiceServer) GetFileInfo(context.Context, *GetFileInfo
 }
 func (UnimplementedFilesServiceServer) DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteFile not implemented")
+}
+func (UnimplementedFilesServiceServer) GetUploadURL(context.Context, *GetUploadURLRequest) (*GetUploadURLResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUploadURL not implemented")
+}
+func (UnimplementedFilesServiceServer) CommitUpload(context.Context, *CommitUploadRequest) (*CommitUploadResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CommitUpload not implemented")
 }
 func (UnimplementedFilesServiceServer) mustEmbedUnimplementedFilesServiceServer() {}
 func (UnimplementedFilesServiceServer) testEmbeddedByValue()                      {}
@@ -206,6 +238,42 @@ func _FilesService_DeleteFile_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FilesService_GetUploadURL_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUploadURLRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FilesServiceServer).GetUploadURL(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FilesService_GetUploadURL_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FilesServiceServer).GetUploadURL(ctx, req.(*GetUploadURLRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FilesService_CommitUpload_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommitUploadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FilesServiceServer).CommitUpload(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FilesService_CommitUpload_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FilesServiceServer).CommitUpload(ctx, req.(*CommitUploadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FilesService_ServiceDesc is the grpc.ServiceDesc for FilesService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -228,6 +296,14 @@ var FilesService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteFile",
 			Handler:    _FilesService_DeleteFile_Handler,
+		},
+		{
+			MethodName: "GetUploadURL",
+			Handler:    _FilesService_GetUploadURL_Handler,
+		},
+		{
+			MethodName: "CommitUpload",
+			Handler:    _FilesService_CommitUpload_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
