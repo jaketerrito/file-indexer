@@ -14,6 +14,10 @@ ON CONFLICT (key) DO UPDATE
 SELECT * FROM file_infos
 WHERE id = $1;
 
+-- name: GetFileByKey :one
+SELECT * FROM file_infos
+WHERE key = $1;
+
 -- name: GetFilesByIDs :many
 SELECT * FROM file_infos
 WHERE id = ANY($1::bigint[]);

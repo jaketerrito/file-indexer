@@ -75,7 +75,7 @@ Indexer can be parameterized to generate different sets of metadata
 1. crawler script for filesystem -- DONE
 1. standalone api for indexing --DONE
 1. build database -- DONE
-1. standalone api with crud and search -- Partially DONE- MISING Upload method
+1. standalone api with crud and search -- DONE (upload: presigned-PUT GetUploadURL + CommitUpload, see NOTES.md 8/16/26)
 1. metadata gen functions -- DONE
 1. web client that relies on the api -- DONE
 1. Integrate indexing triggered via the api (using event queue)

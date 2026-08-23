@@ -9,6 +9,7 @@ import (
 	"time"
 
 	pb "file-indexer/internal/pb/service/v1"
+	objstore "file-indexer/internal/storage"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -21,7 +22,7 @@ func TestNew(t *testing.T) {
 	queries := NewMockFileIndex(t)
 	store := NewMockObjectStore(t)
 
-	srv := New(":1234", store, queries)
+	srv := New(":1234", store, queries, ".index/")
 
 	if srv == nil {
 		t.Fatal("New returned nil")
@@ -31,6 +32,9 @@ func TestNew(t *testing.T) {
 	}
 	if srv.storage != store || srv.queries != queries {
 		t.Error("New did not wire dependencies")
+	}
+	if srv.indexPrefix != ".index/" {
+		t.Errorf("indexPrefix = %q, want %q", srv.indexPrefix, ".index/")
 	}
 }
 
@@ -393,6 +397,104 @@ func TestGetPreviewURLStorageError(t *testing.T) {
 	}
 }
 
+func TestGetUploadURL(t *testing.T) {
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().PutURL(mock.Anything, "photos/cat.jpg").Return("https://example.com/put-url", nil)
+
+	srv := FilesServer{storage: storage, indexPrefix: ".index/"}
+
+	resp, err := srv.GetUploadURL(context.Background(), &pb.GetUploadURLRequest{Key: "photos/cat.jpg"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Url != "https://example.com/put-url" {
+		t.Errorf("Url = %q", resp.Url)
+	}
+}
+
+func TestGetUploadURLRejectsReservedPrefix(t *testing.T) {
+	storage := NewMockObjectStore(t)
+
+	srv := FilesServer{storage: storage, indexPrefix: ".index/"}
+
+	_, err := srv.GetUploadURL(context.Background(), &pb.GetUploadURLRequest{Key: ".index/previews/1"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	storage.AssertNotCalled(t, "PutURL", mock.Anything, mock.Anything)
+}
+
+func TestGetUploadURLRejectsEmptyKey(t *testing.T) {
+	srv := FilesServer{storage: NewMockObjectStore(t), indexPrefix: ".index/"}
+
+	_, err := srv.GetUploadURL(context.Background(), &pb.GetUploadURLRequest{Key: ""})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestGetUploadURLRejectsPathEscape(t *testing.T) {
+	srv := FilesServer{storage: NewMockObjectStore(t), indexPrefix: ".index/"}
+
+	for _, key := range []string{"/etc/passwd", "../secret", "a/../../b"} {
+		if _, err := srv.GetUploadURL(context.Background(), &pb.GetUploadURLRequest{Key: key}); err == nil {
+			t.Errorf("key %q: expected error, got nil", key)
+		}
+	}
+}
+
+func TestCommitUpload(t *testing.T) {
+	now := time.Now()
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().UpsertFiles(mock.Anything, db.UpsertFilesParams{
+		Keys:      []string{"photos/cat.jpg"},
+		MarkedAts: []pgtype.Timestamptz{{Time: now, Valid: true}},
+	}).Return(int64(1), nil)
+	queries.EXPECT().GetFileByKey(mock.Anything, "photos/cat.jpg").
+		Return(db.FileInfo{ID: 5, Key: "photos/cat.jpg"}, nil)
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().Stat(mock.Anything, "photos/cat.jpg").
+		Return(objstore.ObjectInfo{Key: "photos/cat.jpg", LastModified: now}, nil)
+
+	srv := FilesServer{queries: queries, storage: storage, indexPrefix: ".index/"}
+
+	resp, err := srv.CommitUpload(context.Background(), &pb.CommitUploadRequest{Key: "photos/cat.jpg"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.File.Id != 5 || resp.File.Key != "photos/cat.jpg" {
+		t.Errorf("CommitUpload = %+v", resp.File)
+	}
+}
+
+func TestCommitUploadStatMiss(t *testing.T) {
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().Stat(mock.Anything, "missing.jpg").Return(objstore.ObjectInfo{}, errors.New("not found"))
+
+	queries := NewMockFileIndex(t)
+
+	srv := FilesServer{queries: queries, storage: storage, indexPrefix: ".index/"}
+
+	_, err := srv.CommitUpload(context.Background(), &pb.CommitUploadRequest{Key: "missing.jpg"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	queries.AssertNotCalled(t, "UpsertFiles", mock.Anything, mock.Anything)
+}
+
+func TestCommitUploadRejectsReservedPrefix(t *testing.T) {
+	storage := NewMockObjectStore(t)
+
+	srv := FilesServer{storage: storage, indexPrefix: ".index/"}
+
+	_, err := srv.CommitUpload(context.Background(), &pb.CommitUploadRequest{Key: ".index/previews/1"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	storage.AssertNotCalled(t, "Stat", mock.Anything, mock.Anything)
+}
+
 // freeAddr reserves an ephemeral port and returns its address. There is a
 // small window between closing the probe listener and Serve re-binding it,
 // which is acceptable for tests.
@@ -426,7 +528,7 @@ func TestServe(t *testing.T) {
 	store := NewMockObjectStore(t)
 
 	addr := freeAddr(t)
-	srv := New(addr, store, queries)
+	srv := New(addr, store, queries, ".index/")
 
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.Serve() }()
@@ -462,7 +564,7 @@ func TestServe(t *testing.T) {
 }
 
 func TestServeBadAddr(t *testing.T) {
-	srv := New("256.256.256.256:0", NewMockObjectStore(t), NewMockFileIndex(t))
+	srv := New("256.256.256.256:0", NewMockObjectStore(t), NewMockFileIndex(t), ".index/")
 	if err := srv.Serve(); err == nil {
 		t.Fatal("Serve with bad addr: want error, got nil")
 	}

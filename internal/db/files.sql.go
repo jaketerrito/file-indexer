@@ -51,6 +51,28 @@ func (q *Queries) GetFile(ctx context.Context, id int64) (FileInfo, error) {
 	return i, err
 }
 
+const getFileByKey = `-- name: GetFileByKey :one
+SELECT id, key, created_at, content_type, size_bytes, last_modified, preview_key, preview_width, preview_height FROM file_infos
+WHERE key = $1
+`
+
+func (q *Queries) GetFileByKey(ctx context.Context, key string) (FileInfo, error) {
+	row := q.db.QueryRow(ctx, getFileByKey, key)
+	var i FileInfo
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.CreatedAt,
+		&i.ContentType,
+		&i.SizeBytes,
+		&i.LastModified,
+		&i.PreviewKey,
+		&i.PreviewWidth,
+		&i.PreviewHeight,
+	)
+	return i, err
+}
+
 const getFilesByIDs = `-- name: GetFilesByIDs :many
 SELECT id, key, created_at, content_type, size_bytes, last_modified, preview_key, preview_width, preview_height FROM file_infos
 WHERE id = ANY($1::bigint[])

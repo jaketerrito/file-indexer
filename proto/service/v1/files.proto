@@ -11,6 +11,8 @@ service FilesService {
   rpc GetPreviewURL(GetPreviewURLRequest) returns (GetPreviewURLResponse);
   rpc GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  rpc GetUploadURL(GetUploadURLRequest) returns (GetUploadURLResponse);
+  rpc CommitUpload(CommitUploadRequest) returns (CommitUploadResponse);
 }
 
 message GetDownloadURLRequest {
@@ -133,3 +135,26 @@ message DeleteFileRequest {
 }
 
 message DeleteFileResponse {}
+
+message GetUploadURLRequest {
+  // Destination object key. The client sets its own Content-Type header on
+  // the PUT; CommitUpload re-stats the object afterward rather than trusting
+  // anything about the upload, so it is not threaded through here.
+  string key = 1;
+}
+
+message GetUploadURLResponse {
+  string url = 1;
+}
+
+message CommitUploadRequest {
+  // Key the client PUT its bytes to via the GetUploadURL URL.
+  string key = 1;
+}
+
+message CommitUploadResponse {
+  // Stat-derived record for the newly-landed object. Indexing (previews,
+  // EXIF, etc.) is asynchronous — this reflects only what S3 knows
+  // immediately, not full FileInfo.
+  FileInfo file = 1;
+}

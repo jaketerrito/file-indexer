@@ -924,6 +924,189 @@ func (*DeleteFileResponse) Descriptor() ([]byte, []int) {
 	return file_service_v1_files_proto_rawDescGZIP(), []int{11}
 }
 
+type GetUploadURLRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Destination object key. The client sets its own Content-Type header on
+	// the PUT; CommitUpload re-stats the object afterward rather than trusting
+	// anything about the upload, so it is not threaded through here.
+	Key           string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUploadURLRequest) Reset() {
+	*x = GetUploadURLRequest{}
+	mi := &file_service_v1_files_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUploadURLRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUploadURLRequest) ProtoMessage() {}
+
+func (x *GetUploadURLRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUploadURLRequest.ProtoReflect.Descriptor instead.
+func (*GetUploadURLRequest) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetUploadURLRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+type GetUploadURLResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUploadURLResponse) Reset() {
+	*x = GetUploadURLResponse{}
+	mi := &file_service_v1_files_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUploadURLResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUploadURLResponse) ProtoMessage() {}
+
+func (x *GetUploadURLResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUploadURLResponse.ProtoReflect.Descriptor instead.
+func (*GetUploadURLResponse) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *GetUploadURLResponse) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+type CommitUploadRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Key the client PUT its bytes to via the GetUploadURL URL.
+	Key           string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CommitUploadRequest) Reset() {
+	*x = CommitUploadRequest{}
+	mi := &file_service_v1_files_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommitUploadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommitUploadRequest) ProtoMessage() {}
+
+func (x *CommitUploadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommitUploadRequest.ProtoReflect.Descriptor instead.
+func (*CommitUploadRequest) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CommitUploadRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+type CommitUploadResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stat-derived record for the newly-landed object. Indexing (previews,
+	// EXIF, etc.) is asynchronous — this reflects only what S3 knows
+	// immediately, not full FileInfo.
+	File          *FileInfo `protobuf:"bytes,1,opt,name=file,proto3" json:"file,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CommitUploadResponse) Reset() {
+	*x = CommitUploadResponse{}
+	mi := &file_service_v1_files_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommitUploadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommitUploadResponse) ProtoMessage() {}
+
+func (x *CommitUploadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommitUploadResponse.ProtoReflect.Descriptor instead.
+func (*CommitUploadResponse) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *CommitUploadResponse) GetFile() *FileInfo {
+	if x != nil {
+		return x.File
+	}
+	return nil
+}
+
 var File_service_v1_files_proto protoreflect.FileDescriptor
 
 const file_service_v1_files_proto_rawDesc = "" +
@@ -1043,13 +1226,23 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\x04file\x18\x01 \x01(\v2\x14.service.v1.FileInfoR\x04file\"#\n" +
 	"\x11DeleteFileRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\"\x14\n" +
-	"\x12DeleteFileResponse2\xda\x02\n" +
+	"\x12DeleteFileResponse\"'\n" +
+	"\x13GetUploadURLRequest\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\"(\n" +
+	"\x14GetUploadURLResponse\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\"'\n" +
+	"\x13CommitUploadRequest\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\"@\n" +
+	"\x14CommitUploadResponse\x12(\n" +
+	"\x04file\x18\x01 \x01(\v2\x14.service.v1.FileInfoR\x04file2\x80\x04\n" +
 	"\fFilesService\x12W\n" +
 	"\x0eGetDownloadURL\x12!.service.v1.GetDownloadURLRequest\x1a\".service.v1.GetDownloadURLResponse\x12T\n" +
 	"\rGetPreviewURL\x12 .service.v1.GetPreviewURLRequest\x1a!.service.v1.GetPreviewURLResponse\x12N\n" +
 	"\vGetFileInfo\x12\x1e.service.v1.GetFileInfoRequest\x1a\x1f.service.v1.GetFileInfoResponse\x12K\n" +
 	"\n" +
-	"DeleteFile\x12\x1d.service.v1.DeleteFileRequest\x1a\x1e.service.v1.DeleteFileResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
+	"DeleteFile\x12\x1d.service.v1.DeleteFileRequest\x1a\x1e.service.v1.DeleteFileResponse\x12Q\n" +
+	"\fGetUploadURL\x12\x1f.service.v1.GetUploadURLRequest\x1a .service.v1.GetUploadURLResponse\x12Q\n" +
+	"\fCommitUpload\x12\x1f.service.v1.CommitUploadRequest\x1a .service.v1.CommitUploadResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
 
 var (
 	file_service_v1_files_proto_rawDescOnce sync.Once
@@ -1063,7 +1256,7 @@ func file_service_v1_files_proto_rawDescGZIP() []byte {
 	return file_service_v1_files_proto_rawDescData
 }
 
-var file_service_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_service_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_service_v1_files_proto_goTypes = []any{
 	(*GetDownloadURLRequest)(nil),  // 0: service.v1.GetDownloadURLRequest
 	(*DownloadURLSpec)(nil),        // 1: service.v1.DownloadURLSpec
@@ -1077,31 +1270,40 @@ var file_service_v1_files_proto_goTypes = []any{
 	(*GetFileInfoResponse)(nil),    // 9: service.v1.GetFileInfoResponse
 	(*DeleteFileRequest)(nil),      // 10: service.v1.DeleteFileRequest
 	(*DeleteFileResponse)(nil),     // 11: service.v1.DeleteFileResponse
-	(*timestamppb.Timestamp)(nil),  // 12: google.protobuf.Timestamp
+	(*GetUploadURLRequest)(nil),    // 12: service.v1.GetUploadURLRequest
+	(*GetUploadURLResponse)(nil),   // 13: service.v1.GetUploadURLResponse
+	(*CommitUploadRequest)(nil),    // 14: service.v1.CommitUploadRequest
+	(*CommitUploadResponse)(nil),   // 15: service.v1.CommitUploadResponse
+	(*timestamppb.Timestamp)(nil),  // 16: google.protobuf.Timestamp
 }
 var file_service_v1_files_proto_depIdxs = []int32{
 	1,  // 0: service.v1.GetDownloadURLResponse.download_urls:type_name -> service.v1.DownloadURLSpec
 	4,  // 1: service.v1.GetPreviewURLResponse.preview_urls:type_name -> service.v1.PreviewURLSpec
-	12, // 2: service.v1.FileInfo.created_at:type_name -> google.protobuf.Timestamp
-	12, // 3: service.v1.FileInfo.updated_at:type_name -> google.protobuf.Timestamp
+	16, // 2: service.v1.FileInfo.created_at:type_name -> google.protobuf.Timestamp
+	16, // 3: service.v1.FileInfo.updated_at:type_name -> google.protobuf.Timestamp
 	8,  // 4: service.v1.FileInfo.exif:type_name -> service.v1.ExifMetadata
-	12, // 5: service.v1.ExifMetadata.taken_at:type_name -> google.protobuf.Timestamp
-	12, // 6: service.v1.ExifMetadata.gps_at:type_name -> google.protobuf.Timestamp
-	12, // 7: service.v1.ExifMetadata.xmp_create_date:type_name -> google.protobuf.Timestamp
+	16, // 5: service.v1.ExifMetadata.taken_at:type_name -> google.protobuf.Timestamp
+	16, // 6: service.v1.ExifMetadata.gps_at:type_name -> google.protobuf.Timestamp
+	16, // 7: service.v1.ExifMetadata.xmp_create_date:type_name -> google.protobuf.Timestamp
 	7,  // 8: service.v1.GetFileInfoResponse.file:type_name -> service.v1.FileInfo
-	0,  // 9: service.v1.FilesService.GetDownloadURL:input_type -> service.v1.GetDownloadURLRequest
-	3,  // 10: service.v1.FilesService.GetPreviewURL:input_type -> service.v1.GetPreviewURLRequest
-	6,  // 11: service.v1.FilesService.GetFileInfo:input_type -> service.v1.GetFileInfoRequest
-	10, // 12: service.v1.FilesService.DeleteFile:input_type -> service.v1.DeleteFileRequest
-	2,  // 13: service.v1.FilesService.GetDownloadURL:output_type -> service.v1.GetDownloadURLResponse
-	5,  // 14: service.v1.FilesService.GetPreviewURL:output_type -> service.v1.GetPreviewURLResponse
-	9,  // 15: service.v1.FilesService.GetFileInfo:output_type -> service.v1.GetFileInfoResponse
-	11, // 16: service.v1.FilesService.DeleteFile:output_type -> service.v1.DeleteFileResponse
-	13, // [13:17] is the sub-list for method output_type
-	9,  // [9:13] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	7,  // 9: service.v1.CommitUploadResponse.file:type_name -> service.v1.FileInfo
+	0,  // 10: service.v1.FilesService.GetDownloadURL:input_type -> service.v1.GetDownloadURLRequest
+	3,  // 11: service.v1.FilesService.GetPreviewURL:input_type -> service.v1.GetPreviewURLRequest
+	6,  // 12: service.v1.FilesService.GetFileInfo:input_type -> service.v1.GetFileInfoRequest
+	10, // 13: service.v1.FilesService.DeleteFile:input_type -> service.v1.DeleteFileRequest
+	12, // 14: service.v1.FilesService.GetUploadURL:input_type -> service.v1.GetUploadURLRequest
+	14, // 15: service.v1.FilesService.CommitUpload:input_type -> service.v1.CommitUploadRequest
+	2,  // 16: service.v1.FilesService.GetDownloadURL:output_type -> service.v1.GetDownloadURLResponse
+	5,  // 17: service.v1.FilesService.GetPreviewURL:output_type -> service.v1.GetPreviewURLResponse
+	9,  // 18: service.v1.FilesService.GetFileInfo:output_type -> service.v1.GetFileInfoResponse
+	11, // 19: service.v1.FilesService.DeleteFile:output_type -> service.v1.DeleteFileResponse
+	13, // 20: service.v1.FilesService.GetUploadURL:output_type -> service.v1.GetUploadURLResponse
+	15, // 21: service.v1.FilesService.CommitUpload:output_type -> service.v1.CommitUploadResponse
+	16, // [16:22] is the sub-list for method output_type
+	10, // [10:16] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_service_v1_files_proto_init() }
@@ -1116,7 +1318,7 @@ func file_service_v1_files_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_v1_files_proto_rawDesc), len(file_service_v1_files_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

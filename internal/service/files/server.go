@@ -5,25 +5,37 @@ import (
 	"errors"
 	"file-indexer/internal/db"
 	pb "file-indexer/internal/pb/service/v1"
+	"file-indexer/internal/storage"
 	"log/slog"
 	"net"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type ObjectStore interface {
 	GetURL(ctx context.Context, key string) (string, error)
 	GetInlineURL(ctx context.Context, key string) (string, error)
+	// PutURL returns a presigned URL a client can PUT bytes to directly.
+	PutURL(ctx context.Context, key string) (string, error)
+	// Stat is used by CommitUpload to confirm the object actually landed in
+	// S3 (and read its size/content-type/mtime) before it is upserted into
+	// the index — never trust an unverified client claim.
+	Stat(ctx context.Context, key string) (storage.ObjectInfo, error)
 	Delete(ctx context.Context, key string) error
 }
 
 type FileIndex interface {
 	GetFile(ctx context.Context, id int64) (db.FileInfo, error)
 	GetFilesByIDs(ctx context.Context, ids []int64) ([]db.FileInfo, error)
+	GetFileByKey(ctx context.Context, key string) (db.FileInfo, error)
 	DeleteFile(ctx context.Context, id int64) (db.File, error)
+	UpsertFiles(ctx context.Context, arg db.UpsertFilesParams) (int64, error)
 	// GetIndexExifResult returns pgx.ErrNoRows when the file has neither EXIF
 	// nor XMP data (or hasn't reached the exif indexer yet).
 	GetIndexExifResult(ctx context.Context, fileID int64) (db.IndexExifResult, error)
@@ -31,18 +43,24 @@ type FileIndex interface {
 
 type FilesServer struct {
 	pb.UnimplementedFilesServiceServer
-	addr    string
-	storage ObjectStore
-	queries FileIndex
+	addr        string
+	storage     ObjectStore
+	queries     FileIndex
+	indexPrefix string
 }
 
 // New constructs an IndexerServer with its dependencies already built by the
 // caller (composition root). It does no I/O; call Serve to start listening.
-func New(addr string, store ObjectStore, queries FileIndex) *FilesServer {
+// indexPrefix is the key prefix under which index types write derived
+// objects (see config.IndexPrefix); uploads targeting it are rejected so a
+// client can never masquerade bytes as a derived artifact (which the
+// crawler treats specially, see internal/service/crawler).
+func New(addr string, store ObjectStore, queries FileIndex, indexPrefix string) *FilesServer {
 	return &FilesServer{
-		addr:    addr,
-		storage: store,
-		queries: queries,
+		addr:        addr,
+		storage:     store,
+		queries:     queries,
+		indexPrefix: indexPrefix,
 	}
 }
 
@@ -125,6 +143,65 @@ func (s *FilesServer) DeleteFile(ctx context.Context, req *pb.DeleteFileRequest)
 		return nil, err
 	}
 	return &pb.DeleteFileResponse{}, nil
+}
+
+// GetUploadURL returns a presigned URL the caller can PUT an object's bytes
+// to directly, bypassing this service for the transfer itself. It rejects
+// keys under indexPrefix so a client can never plant an object where the
+// crawler expects only derived artifacts (see doc comment on New).
+func (s *FilesServer) GetUploadURL(ctx context.Context, req *pb.GetUploadURLRequest) (*pb.GetUploadURLResponse, error) {
+	key, err := s.validateUploadKey(req.GetKey())
+	if err != nil {
+		return nil, err
+	}
+	url, err := s.storage.PutURL(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetUploadURLResponse{Url: url}, nil
+}
+
+// CommitUpload is called once a client's presigned PUT has completed. It
+// never trusts the client's say-so: it re-stats the key in S3 and only then
+// upserts a files row (the same reference-based path the crawler uses),
+// which the next index-queue seed picks up. Returns a stat-derived FileInfo;
+// preview/EXIF fields are unset until their indexers run.
+func (s *FilesServer) CommitUpload(ctx context.Context, req *pb.CommitUploadRequest) (*pb.CommitUploadResponse, error) {
+	key, err := s.validateUploadKey(req.GetKey())
+	if err != nil {
+		return nil, err
+	}
+	info, err := s.storage.Stat(ctx, key)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "stat uploaded object: %v", err)
+	}
+	if _, err := s.queries.UpsertFiles(ctx, db.UpsertFilesParams{
+		Keys:      []string{info.Key},
+		MarkedAts: []pgtype.Timestamptz{{Time: info.LastModified, Valid: true}},
+	}); err != nil {
+		return nil, err
+	}
+	file, err := s.queries.GetFileByKey(ctx, info.Key)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.CommitUploadResponse{File: dbFileToProto(file)}, nil
+}
+
+// validateUploadKey rejects keys that are empty, escape the bucket root via
+// "..", or fall under indexPrefix (reserved for derived objects the crawler
+// must never see as user files).
+func (s *FilesServer) validateUploadKey(key string) (string, error) {
+	if key == "" {
+		return "", status.Error(codes.InvalidArgument, "key must not be empty")
+	}
+	if strings.HasPrefix(key, "/") || strings.Contains(key, "..") {
+		return "", status.Errorf(codes.InvalidArgument, "invalid key %q", key)
+	}
+	if s.indexPrefix != "" && strings.HasPrefix(key, s.indexPrefix) {
+		return "", status.Errorf(codes.InvalidArgument, "key %q is reserved for derived objects", key)
+	}
+	return key, nil
 }
 
 func (s *FilesServer) Serve() error {

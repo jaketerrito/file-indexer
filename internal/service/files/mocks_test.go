@@ -7,6 +7,7 @@ package files
 import (
 	"context"
 	"file-indexer/internal/db"
+	"file-indexer/internal/storage"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -227,6 +228,138 @@ func (_c *MockObjectStore_GetURL_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
+// PutURL provides a mock function for the type MockObjectStore
+func (_mock *MockObjectStore) PutURL(ctx context.Context, key string) (string, error) {
+	ret := _mock.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PutURL")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
+		return returnFunc(ctx, key)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = returnFunc(ctx, key)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, key)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockObjectStore_PutURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PutURL'
+type MockObjectStore_PutURL_Call struct {
+	*mock.Call
+}
+
+// PutURL is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *MockObjectStore_Expecter) PutURL(ctx any, key any) *MockObjectStore_PutURL_Call {
+	return &MockObjectStore_PutURL_Call{Call: _e.mock.On("PutURL", ctx, key)}
+}
+
+func (_c *MockObjectStore_PutURL_Call) Run(run func(ctx context.Context, key string)) *MockObjectStore_PutURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockObjectStore_PutURL_Call) Return(s string, err error) *MockObjectStore_PutURL_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockObjectStore_PutURL_Call) RunAndReturn(run func(ctx context.Context, key string) (string, error)) *MockObjectStore_PutURL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Stat provides a mock function for the type MockObjectStore
+func (_mock *MockObjectStore) Stat(ctx context.Context, key string) (storage.ObjectInfo, error) {
+	ret := _mock.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Stat")
+	}
+
+	var r0 storage.ObjectInfo
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (storage.ObjectInfo, error)); ok {
+		return returnFunc(ctx, key)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) storage.ObjectInfo); ok {
+		r0 = returnFunc(ctx, key)
+	} else {
+		r0 = ret.Get(0).(storage.ObjectInfo)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, key)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockObjectStore_Stat_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Stat'
+type MockObjectStore_Stat_Call struct {
+	*mock.Call
+}
+
+// Stat is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *MockObjectStore_Expecter) Stat(ctx any, key any) *MockObjectStore_Stat_Call {
+	return &MockObjectStore_Stat_Call{Call: _e.mock.On("Stat", ctx, key)}
+}
+
+func (_c *MockObjectStore_Stat_Call) Run(run func(ctx context.Context, key string)) *MockObjectStore_Stat_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockObjectStore_Stat_Call) Return(objectInfo storage.ObjectInfo, err error) *MockObjectStore_Stat_Call {
+	_c.Call.Return(objectInfo, err)
+	return _c
+}
+
+func (_c *MockObjectStore_Stat_Call) RunAndReturn(run func(ctx context.Context, key string) (storage.ObjectInfo, error)) *MockObjectStore_Stat_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockFileIndex creates a new instance of MockFileIndex. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockFileIndex(t interface {
@@ -386,6 +519,72 @@ func (_c *MockFileIndex_GetFile_Call) RunAndReturn(run func(ctx context.Context,
 	return _c
 }
 
+// GetFileByKey provides a mock function for the type MockFileIndex
+func (_mock *MockFileIndex) GetFileByKey(ctx context.Context, key string) (db.FileInfo, error) {
+	ret := _mock.Called(ctx, key)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetFileByKey")
+	}
+
+	var r0 db.FileInfo
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (db.FileInfo, error)); ok {
+		return returnFunc(ctx, key)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) db.FileInfo); ok {
+		r0 = returnFunc(ctx, key)
+	} else {
+		r0 = ret.Get(0).(db.FileInfo)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, key)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileIndex_GetFileByKey_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetFileByKey'
+type MockFileIndex_GetFileByKey_Call struct {
+	*mock.Call
+}
+
+// GetFileByKey is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+func (_e *MockFileIndex_Expecter) GetFileByKey(ctx any, key any) *MockFileIndex_GetFileByKey_Call {
+	return &MockFileIndex_GetFileByKey_Call{Call: _e.mock.On("GetFileByKey", ctx, key)}
+}
+
+func (_c *MockFileIndex_GetFileByKey_Call) Run(run func(ctx context.Context, key string)) *MockFileIndex_GetFileByKey_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileIndex_GetFileByKey_Call) Return(fileInfo db.FileInfo, err error) *MockFileIndex_GetFileByKey_Call {
+	_c.Call.Return(fileInfo, err)
+	return _c
+}
+
+func (_c *MockFileIndex_GetFileByKey_Call) RunAndReturn(run func(ctx context.Context, key string) (db.FileInfo, error)) *MockFileIndex_GetFileByKey_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetFilesByIDs provides a mock function for the type MockFileIndex
 func (_mock *MockFileIndex) GetFilesByIDs(ctx context.Context, ids []int64) ([]db.FileInfo, error) {
 	ret := _mock.Called(ctx, ids)
@@ -516,6 +715,72 @@ func (_c *MockFileIndex_GetIndexExifResult_Call) Return(indexExifResult db.Index
 }
 
 func (_c *MockFileIndex_GetIndexExifResult_Call) RunAndReturn(run func(ctx context.Context, fileID int64) (db.IndexExifResult, error)) *MockFileIndex_GetIndexExifResult_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpsertFiles provides a mock function for the type MockFileIndex
+func (_mock *MockFileIndex) UpsertFiles(ctx context.Context, arg db.UpsertFilesParams) (int64, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpsertFiles")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpsertFilesParams) (int64, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.UpsertFilesParams) int64); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.UpsertFilesParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileIndex_UpsertFiles_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpsertFiles'
+type MockFileIndex_UpsertFiles_Call struct {
+	*mock.Call
+}
+
+// UpsertFiles is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.UpsertFilesParams
+func (_e *MockFileIndex_Expecter) UpsertFiles(ctx any, arg any) *MockFileIndex_UpsertFiles_Call {
+	return &MockFileIndex_UpsertFiles_Call{Call: _e.mock.On("UpsertFiles", ctx, arg)}
+}
+
+func (_c *MockFileIndex_UpsertFiles_Call) Run(run func(ctx context.Context, arg db.UpsertFilesParams)) *MockFileIndex_UpsertFiles_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.UpsertFilesParams
+		if args[1] != nil {
+			arg1 = args[1].(db.UpsertFilesParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileIndex_UpsertFiles_Call) Return(n int64, err error) *MockFileIndex_UpsertFiles_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockFileIndex_UpsertFiles_Call) RunAndReturn(run func(ctx context.Context, arg db.UpsertFilesParams) (int64, error)) *MockFileIndex_UpsertFiles_Call {
 	_c.Call.Return(run)
 	return _c
 }

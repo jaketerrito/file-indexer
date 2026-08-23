@@ -3,6 +3,7 @@ import { timestampFromDate } from '@bufbuild/protobuf/wkt'
 import type { Client } from '@connectrpc/connect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  CommitUploadResponseSchema,
   DeleteFileResponseSchema,
   DownloadURLSpecSchema,
   ExifMetadataSchema,
@@ -11,6 +12,7 @@ import {
   GetDownloadURLResponseSchema,
   GetFileInfoResponseSchema,
   GetPreviewURLResponseSchema,
+  GetUploadURLResponseSchema,
   PreviewURLSpecSchema,
 } from '../gen/service/v1/files_pb'
 import {
@@ -20,13 +22,16 @@ import {
   SortOrder,
 } from '../gen/service/v1/search_pb'
 import {
+  commitUploadImpl,
   deleteFileImpl,
   getDownloadUrlImpl,
   getFileMetadataImpl,
+  getUploadUrlImpl,
   listFilesImpl,
   toFileDto,
   toFileMetadataDto,
   validateIdInput,
+  validateKeyInput,
   validateListFilesInput,
 } from './impl'
 
@@ -395,6 +400,55 @@ describe('toFileMetadataDto', () => {
         hasXmp: false,
       }),
     )
+  })
+})
+
+describe('validateKeyInput', () => {
+  it('accepts a non-empty key', () => {
+    expect(validateKeyInput({ key: 'docs/report.pdf' })).toEqual({ key: 'docs/report.pdf' })
+  })
+
+  it.each([[{}], [{ key: '' }], [{ key: 42 }]])('rejects %j', (input) => {
+    expect(() => validateKeyInput(input)).toThrow(/key/)
+  })
+})
+
+describe('getUploadUrlImpl', () => {
+  it('requests the key and returns the presigned URL', async () => {
+    const getUploadURL = vi
+      .fn()
+      .mockResolvedValue(create(GetUploadURLResponseSchema, { url: 'https://s3/put-url' }))
+    const client = { getUploadURL } as unknown as Client<typeof FilesService>
+
+    await expect(getUploadUrlImpl(client, 'docs/report.pdf')).resolves.toEqual({
+      url: 'https://s3/put-url',
+    })
+    expect(getUploadURL).toHaveBeenCalledWith({ key: 'docs/report.pdf' })
+  })
+})
+
+describe('commitUploadImpl', () => {
+  it('sends the key and maps the returned file', async () => {
+    const commitUpload = vi.fn().mockResolvedValue(
+      create(CommitUploadResponseSchema, {
+        file: fileInfo({ id: 9n, key: 'docs/report.pdf' }),
+      }),
+    )
+    const client = { commitUpload } as unknown as Client<typeof FilesService>
+
+    const result = await commitUploadImpl(client, 'docs/report.pdf')
+
+    expect(commitUpload).toHaveBeenCalledWith({ key: 'docs/report.pdf' })
+    expect(result.id).toBe('9')
+    expect(result.key).toBe('docs/report.pdf')
+  })
+
+  it('throws when the response has no file', async () => {
+    const client = {
+      commitUpload: vi.fn().mockResolvedValue(create(CommitUploadResponseSchema, {})),
+    } as unknown as Client<typeof FilesService>
+
+    await expect(commitUploadImpl(client, 'docs/report.pdf')).rejects.toThrow('no file returned')
   })
 })
 

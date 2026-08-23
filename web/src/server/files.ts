@@ -1,11 +1,14 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getFilesClient, getSearchClient } from './clients'
 import {
+  commitUploadImpl,
   deleteFileImpl,
   getDownloadUrlImpl,
   getFileMetadataImpl,
+  getUploadUrlImpl,
   listFilesImpl,
   validateIdInput,
+  validateKeyInput,
   validateListFilesInput,
 } from './impl'
 
@@ -27,3 +30,11 @@ export const deleteFile = createServerFn({ method: 'POST' })
 export const getFileMetadata = createServerFn({ method: 'GET' })
   .validator(validateIdInput)
   .handler(({ data }) => getFileMetadataImpl(getFilesClient(), data.id))
+
+export const getUploadUrl = createServerFn({ method: 'GET' })
+  .validator(validateKeyInput)
+  .handler(({ data }) => getUploadUrlImpl(getFilesClient(), data.key))
+
+export const commitUpload = createServerFn({ method: 'POST' })
+  .validator(validateKeyInput)
+  .handler(({ data }) => commitUploadImpl(getFilesClient(), data.key))

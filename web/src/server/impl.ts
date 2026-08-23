@@ -309,3 +309,36 @@ export async function deleteFileImpl(
 ): Promise<void> {
   await client.deleteFile({ id: BigInt(id) })
 }
+
+export function validateKeyInput(input: unknown): { key: string } {
+  const data = (input ?? {}) as Record<string, unknown>
+  if (typeof data.key !== 'string' || data.key === '') {
+    throw new Error('key must be a non-empty string')
+  }
+  return { key: data.key }
+}
+
+export async function getUploadUrlImpl(
+  client: Client<typeof FilesService>,
+  key: string,
+): Promise<{ url: string }> {
+  const res = await client.getUploadURL({ key })
+  return { url: res.url }
+}
+
+/**
+ * Confirms an upload PUT completed and registers the object with the index
+ * (reference-based: only the key is sent, the API re-stats S3 itself).
+ * Returns a stat-derived FileDto; preview/EXIF fields are unset until their
+ * indexers run.
+ */
+export async function commitUploadImpl(
+  client: Client<typeof FilesService>,
+  key: string,
+): Promise<FileDto> {
+  const res = await client.commitUpload({ key })
+  if (!res.file) {
+    throw new Error(`no file returned committing upload for key ${key}`)
+  }
+  return toFileDto(res.file)
+}
