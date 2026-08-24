@@ -1,5 +1,5 @@
 import { createFileRoute, stripSearchParams } from '@tanstack/react-router'
-import { FileList } from '../components/FileList'
+import { Browser } from '../components/Browser'
 import { DEFAULT_FILTERS, type FileFilters, normalizeFilters } from '../lib/fileFilters'
 
 export const Route = createFileRoute('/')({
@@ -24,7 +24,7 @@ function Home() {
   return (
     <main>
       <h1>Files</h1>
-      <FileList filters={filters} onFiltersChange={handleFiltersChange} />
+      <Browser filters={filters} onFiltersChange={handleFiltersChange} />
     </main>
   )
 }

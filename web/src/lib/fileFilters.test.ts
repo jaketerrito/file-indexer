@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_FILTERS, normalizeFilters } from './fileFilters'
+import {
+  DEFAULT_FILTERS,
+  isBrowsing,
+  normalizeFilters,
+  toBrowsePath,
+  toSearchFromPath,
+} from './fileFilters'
 
 describe('normalizeFilters', () => {
   it('returns defaults for empty search params', () => {
@@ -33,5 +39,57 @@ describe('normalizeFilters round-trip', () => {
       order: 'desc',
     })
     expect(normalizeFilters({ ...filters })).toEqual(filters)
+  })
+
+  it('is stable for a browse-mode path, including the root ("")', () => {
+    const filters = normalizeFilters({ path: '' })
+    expect(filters.path).toBe('')
+    expect(normalizeFilters({ ...filters })).toEqual(filters)
+
+    const nested = normalizeFilters({ path: 'docs/sub/' })
+    expect(nested.path).toBe('docs/sub/')
+    expect(normalizeFilters({ ...nested })).toEqual(nested)
+  })
+})
+
+describe('isBrowsing', () => {
+  it('is false when path is absent (search mode)', () => {
+    expect(isBrowsing(normalizeFilters({}))).toBe(false)
+    expect(isBrowsing(normalizeFilters({ prefix: 'docs/' }))).toBe(false)
+  })
+
+  it('is true when path is present, even at the root', () => {
+    expect(isBrowsing(normalizeFilters({ path: '' }))).toBe(true)
+    expect(isBrowsing(normalizeFilters({ path: 'docs/' }))).toBe(true)
+  })
+})
+
+describe('toBrowsePath', () => {
+  it('sets path and clears prefix/type', () => {
+    const filters = normalizeFilters({ prefix: 'old/', type: 'image/' })
+    const next = toBrowsePath(filters, 'docs/')
+    expect(next.path).toBe('docs/')
+    expect(next.prefix).toBe('')
+    expect(next.type).toBe('')
+    // Sort/order are preserved across the navigation.
+    expect(next.sort).toBe(filters.sort)
+    expect(next.order).toBe(filters.order)
+  })
+})
+
+describe('toSearchFromPath', () => {
+  it('seeds prefix from the current path and clears path', () => {
+    const filters = normalizeFilters({ path: 'docs/sub/' })
+    const next = toSearchFromPath(filters, 'image/')
+    expect(next.path).toBeUndefined()
+    expect(next.prefix).toBe('docs/sub/')
+    expect(next.type).toBe('image/')
+  })
+
+  it('seeds an empty prefix from the root path', () => {
+    const filters = normalizeFilters({ path: '' })
+    const next = toSearchFromPath(filters, 'video/')
+    expect(next.prefix).toBe('')
+    expect(next.type).toBe('video/')
   })
 })
