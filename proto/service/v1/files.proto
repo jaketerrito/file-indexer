@@ -13,6 +13,8 @@ service FilesService {
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
   rpc GetUploadURL(GetUploadURLRequest) returns (GetUploadURLResponse);
   rpc CommitUpload(CommitUploadRequest) returns (CommitUploadResponse);
+  rpc GetDirectoryStats(GetDirectoryStatsRequest) returns (GetDirectoryStatsResponse);
+  rpc DeleteDirectory(DeleteDirectoryRequest) returns (DeleteDirectoryResponse);
 }
 
 message GetDownloadURLRequest {
@@ -157,4 +159,31 @@ message CommitUploadResponse {
   // EXIF, etc.) is asynchronous — this reflects only what S3 knows
   // immediately, not full FileInfo.
   FileInfo file = 1;
+}
+
+message GetDirectoryStatsRequest {
+  // Directory prefix; must end in "/" (validated server-side) so a prefix
+  // like "docs" can never match "docs-archive/" too.
+  string path = 1;
+}
+
+message GetDirectoryStatsResponse {
+  int64 file_count = 1;
+  int64 total_bytes = 2;
+}
+
+message DeleteDirectoryRequest {
+  // Same validation as GetDirectoryStats.path. There is no dry-run flag:
+  // callers are expected to show GetDirectoryStats' counts in a confirm
+  // dialog first (see web/src/components/Browser.tsx's delete-folder flow).
+  string path = 1;
+}
+
+message DeleteDirectoryResponse {
+  // Number of files actually removed (S3 object + DB row both succeeded)
+  // before either finishing or hitting an error. Not atomic: on error, some
+  // prefix of the directory's files may already be gone while the rest
+  // remain — retry with the same path to continue, S3 no-ops keys already
+  // deleted.
+  int64 deleted_count = 1;
 }

@@ -320,3 +320,63 @@ func TestDelete(t *testing.T) {
 		t.Errorf("Delete(no-such-key) = %v, want nil", err)
 	}
 }
+
+func TestDeleteMany(t *testing.T) {
+	s, client, bucket := setupBucket(t)
+	ctx := context.Background()
+
+	keys := []string{"many/a.txt", "many/b.txt", "many/c.txt"}
+	for _, k := range keys {
+		putObject(t, client, bucket, k, "bye", "text/plain")
+	}
+	// A missing key mixed in must not stop the others from being deleted,
+	// mirroring S3 multi-delete semantics (missing keys are not errors).
+	err := s.DeleteMany(ctx, append(append([]string{}, keys...), "many/no-such-key"))
+	if err != nil {
+		t.Fatalf("DeleteMany: %v", err)
+	}
+
+	for _, k := range keys {
+		if _, err := s.Stat(ctx, k); err == nil {
+			t.Errorf("Stat(%q) after DeleteMany: want error, got nil", k)
+		}
+	}
+}
+
+func TestDeleteManyEmpty(t *testing.T) {
+	s, _, _ := setupBucket(t)
+
+	if err := s.DeleteMany(context.Background(), nil); err != nil {
+		t.Errorf("DeleteMany(nil) = %v, want nil", err)
+	}
+}
+
+func TestDeleteManyManyKeys(t *testing.T) {
+	// Exercises minio-go's internal >1000-key batching path (S3's
+	// multi-object delete API caps a single request at 1000 keys).
+	s, client, bucket := setupBucket(t)
+	ctx := context.Background()
+
+	const n = 1200
+	keys := make([]string, n)
+	for i := range n {
+		key := fmt.Sprintf("bulk/%04d.txt", i)
+		keys[i] = key
+		putObject(t, client, bucket, key, "x", "text/plain")
+	}
+
+	if err := s.DeleteMany(ctx, keys); err != nil {
+		t.Fatalf("DeleteMany: %v", err)
+	}
+
+	remaining := 0
+	for obj := range client.ListObjects(ctx, bucket, minio.ListObjectsOptions{Recursive: true, Prefix: "bulk/"}) {
+		if obj.Err != nil {
+			t.Fatalf("list remaining: %v", obj.Err)
+		}
+		remaining++
+	}
+	if remaining != 0 {
+		t.Errorf("remaining objects under bulk/ = %d, want 0", remaining)
+	}
+}
