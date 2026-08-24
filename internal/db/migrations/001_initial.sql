@@ -5,18 +5,26 @@
 -- last-modified time on every listing; index runs compare their stored mark
 -- against files.marked_at to determine whether their results are stale.
 -- created_at is discovery time, not object mtime.
+--
+-- key is COLLATE "C" (raw byte order), not the database default collation,
+-- for two reasons: it makes key sort order agree with what S3's
+-- ListObjectsV2 returns (a locale-aware collation does not), and it is
+-- required by the directory-browsing loose index scan (ListChildPrefixes in
+-- queries/files.sql), which skips from one child directory to the next by
+-- incrementing a byte ('/' 0x2F -> '0' 0x30 sorts immediately past
+-- everything under that directory) — only correct in byte order. Under
+-- COLLATE "C" the column's own UNIQUE btree already serves LIKE 'prefix%'
+-- (no locale-aware collation to work around), so no separate
+-- text_pattern_ops index is needed.
 CREATE TABLE IF NOT EXISTS files (
     id         BIGSERIAL PRIMARY KEY,
-    key        TEXT NOT NULL UNIQUE,
+    key        TEXT COLLATE "C" NOT NULL UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     -- Last-modified time from the most recent S3 listing. Bumped on re-crawl
     -- only when the listing shows a newer mtime (GREATEST), so idempotent
     -- re-crawls produce no change for unchanged objects.
     marked_at  TIMESTAMPTZ NOT NULL
 );
-
--- Support prefix listing (LIKE 'prefix%') regardless of database collation.
-CREATE INDEX IF NOT EXISTS files_key_pattern_idx ON files (key text_pattern_ops);
 
 -- index_queue is the shared job queue for every index type: one row per
 -- (index_type, file) tracking where that file is in that index type's
