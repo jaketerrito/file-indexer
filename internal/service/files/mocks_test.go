@@ -96,6 +96,63 @@ func (_c *MockObjectStore_Delete_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
+// DeleteMany provides a mock function for the type MockObjectStore
+func (_mock *MockObjectStore) DeleteMany(ctx context.Context, keys []string) error {
+	ret := _mock.Called(ctx, keys)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteMany")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) error); ok {
+		r0 = returnFunc(ctx, keys)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockObjectStore_DeleteMany_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteMany'
+type MockObjectStore_DeleteMany_Call struct {
+	*mock.Call
+}
+
+// DeleteMany is a helper method to define mock.On call
+//   - ctx context.Context
+//   - keys []string
+func (_e *MockObjectStore_Expecter) DeleteMany(ctx any, keys any) *MockObjectStore_DeleteMany_Call {
+	return &MockObjectStore_DeleteMany_Call{Call: _e.mock.On("DeleteMany", ctx, keys)}
+}
+
+func (_c *MockObjectStore_DeleteMany_Call) Run(run func(ctx context.Context, keys []string)) *MockObjectStore_DeleteMany_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []string
+		if args[1] != nil {
+			arg1 = args[1].([]string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockObjectStore_DeleteMany_Call) Return(err error) *MockObjectStore_DeleteMany_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockObjectStore_DeleteMany_Call) RunAndReturn(run func(ctx context.Context, keys []string) error) *MockObjectStore_DeleteMany_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetInlineURL provides a mock function for the type MockObjectStore
 func (_mock *MockObjectStore) GetInlineURL(ctx context.Context, key string) (string, error) {
 	ret := _mock.Called(ctx, key)
@@ -453,6 +510,138 @@ func (_c *MockFileIndex_DeleteFile_Call) RunAndReturn(run func(ctx context.Conte
 	return _c
 }
 
+// DeleteFilesByIDs provides a mock function for the type MockFileIndex
+func (_mock *MockFileIndex) DeleteFilesByIDs(ctx context.Context, ids []int64) (int64, error) {
+	ret := _mock.Called(ctx, ids)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteFilesByIDs")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) (int64, error)); ok {
+		return returnFunc(ctx, ids)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []int64) int64); ok {
+		r0 = returnFunc(ctx, ids)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []int64) error); ok {
+		r1 = returnFunc(ctx, ids)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileIndex_DeleteFilesByIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteFilesByIDs'
+type MockFileIndex_DeleteFilesByIDs_Call struct {
+	*mock.Call
+}
+
+// DeleteFilesByIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ids []int64
+func (_e *MockFileIndex_Expecter) DeleteFilesByIDs(ctx any, ids any) *MockFileIndex_DeleteFilesByIDs_Call {
+	return &MockFileIndex_DeleteFilesByIDs_Call{Call: _e.mock.On("DeleteFilesByIDs", ctx, ids)}
+}
+
+func (_c *MockFileIndex_DeleteFilesByIDs_Call) Run(run func(ctx context.Context, ids []int64)) *MockFileIndex_DeleteFilesByIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []int64
+		if args[1] != nil {
+			arg1 = args[1].([]int64)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileIndex_DeleteFilesByIDs_Call) Return(n int64, err error) *MockFileIndex_DeleteFilesByIDs_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockFileIndex_DeleteFilesByIDs_Call) RunAndReturn(run func(ctx context.Context, ids []int64) (int64, error)) *MockFileIndex_DeleteFilesByIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetDirectoryStats provides a mock function for the type MockFileIndex
+func (_mock *MockFileIndex) GetDirectoryStats(ctx context.Context, keyPattern string) (db.GetDirectoryStatsRow, error) {
+	ret := _mock.Called(ctx, keyPattern)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDirectoryStats")
+	}
+
+	var r0 db.GetDirectoryStatsRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (db.GetDirectoryStatsRow, error)); ok {
+		return returnFunc(ctx, keyPattern)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) db.GetDirectoryStatsRow); ok {
+		r0 = returnFunc(ctx, keyPattern)
+	} else {
+		r0 = ret.Get(0).(db.GetDirectoryStatsRow)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, keyPattern)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileIndex_GetDirectoryStats_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetDirectoryStats'
+type MockFileIndex_GetDirectoryStats_Call struct {
+	*mock.Call
+}
+
+// GetDirectoryStats is a helper method to define mock.On call
+//   - ctx context.Context
+//   - keyPattern string
+func (_e *MockFileIndex_Expecter) GetDirectoryStats(ctx any, keyPattern any) *MockFileIndex_GetDirectoryStats_Call {
+	return &MockFileIndex_GetDirectoryStats_Call{Call: _e.mock.On("GetDirectoryStats", ctx, keyPattern)}
+}
+
+func (_c *MockFileIndex_GetDirectoryStats_Call) Run(run func(ctx context.Context, keyPattern string)) *MockFileIndex_GetDirectoryStats_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileIndex_GetDirectoryStats_Call) Return(getDirectoryStatsRow db.GetDirectoryStatsRow, err error) *MockFileIndex_GetDirectoryStats_Call {
+	_c.Call.Return(getDirectoryStatsRow, err)
+	return _c
+}
+
+func (_c *MockFileIndex_GetDirectoryStats_Call) RunAndReturn(run func(ctx context.Context, keyPattern string) (db.GetDirectoryStatsRow, error)) *MockFileIndex_GetDirectoryStats_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetFile provides a mock function for the type MockFileIndex
 func (_mock *MockFileIndex) GetFile(ctx context.Context, id int64) (db.FileInfo, error) {
 	ret := _mock.Called(ctx, id)
@@ -715,6 +904,74 @@ func (_c *MockFileIndex_GetIndexExifResult_Call) Return(indexExifResult db.Index
 }
 
 func (_c *MockFileIndex_GetIndexExifResult_Call) RunAndReturn(run func(ctx context.Context, fileID int64) (db.IndexExifResult, error)) *MockFileIndex_GetIndexExifResult_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListFilesForDelete provides a mock function for the type MockFileIndex
+func (_mock *MockFileIndex) ListFilesForDelete(ctx context.Context, arg db.ListFilesForDeleteParams) ([]db.ListFilesForDeleteRow, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListFilesForDelete")
+	}
+
+	var r0 []db.ListFilesForDeleteRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListFilesForDeleteParams) ([]db.ListFilesForDeleteRow, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListFilesForDeleteParams) []db.ListFilesForDeleteRow); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.ListFilesForDeleteRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ListFilesForDeleteParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileIndex_ListFilesForDelete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListFilesForDelete'
+type MockFileIndex_ListFilesForDelete_Call struct {
+	*mock.Call
+}
+
+// ListFilesForDelete is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.ListFilesForDeleteParams
+func (_e *MockFileIndex_Expecter) ListFilesForDelete(ctx any, arg any) *MockFileIndex_ListFilesForDelete_Call {
+	return &MockFileIndex_ListFilesForDelete_Call{Call: _e.mock.On("ListFilesForDelete", ctx, arg)}
+}
+
+func (_c *MockFileIndex_ListFilesForDelete_Call) Run(run func(ctx context.Context, arg db.ListFilesForDeleteParams)) *MockFileIndex_ListFilesForDelete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.ListFilesForDeleteParams
+		if args[1] != nil {
+			arg1 = args[1].(db.ListFilesForDeleteParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileIndex_ListFilesForDelete_Call) Return(listFilesForDeleteRows []db.ListFilesForDeleteRow, err error) *MockFileIndex_ListFilesForDelete_Call {
+	_c.Call.Return(listFilesForDeleteRows, err)
+	return _c
+}
+
+func (_c *MockFileIndex_ListFilesForDelete_Call) RunAndReturn(run func(ctx context.Context, arg db.ListFilesForDeleteParams) ([]db.ListFilesForDeleteRow, error)) *MockFileIndex_ListFilesForDelete_Call {
 	_c.Call.Return(run)
 	return _c
 }

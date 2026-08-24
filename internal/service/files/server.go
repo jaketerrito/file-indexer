@@ -28,6 +28,9 @@ type ObjectStore interface {
 	// the index — never trust an unverified client claim.
 	Stat(ctx context.Context, key string) (storage.ObjectInfo, error)
 	Delete(ctx context.Context, key string) error
+	// DeleteMany is used by DeleteDirectory to batch-remove a subtree's
+	// objects. See its doc comment on the not-atomic contract this implies.
+	DeleteMany(ctx context.Context, keys []string) error
 }
 
 type FileIndex interface {
@@ -39,6 +42,9 @@ type FileIndex interface {
 	// GetIndexExifResult returns pgx.ErrNoRows when the file has neither EXIF
 	// nor XMP data (or hasn't reached the exif indexer yet).
 	GetIndexExifResult(ctx context.Context, fileID int64) (db.IndexExifResult, error)
+	GetDirectoryStats(ctx context.Context, keyPattern string) (db.GetDirectoryStatsRow, error)
+	ListFilesForDelete(ctx context.Context, arg db.ListFilesForDeleteParams) ([]db.ListFilesForDeleteRow, error)
+	DeleteFilesByIDs(ctx context.Context, ids []int64) (int64, error)
 }
 
 type FilesServer struct {
@@ -189,19 +195,149 @@ func (s *FilesServer) CommitUpload(ctx context.Context, req *pb.CommitUploadRequ
 }
 
 // validateUploadKey rejects keys that are empty, escape the bucket root via
-// "..", or fall under indexPrefix (reserved for derived objects the crawler
-// must never see as user files).
+// a ".." path segment, or fall under indexPrefix (reserved for derived
+// objects the crawler must never see as user files).
 func (s *FilesServer) validateUploadKey(key string) (string, error) {
 	if key == "" {
 		return "", status.Error(codes.InvalidArgument, "key must not be empty")
 	}
-	if strings.HasPrefix(key, "/") || strings.Contains(key, "..") {
+	if strings.HasPrefix(key, "/") || hasDotDotSegment(key) {
 		return "", status.Errorf(codes.InvalidArgument, "invalid key %q", key)
 	}
 	if s.indexPrefix != "" && strings.HasPrefix(key, s.indexPrefix) {
 		return "", status.Errorf(codes.InvalidArgument, "key %q is reserved for derived objects", key)
 	}
 	return key, nil
+}
+
+// validateDirPath validates a directory path for GetDirectoryStats and
+// DeleteDirectory: non-empty (an empty prefix would match every key in the
+// bucket), trailing "/" required (so "docs" can never also match
+// "docs-archive/"), no ".." segments, and not under indexPrefix — deleting
+// derived objects out from under a running index worker isn't something
+// this RPC needs to support; they are regenerated anyway.
+func (s *FilesServer) validateDirPath(path string) (string, error) {
+	if path == "" {
+		return "", status.Error(codes.InvalidArgument, "path must not be empty")
+	}
+	if !strings.HasSuffix(path, "/") {
+		return "", status.Errorf(codes.InvalidArgument, "path %q must end in \"/\"", path)
+	}
+	if strings.HasPrefix(path, "/") || hasDotDotSegment(path) {
+		return "", status.Errorf(codes.InvalidArgument, "invalid path %q", path)
+	}
+	if s.indexPrefix != "" && strings.HasPrefix(path, s.indexPrefix) {
+		return "", status.Errorf(codes.InvalidArgument, "path %q is reserved for derived objects", path)
+	}
+	return path, nil
+}
+
+// hasDotDotSegment reports whether s contains ".." as a whole path segment
+// (i.e. bounded by "/" or the string's own edges), not merely as a
+// substring — a plain strings.Contains(s, "..") would reject legitimate
+// names like "archive..2026.zip" that happen to contain two consecutive
+// dots without ever meaning "parent directory".
+func hasDotDotSegment(s string) bool {
+	for _, segment := range strings.Split(s, "/") {
+		if segment == ".." {
+			return true
+		}
+	}
+	return false
+}
+
+// GetDirectoryStats reports how many files live under path and their total
+// size, for a delete-folder confirmation dialog to show before
+// DeleteDirectory actually runs.
+func (s *FilesServer) GetDirectoryStats(ctx context.Context, req *pb.GetDirectoryStatsRequest) (*pb.GetDirectoryStatsResponse, error) {
+	path, err := s.validateDirPath(req.GetPath())
+	if err != nil {
+		return nil, err
+	}
+	stats, err := s.queries.GetDirectoryStats(ctx, escapeLike(path)+"%")
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetDirectoryStatsResponse{FileCount: stats.FileCount, TotalBytes: stats.TotalBytes}, nil
+}
+
+// deleteDirectoryBatchSize bounds how many files DeleteDirectory processes
+// per round trip: one ListFilesForDelete page, one DeleteMany call, one
+// DeleteFilesByIDs call. Independent of S3's own 1000-key multi-delete cap
+// (storage.DeleteMany batches that internally) — this bounds memory and
+// transaction size on the DB side.
+const deleteDirectoryBatchSize = 1000
+
+// DeleteDirectory removes every file under path: S3 objects (source and
+// preview) first, then the DB rows, batch by batch. It is not atomic (see
+// DeleteDirectoryResponse's doc comment in files.proto): a batch's S3
+// deletion completing without error is what gates deleting that batch's DB
+// rows, so a failure part-way through leaves some prefix of the directory
+// gone and the rest untouched — retrying with the same path picks up where
+// it left off (S3 no-ops keys already deleted, ListFilesForDelete simply
+// won't see rows already removed from the DB).
+func (s *FilesServer) DeleteDirectory(ctx context.Context, req *pb.DeleteDirectoryRequest) (*pb.DeleteDirectoryResponse, error) {
+	path, err := s.validateDirPath(req.GetPath())
+	if err != nil {
+		return nil, err
+	}
+	keyPattern := escapeLike(path) + "%"
+
+	var deleted int64
+	var lastID int64
+	hasCursor := false
+	for {
+		batch, err := s.queries.ListFilesForDelete(ctx, db.ListFilesForDeleteParams{
+			KeyPattern: keyPattern,
+			HasCursor:  hasCursor,
+			LastID:     lastID,
+			PageLimit:  deleteDirectoryBatchSize,
+		})
+		if err != nil {
+			return &pb.DeleteDirectoryResponse{DeletedCount: deleted}, err
+		}
+		if len(batch) == 0 {
+			break
+		}
+
+		keys := make([]string, 0, len(batch)*2)
+		ids := make([]int64, 0, len(batch))
+		for _, f := range batch {
+			keys = append(keys, f.Key)
+			if f.PreviewKey.Valid && f.PreviewKey.String != "" {
+				keys = append(keys, f.PreviewKey.String)
+			}
+			ids = append(ids, f.ID)
+		}
+
+		if err := s.storage.DeleteMany(ctx, keys); err != nil {
+			return &pb.DeleteDirectoryResponse{DeletedCount: deleted},
+				status.Errorf(codes.Internal, "delete objects under %q: %v", path, err)
+		}
+
+		n, err := s.queries.DeleteFilesByIDs(ctx, ids)
+		if err != nil {
+			return &pb.DeleteDirectoryResponse{DeletedCount: deleted}, err
+		}
+		deleted += n
+
+		lastID = batch[len(batch)-1].ID
+		hasCursor = true
+		if len(batch) < deleteDirectoryBatchSize {
+			break
+		}
+	}
+
+	return &pb.DeleteDirectoryResponse{DeletedCount: deleted}, nil
+}
+
+// escapeLike escapes LIKE metacharacters so a directory path matches
+// literally inside a prefix pattern; a copy of search.escapeLike, kept
+// package-local rather than shared since it is three lines and pulling in a
+// cross-service-package dependency for it is not worth it.
+func escapeLike(s string) string {
+	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
+	return r.Replace(s)
 }
 
 func (s *FilesServer) Serve() error {

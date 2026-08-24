@@ -29,6 +29,40 @@ func (q *Queries) DeleteFile(ctx context.Context, id int64) (File, error) {
 	return i, err
 }
 
+const deleteFilesByIDs = `-- name: DeleteFilesByIDs :execrows
+DELETE FROM files
+WHERE id = ANY($1::bigint[])
+`
+
+func (q *Queries) DeleteFilesByIDs(ctx context.Context, ids []int64) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteFilesByIDs, ids)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const getDirectoryStats = `-- name: GetDirectoryStats :one
+SELECT count(*)::bigint AS file_count,
+       COALESCE(sum(size_bytes), 0)::bigint AS total_bytes
+FROM file_infos
+WHERE key LIKE $1
+`
+
+type GetDirectoryStatsRow struct {
+	FileCount  int64
+	TotalBytes int64
+}
+
+// key_pattern is prefix || '%' (escaped by the caller). Used to populate a
+// delete-folder confirmation dialog before DeleteDirectory runs.
+func (q *Queries) GetDirectoryStats(ctx context.Context, keyPattern string) (GetDirectoryStatsRow, error) {
+	row := q.db.QueryRow(ctx, getDirectoryStats, keyPattern)
+	var i GetDirectoryStatsRow
+	err := row.Scan(&i.FileCount, &i.TotalBytes)
+	return i, err
+}
+
 const getFile = `-- name: GetFile :one
 SELECT id, key, created_at, content_type, size_bytes, last_modified, preview_key, preview_width, preview_height FROM file_infos
 WHERE id = $1
@@ -437,6 +471,56 @@ func (q *Queries) ListFilesBySizeDesc(ctx context.Context, arg ListFilesBySizeDe
 			&i.PreviewWidth,
 			&i.PreviewHeight,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFilesForDelete = `-- name: ListFilesForDelete :many
+SELECT id, key, preview_key FROM file_infos
+WHERE key LIKE $1
+  AND (NOT $2::bool OR id > $3::bigint)
+ORDER BY id ASC
+LIMIT $4
+`
+
+type ListFilesForDeleteParams struct {
+	KeyPattern string
+	HasCursor  bool
+	LastID     int64
+	PageLimit  int32
+}
+
+type ListFilesForDeleteRow struct {
+	ID         int64
+	Key        string
+	PreviewKey pgtype.Text
+}
+
+// Keyset-paginated (on id only — order doesn't matter for deletion, just
+// completeness and no duplicates/gaps) listing of a subtree's files, for
+// DeleteDirectory to batch through. preview_key is included so the caller
+// can batch-delete derived preview objects alongside the source objects.
+func (q *Queries) ListFilesForDelete(ctx context.Context, arg ListFilesForDeleteParams) ([]ListFilesForDeleteRow, error) {
+	rows, err := q.db.Query(ctx, listFilesForDelete,
+		arg.KeyPattern,
+		arg.HasCursor,
+		arg.LastID,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListFilesForDeleteRow
+	for rows.Next() {
+		var i ListFilesForDeleteRow
+		if err := rows.Scan(&i.ID, &i.Key, &i.PreviewKey); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

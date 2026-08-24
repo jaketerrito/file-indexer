@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"file-indexer/internal/db"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -443,6 +444,42 @@ func TestGetUploadURLRejectsPathEscape(t *testing.T) {
 	}
 }
 
+func TestGetUploadURLAcceptsDoubleDotsWithinAFilename(t *testing.T) {
+	// ".." as a substring (not a whole path segment) is a legitimate
+	// filename, e.g. a date range in the name — only ".." as its own
+	// segment means "parent directory".
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().PutURL(mock.Anything, "archive..2026.zip").Return("https://example.com/put-url", nil)
+
+	srv := FilesServer{storage: storage, indexPrefix: ".index/"}
+
+	_, err := srv.GetUploadURL(context.Background(), &pb.GetUploadURLRequest{Key: "archive..2026.zip"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestHasDotDotSegment(t *testing.T) {
+	tests := []struct {
+		s    string
+		want bool
+	}{
+		{"", false},
+		{"a", false},
+		{"archive..2026.zip", false},
+		{"a/archive..zip", false},
+		{"..", true},
+		{"../a", true},
+		{"a/..", true},
+		{"a/../b", true},
+	}
+	for _, tt := range tests {
+		if got := hasDotDotSegment(tt.s); got != tt.want {
+			t.Errorf("hasDotDotSegment(%q) = %v, want %v", tt.s, got, tt.want)
+		}
+	}
+}
+
 func TestCommitUpload(t *testing.T) {
 	now := time.Now()
 	queries := NewMockFileIndex(t)
@@ -493,6 +530,283 @@ func TestCommitUploadRejectsReservedPrefix(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	storage.AssertNotCalled(t, "Stat", mock.Anything, mock.Anything)
+}
+
+func TestGetDirectoryStats(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetDirectoryStats(mock.Anything, "docs/%").
+		Return(db.GetDirectoryStatsRow{FileCount: 3, TotalBytes: 1024}, nil)
+
+	srv := FilesServer{queries: queries}
+
+	resp, err := srv.GetDirectoryStats(context.Background(), &pb.GetDirectoryStatsRequest{Path: "docs/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.FileCount != 3 || resp.TotalBytes != 1024 {
+		t.Errorf("GetDirectoryStats = %+v, want {3 1024}", resp)
+	}
+}
+
+func TestGetDirectoryStatsEscapesPattern(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetDirectoryStats(mock.Anything, `docs\%1/%`).
+		Return(db.GetDirectoryStatsRow{}, nil)
+
+	srv := FilesServer{queries: queries}
+
+	if _, err := srv.GetDirectoryStats(context.Background(), &pb.GetDirectoryStatsRequest{Path: `docs%1/`}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestGetDirectoryStatsRejectsMissingTrailingSlash(t *testing.T) {
+	srv := FilesServer{queries: NewMockFileIndex(t)}
+
+	_, err := srv.GetDirectoryStats(context.Background(), &pb.GetDirectoryStatsRequest{Path: "docs"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestGetDirectoryStatsRejectsEmptyPath(t *testing.T) {
+	srv := FilesServer{queries: NewMockFileIndex(t)}
+
+	_, err := srv.GetDirectoryStats(context.Background(), &pb.GetDirectoryStatsRequest{Path: ""})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestGetDirectoryStatsRejectsReservedPrefix(t *testing.T) {
+	srv := FilesServer{queries: NewMockFileIndex(t), indexPrefix: ".index/"}
+
+	_, err := srv.GetDirectoryStats(context.Background(), &pb.GetDirectoryStatsRequest{Path: ".index/"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestGetDirectoryStatsRejectsPathEscape(t *testing.T) {
+	srv := FilesServer{queries: NewMockFileIndex(t)}
+
+	_, err := srv.GetDirectoryStats(context.Background(), &pb.GetDirectoryStatsRequest{Path: "a/../b/"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestDeleteDirectorySingleBatch(t *testing.T) {
+	batch := []db.ListFilesForDeleteRow{
+		{ID: 1, Key: "docs/a.txt"},
+		{ID: 2, Key: "docs/b.jpg", PreviewKey: pgtype.Text{String: ".index/previews/2", Valid: true}},
+	}
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().ListFilesForDelete(mock.Anything, db.ListFilesForDeleteParams{
+		KeyPattern: "docs/%",
+		PageLimit:  deleteDirectoryBatchSize,
+	}).Return(batch, nil)
+	queries.EXPECT().DeleteFilesByIDs(mock.Anything, []int64{1, 2}).Return(int64(2), nil)
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().DeleteMany(mock.Anything, []string{"docs/a.txt", "docs/b.jpg", ".index/previews/2"}).Return(nil)
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	resp, err := srv.DeleteDirectory(context.Background(), &pb.DeleteDirectoryRequest{Path: "docs/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.DeletedCount != 2 {
+		t.Errorf("DeletedCount = %d, want 2", resp.DeletedCount)
+	}
+}
+
+func TestDeleteDirectoryEmpty(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().ListFilesForDelete(mock.Anything, mock.Anything).Return(nil, nil)
+
+	srv := FilesServer{queries: queries, storage: NewMockObjectStore(t)}
+
+	resp, err := srv.DeleteDirectory(context.Background(), &pb.DeleteDirectoryRequest{Path: "empty/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.DeletedCount != 0 {
+		t.Errorf("DeletedCount = %d, want 0", resp.DeletedCount)
+	}
+}
+
+func TestDeleteDirectoryMultipleBatches(t *testing.T) {
+	// A full first batch (== deleteDirectoryBatchSize) must trigger a second
+	// ListFilesForDelete call using the previous batch's last id as cursor.
+	first := make([]db.ListFilesForDeleteRow, deleteDirectoryBatchSize)
+	for i := range first {
+		first[i] = db.ListFilesForDeleteRow{ID: int64(i + 1), Key: fmt.Sprintf("docs/%d.txt", i+1)}
+	}
+	second := []db.ListFilesForDeleteRow{{ID: int64(deleteDirectoryBatchSize + 1), Key: "docs/last.txt"}}
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().ListFilesForDelete(mock.Anything, db.ListFilesForDeleteParams{
+		KeyPattern: "docs/%",
+		PageLimit:  deleteDirectoryBatchSize,
+	}).Return(first, nil)
+	queries.EXPECT().ListFilesForDelete(mock.Anything, db.ListFilesForDeleteParams{
+		KeyPattern: "docs/%",
+		HasCursor:  true,
+		LastID:     int64(deleteDirectoryBatchSize),
+		PageLimit:  deleteDirectoryBatchSize,
+	}).Return(second, nil)
+	queries.EXPECT().DeleteFilesByIDs(mock.Anything, mock.Anything).Return(int64(deleteDirectoryBatchSize), nil).Once()
+	queries.EXPECT().DeleteFilesByIDs(mock.Anything, []int64{int64(deleteDirectoryBatchSize + 1)}).Return(int64(1), nil).Once()
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().DeleteMany(mock.Anything, mock.Anything).Return(nil).Times(2)
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	resp, err := srv.DeleteDirectory(context.Background(), &pb.DeleteDirectoryRequest{Path: "docs/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.DeletedCount != int64(deleteDirectoryBatchSize+1) {
+		t.Errorf("DeletedCount = %d, want %d", resp.DeletedCount, deleteDirectoryBatchSize+1)
+	}
+}
+
+func TestDeleteDirectoryStorageErrorStopsBeforeDBDelete(t *testing.T) {
+	batch := []db.ListFilesForDeleteRow{{ID: 1, Key: "docs/a.txt"}}
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().ListFilesForDelete(mock.Anything, mock.Anything).Return(batch, nil)
+	// DeleteFilesByIDs must never be called: this batch's DB rows must not
+	// be dropped when we don't know whether their S3 objects actually went.
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().DeleteMany(mock.Anything, []string{"docs/a.txt"}).Return(errors.New("s3 error"))
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	resp, err := srv.DeleteDirectory(context.Background(), &pb.DeleteDirectoryRequest{Path: "docs/"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if resp.DeletedCount != 0 {
+		t.Errorf("DeletedCount = %d, want 0", resp.DeletedCount)
+	}
+	queries.AssertNotCalled(t, "DeleteFilesByIDs", mock.Anything, mock.Anything)
+}
+
+func TestDeleteDirectoryPartialProgressReturnedOnError(t *testing.T) {
+	// A full first batch (forcing a second ListFilesForDelete call, since a
+	// short batch is this loop's only "no more rows" signal) succeeds
+	// entirely; the second batch then fails. The first batch's count must
+	// still be reported, not zeroed out.
+	first := make([]db.ListFilesForDeleteRow, deleteDirectoryBatchSize)
+	firstKeys := make([]string, deleteDirectoryBatchSize)
+	for i := range first {
+		key := fmt.Sprintf("docs/%d.txt", i+1)
+		first[i] = db.ListFilesForDeleteRow{ID: int64(i + 1), Key: key}
+		firstKeys[i] = key
+	}
+	second := []db.ListFilesForDeleteRow{{ID: int64(deleteDirectoryBatchSize + 1), Key: "docs/last.txt"}}
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().ListFilesForDelete(mock.Anything, db.ListFilesForDeleteParams{
+		KeyPattern: "docs/%",
+		PageLimit:  deleteDirectoryBatchSize,
+	}).Return(first, nil)
+	queries.EXPECT().ListFilesForDelete(mock.Anything, db.ListFilesForDeleteParams{
+		KeyPattern: "docs/%",
+		HasCursor:  true,
+		LastID:     int64(deleteDirectoryBatchSize),
+		PageLimit:  deleteDirectoryBatchSize,
+	}).Return(second, nil)
+	// .Once(): DeleteFilesByIDs must not be called again for the second
+	// (failed) batch.
+	queries.EXPECT().DeleteFilesByIDs(mock.Anything, mock.Anything).Return(int64(deleteDirectoryBatchSize), nil).Once()
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().DeleteMany(mock.Anything, firstKeys).Return(nil)
+	storage.EXPECT().DeleteMany(mock.Anything, []string{"docs/last.txt"}).Return(errors.New("s3 error"))
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	resp, err := srv.DeleteDirectory(context.Background(), &pb.DeleteDirectoryRequest{Path: "docs/"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if resp.DeletedCount != int64(deleteDirectoryBatchSize) {
+		t.Errorf("DeletedCount = %d, want %d (first batch's progress preserved)", resp.DeletedCount, deleteDirectoryBatchSize)
+	}
+}
+
+func TestDeleteDirectoryDBDeleteError(t *testing.T) {
+	batch := []db.ListFilesForDeleteRow{{ID: 1, Key: "docs/a.txt"}}
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().ListFilesForDelete(mock.Anything, mock.Anything).Return(batch, nil)
+	queries.EXPECT().DeleteFilesByIDs(mock.Anything, []int64{1}).Return(int64(0), errors.New("db error"))
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().DeleteMany(mock.Anything, []string{"docs/a.txt"}).Return(nil)
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	_, err := srv.DeleteDirectory(context.Background(), &pb.DeleteDirectoryRequest{Path: "docs/"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestDeleteDirectoryRejectsEmptyPath(t *testing.T) {
+	srv := FilesServer{queries: NewMockFileIndex(t)}
+
+	_, err := srv.DeleteDirectory(context.Background(), &pb.DeleteDirectoryRequest{Path: ""})
+	if err == nil {
+		t.Fatal("expected error, empty path would match the entire bucket")
+	}
+}
+
+func TestDeleteDirectoryRejectsMissingTrailingSlash(t *testing.T) {
+	srv := FilesServer{queries: NewMockFileIndex(t)}
+
+	_, err := srv.DeleteDirectory(context.Background(), &pb.DeleteDirectoryRequest{Path: "docs"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestDeleteDirectoryRejectsReservedPrefix(t *testing.T) {
+	srv := FilesServer{queries: NewMockFileIndex(t), indexPrefix: ".index/"}
+
+	_, err := srv.DeleteDirectory(context.Background(), &pb.DeleteDirectoryRequest{Path: ".index/"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestValidateDirPath(t *testing.T) {
+	srv := FilesServer{indexPrefix: ".index/"}
+	tests := []struct {
+		path    string
+		wantErr bool
+	}{
+		{"", true},
+		{"docs", true},
+		{"docs/", false},
+		{"/docs/", true},
+		{"a/../b/", true},
+		{".index/", true},
+		{".index/previews/", true},
+	}
+	for _, tt := range tests {
+		_, err := srv.validateDirPath(tt.path)
+		if (err != nil) != tt.wantErr {
+			t.Errorf("validateDirPath(%q): err = %v, wantErr %v", tt.path, err, tt.wantErr)
+		}
+	}
 }
 
 // freeAddr reserves an ephemeral port and returns its address. There is a

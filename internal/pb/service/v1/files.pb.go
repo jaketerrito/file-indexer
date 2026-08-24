@@ -1107,6 +1107,200 @@ func (x *CommitUploadResponse) GetFile() *FileInfo {
 	return nil
 }
 
+type GetDirectoryStatsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Directory prefix; must end in "/" (validated server-side) so a prefix
+	// like "docs" can never match "docs-archive/" too.
+	Path          string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDirectoryStatsRequest) Reset() {
+	*x = GetDirectoryStatsRequest{}
+	mi := &file_service_v1_files_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDirectoryStatsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDirectoryStatsRequest) ProtoMessage() {}
+
+func (x *GetDirectoryStatsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDirectoryStatsRequest.ProtoReflect.Descriptor instead.
+func (*GetDirectoryStatsRequest) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *GetDirectoryStatsRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type GetDirectoryStatsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FileCount     int64                  `protobuf:"varint,1,opt,name=file_count,json=fileCount,proto3" json:"file_count,omitempty"`
+	TotalBytes    int64                  `protobuf:"varint,2,opt,name=total_bytes,json=totalBytes,proto3" json:"total_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDirectoryStatsResponse) Reset() {
+	*x = GetDirectoryStatsResponse{}
+	mi := &file_service_v1_files_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDirectoryStatsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDirectoryStatsResponse) ProtoMessage() {}
+
+func (x *GetDirectoryStatsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDirectoryStatsResponse.ProtoReflect.Descriptor instead.
+func (*GetDirectoryStatsResponse) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *GetDirectoryStatsResponse) GetFileCount() int64 {
+	if x != nil {
+		return x.FileCount
+	}
+	return 0
+}
+
+func (x *GetDirectoryStatsResponse) GetTotalBytes() int64 {
+	if x != nil {
+		return x.TotalBytes
+	}
+	return 0
+}
+
+type DeleteDirectoryRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Same validation as GetDirectoryStats.path. There is no dry-run flag:
+	// callers are expected to show GetDirectoryStats' counts in a confirm
+	// dialog first (see web/src/components/Browser.tsx's delete-folder flow).
+	Path          string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteDirectoryRequest) Reset() {
+	*x = DeleteDirectoryRequest{}
+	mi := &file_service_v1_files_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteDirectoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteDirectoryRequest) ProtoMessage() {}
+
+func (x *DeleteDirectoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteDirectoryRequest.ProtoReflect.Descriptor instead.
+func (*DeleteDirectoryRequest) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *DeleteDirectoryRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type DeleteDirectoryResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Number of files actually removed (S3 object + DB row both succeeded)
+	// before either finishing or hitting an error. Not atomic: on error, some
+	// prefix of the directory's files may already be gone while the rest
+	// remain — retry with the same path to continue, S3 no-ops keys already
+	// deleted.
+	DeletedCount  int64 `protobuf:"varint,1,opt,name=deleted_count,json=deletedCount,proto3" json:"deleted_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteDirectoryResponse) Reset() {
+	*x = DeleteDirectoryResponse{}
+	mi := &file_service_v1_files_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteDirectoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteDirectoryResponse) ProtoMessage() {}
+
+func (x *DeleteDirectoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteDirectoryResponse.ProtoReflect.Descriptor instead.
+func (*DeleteDirectoryResponse) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *DeleteDirectoryResponse) GetDeletedCount() int64 {
+	if x != nil {
+		return x.DeletedCount
+	}
+	return 0
+}
+
 var File_service_v1_files_proto protoreflect.FileDescriptor
 
 const file_service_v1_files_proto_rawDesc = "" +
@@ -1234,7 +1428,18 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\x13CommitUploadRequest\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\"@\n" +
 	"\x14CommitUploadResponse\x12(\n" +
-	"\x04file\x18\x01 \x01(\v2\x14.service.v1.FileInfoR\x04file2\x80\x04\n" +
+	"\x04file\x18\x01 \x01(\v2\x14.service.v1.FileInfoR\x04file\".\n" +
+	"\x18GetDirectoryStatsRequest\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\"[\n" +
+	"\x19GetDirectoryStatsResponse\x12\x1d\n" +
+	"\n" +
+	"file_count\x18\x01 \x01(\x03R\tfileCount\x12\x1f\n" +
+	"\vtotal_bytes\x18\x02 \x01(\x03R\n" +
+	"totalBytes\",\n" +
+	"\x16DeleteDirectoryRequest\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\">\n" +
+	"\x17DeleteDirectoryResponse\x12#\n" +
+	"\rdeleted_count\x18\x01 \x01(\x03R\fdeletedCount2\xbe\x05\n" +
 	"\fFilesService\x12W\n" +
 	"\x0eGetDownloadURL\x12!.service.v1.GetDownloadURLRequest\x1a\".service.v1.GetDownloadURLResponse\x12T\n" +
 	"\rGetPreviewURL\x12 .service.v1.GetPreviewURLRequest\x1a!.service.v1.GetPreviewURLResponse\x12N\n" +
@@ -1242,7 +1447,9 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\n" +
 	"DeleteFile\x12\x1d.service.v1.DeleteFileRequest\x1a\x1e.service.v1.DeleteFileResponse\x12Q\n" +
 	"\fGetUploadURL\x12\x1f.service.v1.GetUploadURLRequest\x1a .service.v1.GetUploadURLResponse\x12Q\n" +
-	"\fCommitUpload\x12\x1f.service.v1.CommitUploadRequest\x1a .service.v1.CommitUploadResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
+	"\fCommitUpload\x12\x1f.service.v1.CommitUploadRequest\x1a .service.v1.CommitUploadResponse\x12`\n" +
+	"\x11GetDirectoryStats\x12$.service.v1.GetDirectoryStatsRequest\x1a%.service.v1.GetDirectoryStatsResponse\x12Z\n" +
+	"\x0fDeleteDirectory\x12\".service.v1.DeleteDirectoryRequest\x1a#.service.v1.DeleteDirectoryResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
 
 var (
 	file_service_v1_files_proto_rawDescOnce sync.Once
@@ -1256,35 +1463,39 @@ func file_service_v1_files_proto_rawDescGZIP() []byte {
 	return file_service_v1_files_proto_rawDescData
 }
 
-var file_service_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_service_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_service_v1_files_proto_goTypes = []any{
-	(*GetDownloadURLRequest)(nil),  // 0: service.v1.GetDownloadURLRequest
-	(*DownloadURLSpec)(nil),        // 1: service.v1.DownloadURLSpec
-	(*GetDownloadURLResponse)(nil), // 2: service.v1.GetDownloadURLResponse
-	(*GetPreviewURLRequest)(nil),   // 3: service.v1.GetPreviewURLRequest
-	(*PreviewURLSpec)(nil),         // 4: service.v1.PreviewURLSpec
-	(*GetPreviewURLResponse)(nil),  // 5: service.v1.GetPreviewURLResponse
-	(*GetFileInfoRequest)(nil),     // 6: service.v1.GetFileInfoRequest
-	(*FileInfo)(nil),               // 7: service.v1.FileInfo
-	(*ExifMetadata)(nil),           // 8: service.v1.ExifMetadata
-	(*GetFileInfoResponse)(nil),    // 9: service.v1.GetFileInfoResponse
-	(*DeleteFileRequest)(nil),      // 10: service.v1.DeleteFileRequest
-	(*DeleteFileResponse)(nil),     // 11: service.v1.DeleteFileResponse
-	(*GetUploadURLRequest)(nil),    // 12: service.v1.GetUploadURLRequest
-	(*GetUploadURLResponse)(nil),   // 13: service.v1.GetUploadURLResponse
-	(*CommitUploadRequest)(nil),    // 14: service.v1.CommitUploadRequest
-	(*CommitUploadResponse)(nil),   // 15: service.v1.CommitUploadResponse
-	(*timestamppb.Timestamp)(nil),  // 16: google.protobuf.Timestamp
+	(*GetDownloadURLRequest)(nil),     // 0: service.v1.GetDownloadURLRequest
+	(*DownloadURLSpec)(nil),           // 1: service.v1.DownloadURLSpec
+	(*GetDownloadURLResponse)(nil),    // 2: service.v1.GetDownloadURLResponse
+	(*GetPreviewURLRequest)(nil),      // 3: service.v1.GetPreviewURLRequest
+	(*PreviewURLSpec)(nil),            // 4: service.v1.PreviewURLSpec
+	(*GetPreviewURLResponse)(nil),     // 5: service.v1.GetPreviewURLResponse
+	(*GetFileInfoRequest)(nil),        // 6: service.v1.GetFileInfoRequest
+	(*FileInfo)(nil),                  // 7: service.v1.FileInfo
+	(*ExifMetadata)(nil),              // 8: service.v1.ExifMetadata
+	(*GetFileInfoResponse)(nil),       // 9: service.v1.GetFileInfoResponse
+	(*DeleteFileRequest)(nil),         // 10: service.v1.DeleteFileRequest
+	(*DeleteFileResponse)(nil),        // 11: service.v1.DeleteFileResponse
+	(*GetUploadURLRequest)(nil),       // 12: service.v1.GetUploadURLRequest
+	(*GetUploadURLResponse)(nil),      // 13: service.v1.GetUploadURLResponse
+	(*CommitUploadRequest)(nil),       // 14: service.v1.CommitUploadRequest
+	(*CommitUploadResponse)(nil),      // 15: service.v1.CommitUploadResponse
+	(*GetDirectoryStatsRequest)(nil),  // 16: service.v1.GetDirectoryStatsRequest
+	(*GetDirectoryStatsResponse)(nil), // 17: service.v1.GetDirectoryStatsResponse
+	(*DeleteDirectoryRequest)(nil),    // 18: service.v1.DeleteDirectoryRequest
+	(*DeleteDirectoryResponse)(nil),   // 19: service.v1.DeleteDirectoryResponse
+	(*timestamppb.Timestamp)(nil),     // 20: google.protobuf.Timestamp
 }
 var file_service_v1_files_proto_depIdxs = []int32{
 	1,  // 0: service.v1.GetDownloadURLResponse.download_urls:type_name -> service.v1.DownloadURLSpec
 	4,  // 1: service.v1.GetPreviewURLResponse.preview_urls:type_name -> service.v1.PreviewURLSpec
-	16, // 2: service.v1.FileInfo.created_at:type_name -> google.protobuf.Timestamp
-	16, // 3: service.v1.FileInfo.updated_at:type_name -> google.protobuf.Timestamp
+	20, // 2: service.v1.FileInfo.created_at:type_name -> google.protobuf.Timestamp
+	20, // 3: service.v1.FileInfo.updated_at:type_name -> google.protobuf.Timestamp
 	8,  // 4: service.v1.FileInfo.exif:type_name -> service.v1.ExifMetadata
-	16, // 5: service.v1.ExifMetadata.taken_at:type_name -> google.protobuf.Timestamp
-	16, // 6: service.v1.ExifMetadata.gps_at:type_name -> google.protobuf.Timestamp
-	16, // 7: service.v1.ExifMetadata.xmp_create_date:type_name -> google.protobuf.Timestamp
+	20, // 5: service.v1.ExifMetadata.taken_at:type_name -> google.protobuf.Timestamp
+	20, // 6: service.v1.ExifMetadata.gps_at:type_name -> google.protobuf.Timestamp
+	20, // 7: service.v1.ExifMetadata.xmp_create_date:type_name -> google.protobuf.Timestamp
 	7,  // 8: service.v1.GetFileInfoResponse.file:type_name -> service.v1.FileInfo
 	7,  // 9: service.v1.CommitUploadResponse.file:type_name -> service.v1.FileInfo
 	0,  // 10: service.v1.FilesService.GetDownloadURL:input_type -> service.v1.GetDownloadURLRequest
@@ -1293,14 +1504,18 @@ var file_service_v1_files_proto_depIdxs = []int32{
 	10, // 13: service.v1.FilesService.DeleteFile:input_type -> service.v1.DeleteFileRequest
 	12, // 14: service.v1.FilesService.GetUploadURL:input_type -> service.v1.GetUploadURLRequest
 	14, // 15: service.v1.FilesService.CommitUpload:input_type -> service.v1.CommitUploadRequest
-	2,  // 16: service.v1.FilesService.GetDownloadURL:output_type -> service.v1.GetDownloadURLResponse
-	5,  // 17: service.v1.FilesService.GetPreviewURL:output_type -> service.v1.GetPreviewURLResponse
-	9,  // 18: service.v1.FilesService.GetFileInfo:output_type -> service.v1.GetFileInfoResponse
-	11, // 19: service.v1.FilesService.DeleteFile:output_type -> service.v1.DeleteFileResponse
-	13, // 20: service.v1.FilesService.GetUploadURL:output_type -> service.v1.GetUploadURLResponse
-	15, // 21: service.v1.FilesService.CommitUpload:output_type -> service.v1.CommitUploadResponse
-	16, // [16:22] is the sub-list for method output_type
-	10, // [10:16] is the sub-list for method input_type
+	16, // 16: service.v1.FilesService.GetDirectoryStats:input_type -> service.v1.GetDirectoryStatsRequest
+	18, // 17: service.v1.FilesService.DeleteDirectory:input_type -> service.v1.DeleteDirectoryRequest
+	2,  // 18: service.v1.FilesService.GetDownloadURL:output_type -> service.v1.GetDownloadURLResponse
+	5,  // 19: service.v1.FilesService.GetPreviewURL:output_type -> service.v1.GetPreviewURLResponse
+	9,  // 20: service.v1.FilesService.GetFileInfo:output_type -> service.v1.GetFileInfoResponse
+	11, // 21: service.v1.FilesService.DeleteFile:output_type -> service.v1.DeleteFileResponse
+	13, // 22: service.v1.FilesService.GetUploadURL:output_type -> service.v1.GetUploadURLResponse
+	15, // 23: service.v1.FilesService.CommitUpload:output_type -> service.v1.CommitUploadResponse
+	17, // 24: service.v1.FilesService.GetDirectoryStats:output_type -> service.v1.GetDirectoryStatsResponse
+	19, // 25: service.v1.FilesService.DeleteDirectory:output_type -> service.v1.DeleteDirectoryResponse
+	18, // [18:26] is the sub-list for method output_type
+	10, // [10:18] is the sub-list for method input_type
 	10, // [10:10] is the sub-list for extension type_name
 	10, // [10:10] is the sub-list for extension extendee
 	0,  // [0:10] is the sub-list for field type_name
@@ -1318,7 +1533,7 @@ func file_service_v1_files_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_v1_files_proto_rawDesc), len(file_service_v1_files_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -110,3 +110,19 @@
   files_key_pattern_idx (the text_pattern_ops index) is dropped: it exists only to make
   LIKE 'prefix%' collation-independent, and under COLLATE "C" the column's own UNIQUE btree
   already serves that.
+- recursive directory delete (FilesService.GetDirectoryStats + DeleteDirectory) is deliberately
+  not atomic, and the proto doc comment says so: it pages through the subtree
+  (ListFilesForDelete, keyset on id), and only deletes a batch's DB rows after that batch's S3
+  objects (source + preview) are confirmed gone (new Storage.DeleteMany). A batch's S3 failure
+  stops the whole call without touching that batch's DB rows, so a retry with the same path picks
+  up where it left off — S3 no-ops keys already deleted, and the DB rows for a half-deleted batch
+  are still there to retry. The alternative (delete DB rows regardless of which individual S3
+  deletes within a batch succeeded) was rejected: Storage.DeleteMany returns one combined error,
+  not per-key results, so there's no way to know which subset actually succeeded.
+  GetDirectoryStats exists purely to back a client-side delete confirmation dialog (file count +
+  total bytes) — DeleteDirectory itself has no dry-run flag.
+- fixed in passing while adding this: FilesServer.validateUploadKey's ".." check was
+  strings.Contains(key, ".."), which rejected legitimate filenames like "archive..2026.zip" that
+  merely contain two consecutive dots without meaning "parent directory". Both it and the new
+  validateDirPath now check for ".." as a whole path segment (split on "/", compare each piece)
+  via a shared hasDotDotSegment helper.
