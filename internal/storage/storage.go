@@ -57,4 +57,15 @@ type Storage interface {
 	Stat(ctx context.Context, key string) (ObjectInfo, error)
 
 	Delete(ctx context.Context, key string) error
+
+	// DeleteMany deletes multiple objects in as few round trips as the
+	// underlying client allows (S3's multi-object delete API caps a single
+	// request at 1000 keys; batching above that is the implementation's
+	// responsibility). Not atomic: on partial failure, DeleteMany returns a
+	// combined error for the keys that failed, but keys that succeeded stay
+	// deleted. Callers that need to know which specific keys failed should
+	// not rely on this — recursive directory delete's contract is "some
+	// prefix of the objects may remain, retry or let the crawler reconcile
+	// the DB", not per-key granularity.
+	DeleteMany(ctx context.Context, keys []string) error
 }

@@ -2,6 +2,8 @@ package storage
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/url"
@@ -167,4 +169,27 @@ func (s *s3Storage) Stat(ctx context.Context, key string) (ObjectInfo, error) {
 func (s *s3Storage) Delete(ctx context.Context, key string) error {
 	err := s.client.RemoveObject(ctx, s.bucket, key, minio.RemoveObjectOptions{})
 	return err
+}
+
+func (s *s3Storage) DeleteMany(ctx context.Context, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+
+	// minio-go batches internally (S3's multi-object delete API caps a
+	// single request at 1000 keys); feed the whole slice through one
+	// channel and let it chunk.
+	objectsCh := make(chan minio.ObjectInfo, len(keys))
+	go func() {
+		defer close(objectsCh)
+		for _, key := range keys {
+			objectsCh <- minio.ObjectInfo{Key: key}
+		}
+	}()
+
+	var errs []error
+	for rmErr := range s.client.RemoveObjects(ctx, s.bucket, objectsCh, minio.RemoveObjectsOptions{}) {
+		errs = append(errs, fmt.Errorf("delete %q: %w", rmErr.ObjectName, rmErr.Err))
+	}
+	return errors.Join(errs...)
 }

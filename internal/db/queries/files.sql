@@ -27,6 +27,29 @@ DELETE FROM files
 WHERE id = $1
 RETURNING *;
 
+-- name: DeleteFilesByIDs :execrows
+DELETE FROM files
+WHERE id = ANY(sqlc.arg(ids)::bigint[]);
+
+-- name: GetDirectoryStats :one
+-- key_pattern is prefix || '%' (escaped by the caller). Used to populate a
+-- delete-folder confirmation dialog before DeleteDirectory runs.
+SELECT count(*)::bigint AS file_count,
+       COALESCE(sum(size_bytes), 0)::bigint AS total_bytes
+FROM file_infos
+WHERE key LIKE sqlc.arg(key_pattern);
+
+-- name: ListFilesForDelete :many
+-- Keyset-paginated (on id only — order doesn't matter for deletion, just
+-- completeness and no duplicates/gaps) listing of a subtree's files, for
+-- DeleteDirectory to batch through. preview_key is included so the caller
+-- can batch-delete derived preview objects alongside the source objects.
+SELECT id, key, preview_key FROM file_infos
+WHERE key LIKE sqlc.arg(key_pattern)
+  AND (NOT sqlc.arg(has_cursor)::bool OR id > sqlc.arg(last_id)::bigint)
+ORDER BY id ASC
+LIMIT sqlc.arg(page_limit);
+
 -- The ListFilesBy* queries below implement keyset pagination for the search
 -- service: one query per (sort field, direction), always tie-breaking on id
 -- so cursors are stable. key_pattern and content_type_pattern are LIKE
