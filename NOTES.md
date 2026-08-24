@@ -200,3 +200,15 @@
   by a real files row), then forgetting that a test's own unique prefix is itself a real ancestor
   directory (it has children), so trimming it off before computing expected ancestors under-counted
   by one.
+- frontend: Browser.tsx is the new top-level component (index.tsx renders it instead of FileList
+  directly) that switches between search mode (FileList, unchanged since 8/16) and browse mode
+  (new Breadcrumbs + DirectoryList). filters.path is undefined in search mode and a string
+  (possibly "") in browse mode; setting either path or prefix/type clears the other, since
+  ListDirectory and ListFiles are different requests, not a shared one with optional params.
+  Choosing a content-type filter while browsing switches to search mode seeded with the current
+  path as a recursive prefix — folders are for navigation, filtering is search's job, so there's
+  no attempt to support "show only images in this folder" as a browse-mode feature.
+  "New folder" has no backend call: it just navigates to a path nothing lives under yet (matches
+  the virtual-only directory model above). Upload's destination defaults to the current folder
+  while browsing (the freeform "Upload to" override from 8/16 still exists, now pre-filled and
+  reset on every navigation rather than always starting blank).

@@ -4,11 +4,13 @@ import type { Client } from '@connectrpc/connect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   CommitUploadResponseSchema,
+  DeleteDirectoryResponseSchema,
   DeleteFileResponseSchema,
   DownloadURLSpecSchema,
   ExifMetadataSchema,
   FileInfoSchema,
   type FilesService,
+  GetDirectoryStatsResponseSchema,
   GetDownloadURLResponseSchema,
   GetFileInfoResponseSchema,
   GetPreviewURLResponseSchema,
@@ -16,6 +18,7 @@ import {
   PreviewURLSpecSchema,
 } from '../gen/service/v1/files_pb'
 import {
+  ListDirectoryResponseSchema,
   ListFilesResponseSchema,
   type SearchService,
   SortField,
@@ -23,16 +26,21 @@ import {
 } from '../gen/service/v1/search_pb'
 import {
   commitUploadImpl,
+  deleteDirectoryImpl,
   deleteFileImpl,
+  getDirectoryStatsImpl,
   getDownloadUrlImpl,
   getFileMetadataImpl,
   getUploadUrlImpl,
+  listDirectoryImpl,
   listFilesImpl,
   toFileDto,
   toFileMetadataDto,
   validateIdInput,
   validateKeyInput,
+  validateListDirectoryInput,
   validateListFilesInput,
+  validatePathInput,
 } from './impl'
 
 const CREATED_AT = new Date('2026-01-02T03:04:05.000Z')
@@ -449,6 +457,178 @@ describe('commitUploadImpl', () => {
     } as unknown as Client<typeof FilesService>
 
     await expect(commitUploadImpl(client, 'docs/report.pdf')).rejects.toThrow('no file returned')
+  })
+})
+
+describe('validateListDirectoryInput', () => {
+  it('accepts empty input', () => {
+    expect(validateListDirectoryInput(undefined)).toEqual({})
+    expect(validateListDirectoryInput({})).toEqual({})
+  })
+
+  it('accepts path, pagination, and sort fields', () => {
+    expect(
+      validateListDirectoryInput({
+        path: 'docs/',
+        pageSize: 25,
+        pageToken: 'abc',
+        sortField: 'size',
+        sortOrder: 'desc',
+      }),
+    ).toEqual({
+      path: 'docs/',
+      pageSize: 25,
+      pageToken: 'abc',
+      sortField: 'size',
+      sortOrder: 'desc',
+    })
+  })
+
+  it.each([
+    [{ path: 42 }, /path/],
+    [{ sortField: 'bogus' }, /sortField/],
+    [{ sortOrder: 'up' }, /sortOrder/],
+  ] as const)('rejects invalid input %j', (input, want) => {
+    expect(() => validateListDirectoryInput(input)).toThrow(want)
+  })
+
+  it.each([[{ pageSize: 0 }], [{ pageSize: -1 }], [{ pageSize: 1.5 }]])(
+    'rejects invalid pageSize %j',
+    (input) => {
+      expect(() => validateListDirectoryInput(input)).toThrow(/pageSize/)
+    },
+  )
+})
+
+describe('listDirectoryImpl', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('passes path/pagination/sort params through and maps the response', async () => {
+    const listDirectory = vi.fn().mockResolvedValue(
+      create(ListDirectoryResponseSchema, {
+        directories: ['docs/sub/', 'docs/sub2/'],
+        files: [fileInfo({ id: 1n, key: 'docs/a.txt' })],
+        nextPageToken: 'token-2',
+      }),
+    )
+    const search = { listDirectory } as unknown as Client<typeof SearchService>
+
+    const result = await listDirectoryImpl(search, noPreviewFilesClient(), {
+      path: 'docs/',
+      pageSize: 25,
+      pageToken: 'token-1',
+      sortField: 'size',
+      sortOrder: 'desc',
+    })
+
+    expect(listDirectory).toHaveBeenCalledWith({
+      path: 'docs/',
+      pageSize: 25,
+      pageToken: 'token-1',
+      sortField: SortField.SIZE,
+      sortOrder: SortOrder.DESC,
+    })
+    expect(result.directories).toEqual(['docs/sub/', 'docs/sub2/'])
+    expect(result.files.map((f) => f.id)).toEqual(['1'])
+    expect(result.nextPageToken).toBe('token-2')
+  })
+
+  it('defaults path/pageSize/pageToken/sort', async () => {
+    const listDirectory = vi.fn().mockResolvedValue(
+      create(ListDirectoryResponseSchema, {
+        directories: [],
+        files: [],
+        nextPageToken: '',
+      }),
+    )
+    const search = { listDirectory } as unknown as Client<typeof SearchService>
+
+    await listDirectoryImpl(search, noPreviewFilesClient(), {})
+
+    expect(listDirectory).toHaveBeenCalledWith({
+      path: '',
+      pageSize: 0,
+      pageToken: '',
+      sortField: SortField.KEY,
+      sortOrder: SortOrder.ASC,
+    })
+  })
+
+  it('resolves preview URLs for files that have one', async () => {
+    const listDirectory = vi.fn().mockResolvedValue(
+      create(ListDirectoryResponseSchema, {
+        directories: [],
+        files: [fileInfo({ id: 1n, previewKey: '.index/previews/1' })],
+        nextPageToken: '',
+      }),
+    )
+    const search = { listDirectory } as unknown as Client<typeof SearchService>
+
+    const getPreviewURL = vi.fn().mockResolvedValue(
+      create(GetPreviewURLResponseSchema, {
+        previewUrls: [
+          create(PreviewURLSpecSchema, { id: 1n, url: 'https://example.com/preview-1' }),
+        ],
+      }),
+    )
+    const files = { getPreviewURL } as unknown as Client<typeof FilesService>
+
+    const result = await listDirectoryImpl(search, files, {})
+
+    expect(getPreviewURL).toHaveBeenCalledWith({ ids: [1n] })
+    expect(result.files[0].previewUrl).toBe('https://example.com/preview-1')
+  })
+
+  it('propagates client errors', async () => {
+    const search = {
+      listDirectory: vi.fn().mockRejectedValue(new Error('unavailable')),
+    } as unknown as Client<typeof SearchService>
+    await expect(listDirectoryImpl(search, noPreviewFilesClient(), {})).rejects.toThrow(
+      'unavailable',
+    )
+  })
+})
+
+describe('validatePathInput', () => {
+  it('accepts a non-empty path', () => {
+    expect(validatePathInput({ path: 'docs/' })).toEqual({ path: 'docs/' })
+  })
+
+  it.each([[{}], [{ path: '' }], [{ path: 42 }]])('rejects %j', (input) => {
+    expect(() => validatePathInput(input)).toThrow(/path/)
+  })
+})
+
+describe('getDirectoryStatsImpl', () => {
+  it('requests the path and maps bigint counts to numbers', async () => {
+    const getDirectoryStats = vi.fn().mockResolvedValue(
+      create(GetDirectoryStatsResponseSchema, {
+        fileCount: 3n,
+        totalBytes: 1024n,
+      }),
+    )
+    const client = { getDirectoryStats } as unknown as Client<typeof FilesService>
+
+    const result = await getDirectoryStatsImpl(client, 'docs/')
+
+    expect(getDirectoryStats).toHaveBeenCalledWith({ path: 'docs/' })
+    expect(result).toEqual({ fileCount: 3, totalBytes: 1024 })
+  })
+})
+
+describe('deleteDirectoryImpl', () => {
+  it('requests the path and maps the deleted count', async () => {
+    const deleteDirectory = vi
+      .fn()
+      .mockResolvedValue(create(DeleteDirectoryResponseSchema, { deletedCount: 5n }))
+    const client = { deleteDirectory } as unknown as Client<typeof FilesService>
+
+    const result = await deleteDirectoryImpl(client, 'docs/')
+
+    expect(deleteDirectory).toHaveBeenCalledWith({ path: 'docs/' })
+    expect(result).toEqual({ deletedCount: 5 })
   })
 })
 

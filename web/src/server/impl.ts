@@ -342,3 +342,124 @@ export async function commitUploadImpl(
   }
   return toFileDto(res.file)
 }
+
+export interface ListDirectoryInput {
+  /** Directory to list; "" is the bucket root. */
+  path?: string
+  pageSize?: number
+  pageToken?: string
+  sortField?: SortFieldInput
+  sortOrder?: SortOrderInput
+}
+
+export interface ListDirectoryResult {
+  /** Immediate child directories, full path from the bucket root, ending in "/". */
+  directories: string[]
+  files: FileDto[]
+  nextPageToken: string
+}
+
+export function validateListDirectoryInput(input: unknown): ListDirectoryInput {
+  const data = (input ?? {}) as Record<string, unknown>
+  const out: ListDirectoryInput = {}
+  if (data.path !== undefined) {
+    if (typeof data.path !== 'string') {
+      throw new Error('path must be a string')
+    }
+    out.path = data.path
+  }
+  if (data.pageSize !== undefined) {
+    if (
+      typeof data.pageSize !== 'number' ||
+      !Number.isInteger(data.pageSize) ||
+      data.pageSize < 1
+    ) {
+      throw new Error('pageSize must be a positive integer')
+    }
+    out.pageSize = data.pageSize
+  }
+  if (data.pageToken !== undefined) {
+    if (typeof data.pageToken !== 'string') {
+      throw new Error('pageToken must be a string')
+    }
+    out.pageToken = data.pageToken
+  }
+  if (data.sortField !== undefined) {
+    if (!SORT_FIELDS.includes(data.sortField as SortFieldInput)) {
+      throw new Error(`sortField must be one of ${SORT_FIELDS.join(', ')}`)
+    }
+    out.sortField = data.sortField as SortFieldInput
+  }
+  if (data.sortOrder !== undefined) {
+    if (!SORT_ORDERS.includes(data.sortOrder as SortOrderInput)) {
+      throw new Error(`sortOrder must be one of ${SORT_ORDERS.join(', ')}`)
+    }
+    out.sortOrder = data.sortOrder as SortOrderInput
+  }
+  return out
+}
+
+/**
+ * Lists a directory's immediate children: subdirectories (derived purely
+ * from key structure — S3 has no directory objects) followed by files
+ * directly in it. Preview URLs are resolved the same way listFilesImpl does.
+ */
+export async function listDirectoryImpl(
+  search: Client<typeof SearchService>,
+  files: Client<typeof FilesService>,
+  input: ListDirectoryInput,
+): Promise<ListDirectoryResult> {
+  const res = await search.listDirectory({
+    path: input.path ?? '',
+    pageSize: input.pageSize ?? 0,
+    pageToken: input.pageToken ?? '',
+    sortField: SORT_FIELD_PB[input.sortField ?? 'key'],
+    sortOrder: SORT_ORDER_PB[input.sortOrder ?? 'asc'],
+  })
+
+  const dtos = res.files.map(toFileDto)
+
+  const ids = res.files.filter((f) => f.previewKey !== '').map((f) => f.id)
+  if (ids.length > 0) {
+    try {
+      const previews = await files.getPreviewURL({ ids })
+      const byId = new Map(previews.previewUrls.map((p) => [p.id.toString(), p.url]))
+      for (const dto of dtos) {
+        dto.previewUrl = byId.get(dto.id) ?? null
+      }
+    } catch (err) {
+      console.error('preview URL lookup failed', err)
+    }
+  }
+
+  return { directories: res.directories, files: dtos, nextPageToken: res.nextPageToken }
+}
+
+export function validatePathInput(input: unknown): { path: string } {
+  const data = (input ?? {}) as Record<string, unknown>
+  if (typeof data.path !== 'string' || data.path === '') {
+    throw new Error('path must be a non-empty string')
+  }
+  return { path: data.path }
+}
+
+export interface DirectoryStatsDto {
+  fileCount: number
+  totalBytes: number
+}
+
+export async function getDirectoryStatsImpl(
+  client: Client<typeof FilesService>,
+  path: string,
+): Promise<DirectoryStatsDto> {
+  const res = await client.getDirectoryStats({ path })
+  return { fileCount: Number(res.fileCount), totalBytes: Number(res.totalBytes) }
+}
+
+export async function deleteDirectoryImpl(
+  client: Client<typeof FilesService>,
+  path: string,
+): Promise<{ deletedCount: number }> {
+  const res = await client.deleteDirectory({ path })
+  return { deletedCount: Number(res.deletedCount) }
+}
