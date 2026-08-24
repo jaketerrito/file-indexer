@@ -96,3 +96,17 @@
   instead: an "Upload to" text input (web/src/lib/uploadPath.ts normalizes it — trailing slash,
   collapsed//, trimmed) decoupled from the search prefix, so typing a search term can never change
   where an upload lands. Revisit real folder browsing if the flat-search UX proves annoying.
+
+8/23/26
+- files.key is now COLLATE "C" (raw byte order) rather than the database's default collation, for
+  two independent reasons that turn out to have the same fix: key sort order now agrees with what
+  S3's ListObjectsV2 actually returns (it never did before — locale-aware collations reorder
+  punctuation/case relative to byte value); and the upcoming directory-browsing loose index scan
+  needs byte order for its "skip past a subdirectory" trick to be correct ('/' 0x2F must sort
+  immediately before '0' 0x30). Folded directly into 001_initial.sql rather than a later ALTER
+  migration since there's no deployed data yet (fresh project) — an ALTER would additionally have
+  to drop and rebuild the file_infos view (Postgres refuses ALTER COLUMN TYPE on a column a view
+  depends on), which isn't worth the extra migration/view-rebuild dance for zero rows.
+  files_key_pattern_idx (the text_pattern_ops index) is dropped: it exists only to make
+  LIKE 'prefix%' collation-independent, and under COLLATE "C" the column's own UNIQUE btree
+  already serves that.
