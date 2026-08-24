@@ -38,6 +38,74 @@ func (_m *MockFileIndex) EXPECT() *MockFileIndex_Expecter {
 	return &MockFileIndex_Expecter{mock: &_m.Mock}
 }
 
+// ListChildPrefixes provides a mock function for the type MockFileIndex
+func (_mock *MockFileIndex) ListChildPrefixes(ctx context.Context, arg db.ListChildPrefixesParams) ([]string, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListChildPrefixes")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListChildPrefixesParams) ([]string, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListChildPrefixesParams) []string); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ListChildPrefixesParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileIndex_ListChildPrefixes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListChildPrefixes'
+type MockFileIndex_ListChildPrefixes_Call struct {
+	*mock.Call
+}
+
+// ListChildPrefixes is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.ListChildPrefixesParams
+func (_e *MockFileIndex_Expecter) ListChildPrefixes(ctx any, arg any) *MockFileIndex_ListChildPrefixes_Call {
+	return &MockFileIndex_ListChildPrefixes_Call{Call: _e.mock.On("ListChildPrefixes", ctx, arg)}
+}
+
+func (_c *MockFileIndex_ListChildPrefixes_Call) Run(run func(ctx context.Context, arg db.ListChildPrefixesParams)) *MockFileIndex_ListChildPrefixes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.ListChildPrefixesParams
+		if args[1] != nil {
+			arg1 = args[1].(db.ListChildPrefixesParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileIndex_ListChildPrefixes_Call) Return(strings []string, err error) *MockFileIndex_ListChildPrefixes_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockFileIndex_ListChildPrefixes_Call) RunAndReturn(run func(ctx context.Context, arg db.ListChildPrefixesParams) ([]string, error)) *MockFileIndex_ListChildPrefixes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ListFilesByKeyAsc provides a mock function for the type MockFileIndex
 func (_mock *MockFileIndex) ListFilesByKeyAsc(ctx context.Context, arg db.ListFilesByKeyAscParams) ([]db.FileInfo, error) {
 	ret := _mock.Called(ctx, arg)

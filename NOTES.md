@@ -110,3 +110,39 @@
   files_key_pattern_idx (the text_pattern_ops index) is dropped: it exists only to make
   LIKE 'prefix%' collation-independent, and under COLLATE "C" the column's own UNIQUE btree
   already serves that.
+- directory browsing: SearchService.ListDirectory lists a directory's immediate children
+  (subdirectories, always alphabetical, always first, then files honoring the existing
+  sort_field/sort_order). Directories are purely virtual — derived from key structure via a new
+  ListChildPrefixes query, no directories table, no CreateDirectory RPC. A folder "exists" only as
+  long as some key lives under it, same as S3 itself; this is the only representation that can't
+  drift from S3 (the derived-index invariant). Considered and rejected: a `directories` table as
+  source of truth (empty dirs would be unrecoverable by the crawler) and zero-byte marker objects
+  mirrored into a derived table (real persistence, but a migration + crawler branch + marker
+  lifecycle edge cases for a feature nobody's asked to persist yet — revisit if virtual-only proves
+  annoying).
+- ListChildPrefixes (queries/files.sql) is a bounded loose index scan (recursive CTE) that returns
+  a page of immediate child directory names without scanning every key in the subtree. The skip:
+  '/' (0x2F) sorts immediately before '0' (0x30), so `prefix || child || '0'` seeks straight past
+  every key under `prefix || child || '/'` in one index lookup. This only actually helps skip
+  *subdirectories with many files* — a plain top-level file still costs one lookup same as any
+  index range scan, so a directory with many top-level files and few subdirectories is the
+  pathological case; scan_limit (a separate, larger bound than the page size) caps the damage
+  rather than claiming this is O(page_size) unconditionally. Verified both the skip and the bound
+  with dedicated integration tests, including one seeding 500 files under a single subdirectory to
+  confirm it's found via one skip rather than 500 individual lookups.
+  Portability note: this query only builds under sqlc's own analyzer (not necessarily real
+  Postgres) if the recursive CTE's own column is named something other than `key` — sqlc's
+  resolver reports it ambiguous against files.key once a correlated subquery inside the recursive
+  term references the CTE, even though real Postgres accepts it fine. Worked around by naming it
+  `k` and fully qualifying every reference; see the query's doc comment.
+- ListDirectory's pagination is two-phase, not a single merged cursor: directories are always
+  alphabetical and always precede files, but files honor the existing sort_field/sort_order the
+  UI already had (size, last_modified) — a single key-ordered merge (S3 Delimiter-listing style)
+  would have been simpler but would have meant no size/date sort while browsing. PageToken grew a
+  phase (DIRECTORIES | FILES) + path + last_dir; the FILES phase reuses ListFiles' existing cursor
+  fields (key/size/last_modified/last_id) and its six ListFilesBy* queries verbatim, via a new
+  direct_only/dir_prefix predicate (excludes files in a deeper subdirectory) rather than a
+  parallel set of directory-scoped queries. A page transitioning from directories to files with
+  zero files consumed still emits a resume token (LastId 0 is the sentinel for "files phase, no
+  cursor yet") — otherwise the boundary case of "directories exactly filled the page, are there
+  files after them?" would silently drop the answer.

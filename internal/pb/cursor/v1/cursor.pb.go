@@ -23,6 +23,59 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// ListPhase distinguishes the two halves of a ListDirectory page: browse
+// mode always lists subdirectories (alphabetical only) before files (which
+// honor sort_field/sort_order), so a page's cursor must record which half it
+// stopped in.
+type ListPhase int32
+
+const (
+	ListPhase_LIST_PHASE_UNSPECIFIED ListPhase = 0
+	ListPhase_LIST_PHASE_DIRECTORIES ListPhase = 1
+	ListPhase_LIST_PHASE_FILES       ListPhase = 2
+)
+
+// Enum value maps for ListPhase.
+var (
+	ListPhase_name = map[int32]string{
+		0: "LIST_PHASE_UNSPECIFIED",
+		1: "LIST_PHASE_DIRECTORIES",
+		2: "LIST_PHASE_FILES",
+	}
+	ListPhase_value = map[string]int32{
+		"LIST_PHASE_UNSPECIFIED": 0,
+		"LIST_PHASE_DIRECTORIES": 1,
+		"LIST_PHASE_FILES":       2,
+	}
+)
+
+func (x ListPhase) Enum() *ListPhase {
+	p := new(ListPhase)
+	*p = x
+	return p
+}
+
+func (x ListPhase) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ListPhase) Descriptor() protoreflect.EnumDescriptor {
+	return file_cursor_v1_cursor_proto_enumTypes[0].Descriptor()
+}
+
+func (ListPhase) Type() protoreflect.EnumType {
+	return &file_cursor_v1_cursor_proto_enumTypes[0]
+}
+
+func (x ListPhase) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ListPhase.Descriptor instead.
+func (ListPhase) EnumDescriptor() ([]byte, []int) {
+	return file_cursor_v1_cursor_proto_rawDescGZIP(), []int{0}
+}
+
 // PageToken is the internal wire format of a ListFiles page token. It is
 // serialized and base64url-encoded before being returned to clients, and is
 // never part of the public API surface (AIP-158: tokens are opaque).
@@ -43,8 +96,19 @@ type PageToken struct {
 	// Matches COALESCE(size_bytes, 0) in the list queries.
 	Size int64 `protobuf:"varint,6,opt,name=size,proto3" json:"size,omitempty"`
 	// Filters the token was issued for, stored raw (before LIKE escaping).
-	Prefix        string `protobuf:"bytes,7,opt,name=prefix,proto3" json:"prefix,omitempty"`
-	ContentType   string `protobuf:"bytes,8,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	Prefix      string `protobuf:"bytes,7,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	ContentType string `protobuf:"bytes,8,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	// ListDirectory's own two-phase cursor. path is the directory being
+	// browsed (raw, trailing "/"); phase records whether the previous page
+	// ended while still listing subdirectories or had moved on to files, so
+	// resuming asks the right query for the right position. last_dir is only
+	// meaningful in the DIRECTORIES phase (the last child prefix returned,
+	// used to compute ListChildPrefixes' `after` argument); the FILES phase
+	// reuses sort_field/sort_order/last_id/key/last_modified/size above,
+	// exactly like ListFiles' cursor.
+	Path          string    `protobuf:"bytes,9,opt,name=path,proto3" json:"path,omitempty"`
+	Phase         ListPhase `protobuf:"varint,10,opt,name=phase,proto3,enum=cursor.v1.ListPhase" json:"phase,omitempty"`
+	LastDir       string    `protobuf:"bytes,11,opt,name=last_dir,json=lastDir,proto3" json:"last_dir,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -135,11 +199,32 @@ func (x *PageToken) GetContentType() string {
 	return ""
 }
 
+func (x *PageToken) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *PageToken) GetPhase() ListPhase {
+	if x != nil {
+		return x.Phase
+	}
+	return ListPhase_LIST_PHASE_UNSPECIFIED
+}
+
+func (x *PageToken) GetLastDir() string {
+	if x != nil {
+		return x.LastDir
+	}
+	return ""
+}
+
 var File_cursor_v1_cursor_proto protoreflect.FileDescriptor
 
 const file_cursor_v1_cursor_proto_rawDesc = "" +
 	"\n" +
-	"\x16cursor/v1/cursor.proto\x12\tcursor.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17service/v1/search.proto\"\xb2\x02\n" +
+	"\x16cursor/v1/cursor.proto\x12\tcursor.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17service/v1/search.proto\"\x8d\x03\n" +
 	"\tPageToken\x124\n" +
 	"\n" +
 	"sort_field\x18\x01 \x01(\x0e2\x15.service.v1.SortFieldR\tsortField\x124\n" +
@@ -150,7 +235,15 @@ const file_cursor_v1_cursor_proto_rawDesc = "" +
 	"\rlast_modified\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\flastModified\x12\x12\n" +
 	"\x04size\x18\x06 \x01(\x03R\x04size\x12\x16\n" +
 	"\x06prefix\x18\a \x01(\tR\x06prefix\x12!\n" +
-	"\fcontent_type\x18\b \x01(\tR\vcontentTypeB-Z+file-indexer/internal/pb/cursor/v1;cursorv1b\x06proto3"
+	"\fcontent_type\x18\b \x01(\tR\vcontentType\x12\x12\n" +
+	"\x04path\x18\t \x01(\tR\x04path\x12*\n" +
+	"\x05phase\x18\n" +
+	" \x01(\x0e2\x14.cursor.v1.ListPhaseR\x05phase\x12\x19\n" +
+	"\blast_dir\x18\v \x01(\tR\alastDir*Y\n" +
+	"\tListPhase\x12\x1a\n" +
+	"\x16LIST_PHASE_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16LIST_PHASE_DIRECTORIES\x10\x01\x12\x14\n" +
+	"\x10LIST_PHASE_FILES\x10\x02B-Z+file-indexer/internal/pb/cursor/v1;cursorv1b\x06proto3"
 
 var (
 	file_cursor_v1_cursor_proto_rawDescOnce sync.Once
@@ -164,22 +257,25 @@ func file_cursor_v1_cursor_proto_rawDescGZIP() []byte {
 	return file_cursor_v1_cursor_proto_rawDescData
 }
 
+var file_cursor_v1_cursor_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_cursor_v1_cursor_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_cursor_v1_cursor_proto_goTypes = []any{
-	(*PageToken)(nil),             // 0: cursor.v1.PageToken
-	(v1.SortField)(0),             // 1: service.v1.SortField
-	(v1.SortOrder)(0),             // 2: service.v1.SortOrder
-	(*timestamppb.Timestamp)(nil), // 3: google.protobuf.Timestamp
+	(ListPhase)(0),                // 0: cursor.v1.ListPhase
+	(*PageToken)(nil),             // 1: cursor.v1.PageToken
+	(v1.SortField)(0),             // 2: service.v1.SortField
+	(v1.SortOrder)(0),             // 3: service.v1.SortOrder
+	(*timestamppb.Timestamp)(nil), // 4: google.protobuf.Timestamp
 }
 var file_cursor_v1_cursor_proto_depIdxs = []int32{
-	1, // 0: cursor.v1.PageToken.sort_field:type_name -> service.v1.SortField
-	2, // 1: cursor.v1.PageToken.sort_order:type_name -> service.v1.SortOrder
-	3, // 2: cursor.v1.PageToken.last_modified:type_name -> google.protobuf.Timestamp
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	2, // 0: cursor.v1.PageToken.sort_field:type_name -> service.v1.SortField
+	3, // 1: cursor.v1.PageToken.sort_order:type_name -> service.v1.SortOrder
+	4, // 2: cursor.v1.PageToken.last_modified:type_name -> google.protobuf.Timestamp
+	0, // 3: cursor.v1.PageToken.phase:type_name -> cursor.v1.ListPhase
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_cursor_v1_cursor_proto_init() }
@@ -192,13 +288,14 @@ func file_cursor_v1_cursor_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cursor_v1_cursor_proto_rawDesc), len(file_cursor_v1_cursor_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_cursor_v1_cursor_proto_goTypes,
 		DependencyIndexes: file_cursor_v1_cursor_proto_depIdxs,
+		EnumInfos:         file_cursor_v1_cursor_proto_enumTypes,
 		MessageInfos:      file_cursor_v1_cursor_proto_msgTypes,
 	}.Build()
 	File_cursor_v1_cursor_proto = out.File

@@ -28,4 +28,26 @@ message PageToken {
   // Filters the token was issued for, stored raw (before LIKE escaping).
   string prefix = 7;
   string content_type = 8;
+
+  // ListDirectory's own two-phase cursor. path is the directory being
+  // browsed (raw, trailing "/"); phase records whether the previous page
+  // ended while still listing subdirectories or had moved on to files, so
+  // resuming asks the right query for the right position. last_dir is only
+  // meaningful in the DIRECTORIES phase (the last child prefix returned,
+  // used to compute ListChildPrefixes' `after` argument); the FILES phase
+  // reuses sort_field/sort_order/last_id/key/last_modified/size above,
+  // exactly like ListFiles' cursor.
+  string path = 9;
+  ListPhase phase = 10;
+  string last_dir = 11;
+}
+
+// ListPhase distinguishes the two halves of a ListDirectory page: browse
+// mode always lists subdirectories (alphabetical only) before files (which
+// honor sort_field/sort_order), so a page's cursor must record which half it
+// stopped in.
+enum ListPhase {
+  LIST_PHASE_UNSPECIFIED = 0;
+  LIST_PHASE_DIRECTORIES = 1;
+  LIST_PHASE_FILES = 2;
 }

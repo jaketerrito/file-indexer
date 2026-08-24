@@ -6,6 +6,7 @@ package search
 import (
 	"context"
 	"file-indexer/internal/db"
+	cursorv1 "file-indexer/internal/pb/cursor/v1"
 	pb "file-indexer/internal/pb/service/v1"
 	"log/slog"
 	"net"
@@ -20,10 +21,21 @@ import (
 const (
 	defaultPageSize = 50
 	maxPageSize     = 200
+
+	// dirScanMultiplier and maxDirScan bound ListChildPrefixes' scan_limit:
+	// how many keys the loose index scan may examine while looking for the
+	// next page of directory names (see queries/files.sql's ListChildPrefixes
+	// doc comment). Scaled off the page limit so small pages stay cheap, but
+	// capped so a directory containing many top-level files and few
+	// subdirectories can't turn one ListDirectory call into a full scan of
+	// that directory.
+	dirScanMultiplier = 20
+	maxDirScan        = 5000
 )
 
 // FileIndex is the database surface the search service depends on: one list
-// query per (sort field, direction), all keyset-paginated on (value, id).
+// query per (sort field, direction), all keyset-paginated on (value, id),
+// plus ListChildPrefixes for directory browsing.
 type FileIndex interface {
 	ListFilesByKeyAsc(ctx context.Context, arg db.ListFilesByKeyAscParams) ([]db.FileInfo, error)
 	ListFilesByKeyDesc(ctx context.Context, arg db.ListFilesByKeyDescParams) ([]db.FileInfo, error)
@@ -31,6 +43,7 @@ type FileIndex interface {
 	ListFilesByLastModifiedDesc(ctx context.Context, arg db.ListFilesByLastModifiedDescParams) ([]db.FileInfo, error)
 	ListFilesBySizeAsc(ctx context.Context, arg db.ListFilesBySizeAscParams) ([]db.FileInfo, error)
 	ListFilesBySizeDesc(ctx context.Context, arg db.ListFilesBySizeDescParams) ([]db.FileInfo, error)
+	ListChildPrefixes(ctx context.Context, arg db.ListChildPrefixesParams) ([]string, error)
 }
 
 type SearchServer struct {
@@ -75,7 +88,7 @@ func (s *SearchServer) ListFiles(ctx context.Context, req *pb.ListFilesRequest) 
 	}
 
 	// Fetch one extra row to detect whether another page exists.
-	files, err := s.listFiles(ctx, sortField, sortOrder, req.GetPrefix(), req.GetContentType(), cur, limit+1)
+	files, err := s.listFiles(ctx, sortField, sortOrder, req.GetPrefix(), req.GetContentType(), false, "", cur, limit+1)
 	if err != nil {
 		return nil, err
 	}
@@ -94,10 +107,18 @@ func (s *SearchServer) ListFiles(ctx context.Context, req *pb.ListFilesRequest) 
 }
 
 // listFiles dispatches to the sqlc query matching the requested sort.
-func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, sortOrder pb.SortOrder, prefix, contentType string, cur *cursor, limit int) ([]db.FileInfo, error) {
+// directOnly/dirPrefix restrict results to files directly inside dirPrefix
+// (no further '/'), used by ListDirectory's files phase; search's ListFiles
+// passes directOnly=false to search the whole subtree under prefix.
+func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, sortOrder pb.SortOrder, prefix, contentType string, directOnly bool, dirPrefix string, cur *cursor, limit int) ([]db.FileInfo, error) {
 	keyPattern := escapeLike(prefix) + "%"
 	contentTypePattern := contentTypeToPattern(contentType)
 	asc := sortOrder == pb.SortOrder_SORT_ORDER_ASC
+	// A file's own row id is never 0 (BIGSERIAL starts at 1), so LastId == 0
+	// unambiguously means "no cursor yet" even when cur is non-nil (see
+	// ListDirectory: a page that exhausts directories without touching any
+	// files still emits a FILES-phase token to resume into, with LastId 0).
+	hasCursor := cur != nil && cur.GetLastId() != 0
 
 	switch sortField {
 	case pb.SortField_SORT_FIELD_KEY:
@@ -105,7 +126,9 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 			return s.queries.ListFilesByKeyAsc(ctx, db.ListFilesByKeyAscParams{
 				KeyPattern:         keyPattern,
 				ContentTypePattern: contentTypePattern,
-				HasCursor:          cur != nil,
+				DirectOnly:         directOnly,
+				DirPrefix:          dirPrefix,
+				HasCursor:          hasCursor,
 				LastKey:            cur.GetKey(),
 				LastID:             cur.GetLastId(),
 				PageLimit:          int32(limit),
@@ -114,7 +137,9 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 		return s.queries.ListFilesByKeyDesc(ctx, db.ListFilesByKeyDescParams{
 			KeyPattern:         keyPattern,
 			ContentTypePattern: contentTypePattern,
-			HasCursor:          cur != nil,
+			DirectOnly:         directOnly,
+			DirPrefix:          dirPrefix,
+			HasCursor:          hasCursor,
 			LastKey:            cur.GetKey(),
 			LastID:             cur.GetLastId(),
 			PageLimit:          int32(limit),
@@ -124,7 +149,9 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 			return s.queries.ListFilesByLastModifiedAsc(ctx, db.ListFilesByLastModifiedAscParams{
 				KeyPattern:         keyPattern,
 				ContentTypePattern: contentTypePattern,
-				HasCursor:          cur != nil,
+				DirectOnly:         directOnly,
+				DirPrefix:          dirPrefix,
+				HasCursor:          hasCursor,
 				CursorLastModified: lastModifiedCursor(cur),
 				LastID:             cur.GetLastId(),
 				PageLimit:          int32(limit),
@@ -133,7 +160,9 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 		return s.queries.ListFilesByLastModifiedDesc(ctx, db.ListFilesByLastModifiedDescParams{
 			KeyPattern:         keyPattern,
 			ContentTypePattern: contentTypePattern,
-			HasCursor:          cur != nil,
+			DirectOnly:         directOnly,
+			DirPrefix:          dirPrefix,
+			HasCursor:          hasCursor,
 			CursorLastModified: lastModifiedCursor(cur),
 			LastID:             cur.GetLastId(),
 			PageLimit:          int32(limit),
@@ -143,7 +172,9 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 			return s.queries.ListFilesBySizeAsc(ctx, db.ListFilesBySizeAscParams{
 				KeyPattern:         keyPattern,
 				ContentTypePattern: contentTypePattern,
-				HasCursor:          cur != nil,
+				DirectOnly:         directOnly,
+				DirPrefix:          dirPrefix,
+				HasCursor:          hasCursor,
 				LastSize:           cur.GetSize(),
 				LastID:             cur.GetLastId(),
 				PageLimit:          int32(limit),
@@ -152,7 +183,9 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 		return s.queries.ListFilesBySizeDesc(ctx, db.ListFilesBySizeDescParams{
 			KeyPattern:         keyPattern,
 			ContentTypePattern: contentTypePattern,
-			HasCursor:          cur != nil,
+			DirectOnly:         directOnly,
+			DirPrefix:          dirPrefix,
+			HasCursor:          hasCursor,
 			LastSize:           cur.GetSize(),
 			LastID:             cur.GetLastId(),
 			PageLimit:          int32(limit),
@@ -161,6 +194,147 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 		// normalizeSort only lets known fields through.
 		return nil, status.Errorf(codes.InvalidArgument, "unsupported sort_field %v", sortField)
 	}
+}
+
+// ListDirectory lists the immediate children of path: subdirectories
+// (derived purely from key structure, always alphabetical) followed by the
+// files directly in it (honoring sort_field/sort_order). A page's cursor
+// records which of the two phases it stopped in (see PageToken.phase in
+// cursor.proto) so resuming asks the right query.
+func (s *SearchServer) ListDirectory(ctx context.Context, req *pb.ListDirectoryRequest) (*pb.ListDirectoryResponse, error) {
+	path, err := normalizeDirPath(req.GetPath())
+	if err != nil {
+		return nil, err
+	}
+	sortField, sortOrder, err := normalizeSort(req.GetSortField(), req.GetSortOrder())
+	if err != nil {
+		return nil, err
+	}
+	limit, err := normalizePageSize(req.GetPageSize())
+	if err != nil {
+		return nil, err
+	}
+
+	var cur *cursor
+	phase := cursorv1.ListPhase_LIST_PHASE_DIRECTORIES
+	if req.GetPageToken() != "" {
+		c, err := decodeCursor(req.GetPageToken())
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid page_token")
+		}
+		if c.GetPath() != path || c.GetSortField() != sortField || c.GetSortOrder() != sortOrder {
+			return nil, status.Error(codes.InvalidArgument, "page_token was issued for a different query")
+		}
+		cur = c
+		phase = c.GetPhase()
+	}
+
+	var dirs []string
+	remaining := limit
+
+	if phase == cursorv1.ListPhase_LIST_PHASE_DIRECTORIES {
+		after := path
+		if cur.GetLastDir() != "" {
+			after = skipPastChild(cur.GetLastDir())
+		}
+		scanLimit := limit * dirScanMultiplier
+		if scanLimit > maxDirScan {
+			scanLimit = maxDirScan
+		}
+		fetched, err := s.queries.ListChildPrefixes(ctx, db.ListChildPrefixesParams{
+			Prefix:        path,
+			PrefixPattern: escapeLike(path) + "%",
+			After:         after,
+			DirLimit:      int32(limit + 1),
+			ScanLimit:     int32(scanLimit),
+		})
+		if err != nil {
+			return nil, err
+		}
+		if len(fetched) > limit {
+			dirs = fetched[:limit]
+			nextToken := encodeCursor(newDirCursor(sortField, sortOrder, path, dirs[len(dirs)-1]))
+			return &pb.ListDirectoryResponse{Directories: dirs, NextPageToken: nextToken}, nil
+		}
+		dirs = fetched
+		remaining = limit - len(dirs)
+		// Directories are exhausted (see above); transition into the files
+		// phase fresh, with no file cursor of its own yet.
+		cur = nil
+	}
+
+	// Fetch one extra file to detect whether another page exists, even when
+	// remaining is 0: that still tells us whether a FILES-phase token is
+	// needed to resume into (see hasCursor's LastId==0 sentinel in listFiles).
+	filesFetched, err := s.listFiles(ctx, sortField, sortOrder, path, "", true, path, cur, remaining+1)
+	if err != nil {
+		return nil, err
+	}
+
+	var files []db.FileInfo
+	var nextToken string
+	if len(filesFetched) > remaining {
+		files = filesFetched[:remaining]
+		var last db.FileInfo
+		if remaining > 0 {
+			last = files[remaining-1]
+		}
+		// When remaining == 0, last is the zero value: ID 0, which
+		// newDirFilesCursor encodes as LastId 0 — the "no cursor yet, resume
+		// at the start of the files phase" sentinel listFiles checks for.
+		nextToken = encodeCursor(newDirFilesCursor(sortField, sortOrder, path, last))
+	} else {
+		files = filesFetched
+	}
+
+	infos := make([]*pb.FileInfo, 0, len(files))
+	for _, f := range files {
+		infos = append(infos, dbFileToProto(f))
+	}
+	return &pb.ListDirectoryResponse{Directories: dirs, Files: infos, NextPageToken: nextToken}, nil
+}
+
+// skipPastChild computes the ListChildPrefixes `after` argument that skips
+// past everything under the directory named by child (a full prefix ending
+// in '/', e.g. "docs/sub/"): '/' (0x2F) is immediately followed by '0'
+// (0x30) in byte order, so trimming the trailing '/' and appending '0' sorts
+// strictly after every key under child. Only correct under COLLATE "C" key
+// ordering (see migrations/004_key_collation.sql).
+func skipPastChild(child string) string {
+	return strings.TrimSuffix(child, "/") + "0"
+}
+
+// hasDotDotSegment reports whether s contains ".." as a whole path segment,
+// not merely as a substring. A copy of files.hasDotDotSegment; kept
+// package-local for the same reason escapeLike is duplicated rather than
+// shared across these two service packages.
+func hasDotDotSegment(s string) bool {
+	for _, segment := range strings.Split(s, "/") {
+		if segment == ".." {
+			return true
+		}
+	}
+	return false
+}
+
+// normalizeDirPath validates and normalizes a ListDirectory path: "" means
+// the bucket root; anything else is trimmed of a leading "/" and given a
+// trailing one. Rejects ".." path segments for the same reason
+// FilesServer.validateUploadKey does — not a real filesystem, but there is
+// no legitimate reason for a browse path to contain one, and allowing it
+// would make prefix patterns behave surprisingly.
+func normalizeDirPath(path string) (string, error) {
+	if path == "" {
+		return "", nil
+	}
+	if hasDotDotSegment(path) {
+		return "", status.Errorf(codes.InvalidArgument, "invalid path %q", path)
+	}
+	path = strings.TrimPrefix(path, "/")
+	if !strings.HasSuffix(path, "/") {
+		path += "/"
+	}
+	return path, nil
 }
 
 func (s *SearchServer) Serve() error {

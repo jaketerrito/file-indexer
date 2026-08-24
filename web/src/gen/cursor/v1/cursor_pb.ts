@@ -2,8 +2,8 @@
 // @generated from file cursor/v1/cursor.proto (package cursor.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { SortField, SortOrder } from "../../service/v1/search_pb";
@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cursor/v1/cursor.proto.
  */
 export const file_cursor_v1_cursor: GenFile = /*@__PURE__*/
-  fileDesc("ChZjdXJzb3IvdjEvY3Vyc29yLnByb3RvEgljdXJzb3IudjEi5gEKCVBhZ2VUb2tlbhIpCgpzb3J0X2ZpZWxkGAEgASgOMhUuc2VydmljZS52MS5Tb3J0RmllbGQSKQoKc29ydF9vcmRlchgCIAEoDjIVLnNlcnZpY2UudjEuU29ydE9yZGVyEg8KB2xhc3RfaWQYAyABKAMSCwoDa2V5GAQgASgJEjEKDWxhc3RfbW9kaWZpZWQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBHNpemUYBiABKAMSDgoGcHJlZml4GAcgASgJEhQKDGNvbnRlbnRfdHlwZRgIIAEoCUItWitmaWxlLWluZGV4ZXIvaW50ZXJuYWwvcGIvY3Vyc29yL3YxO2N1cnNvcnYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_service_v1_search]);
+  fileDesc("ChZjdXJzb3IvdjEvY3Vyc29yLnByb3RvEgljdXJzb3IudjEiqwIKCVBhZ2VUb2tlbhIpCgpzb3J0X2ZpZWxkGAEgASgOMhUuc2VydmljZS52MS5Tb3J0RmllbGQSKQoKc29ydF9vcmRlchgCIAEoDjIVLnNlcnZpY2UudjEuU29ydE9yZGVyEg8KB2xhc3RfaWQYAyABKAMSCwoDa2V5GAQgASgJEjEKDWxhc3RfbW9kaWZpZWQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBHNpemUYBiABKAMSDgoGcHJlZml4GAcgASgJEhQKDGNvbnRlbnRfdHlwZRgIIAEoCRIMCgRwYXRoGAkgASgJEiMKBXBoYXNlGAogASgOMhQuY3Vyc29yLnYxLkxpc3RQaGFzZRIQCghsYXN0X2RpchgLIAEoCSpZCglMaXN0UGhhc2USGgoWTElTVF9QSEFTRV9VTlNQRUNJRklFRBAAEhoKFkxJU1RfUEhBU0VfRElSRUNUT1JJRVMQARIUChBMSVNUX1BIQVNFX0ZJTEVTEAJCLVorZmlsZS1pbmRleGVyL2ludGVybmFsL3BiL2N1cnNvci92MTtjdXJzb3J2MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_service_v1_search]);
 
 /**
  * PageToken is the internal wire format of a ListFiles page token. It is
@@ -76,6 +76,30 @@ export type PageToken = Message<"cursor.v1.PageToken"> & {
    * @generated from field: string content_type = 8;
    */
   contentType: string;
+
+  /**
+   * ListDirectory's own two-phase cursor. path is the directory being
+   * browsed (raw, trailing "/"); phase records whether the previous page
+   * ended while still listing subdirectories or had moved on to files, so
+   * resuming asks the right query for the right position. last_dir is only
+   * meaningful in the DIRECTORIES phase (the last child prefix returned,
+   * used to compute ListChildPrefixes' `after` argument); the FILES phase
+   * reuses sort_field/sort_order/last_id/key/last_modified/size above,
+   * exactly like ListFiles' cursor.
+   *
+   * @generated from field: string path = 9;
+   */
+  path: string;
+
+  /**
+   * @generated from field: cursor.v1.ListPhase phase = 10;
+   */
+  phase: ListPhase;
+
+  /**
+   * @generated from field: string last_dir = 11;
+   */
+  lastDir: string;
 };
 
 /**
@@ -84,4 +108,35 @@ export type PageToken = Message<"cursor.v1.PageToken"> & {
  */
 export const PageTokenSchema: GenMessage<PageToken> = /*@__PURE__*/
   messageDesc(file_cursor_v1_cursor, 0);
+
+/**
+ * ListPhase distinguishes the two halves of a ListDirectory page: browse
+ * mode always lists subdirectories (alphabetical only) before files (which
+ * honor sort_field/sort_order), so a page's cursor must record which half it
+ * stopped in.
+ *
+ * @generated from enum cursor.v1.ListPhase
+ */
+export enum ListPhase {
+  /**
+   * @generated from enum value: LIST_PHASE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: LIST_PHASE_DIRECTORIES = 1;
+   */
+  DIRECTORIES = 1,
+
+  /**
+   * @generated from enum value: LIST_PHASE_FILES = 2;
+   */
+  FILES = 2,
+}
+
+/**
+ * Describes the enum cursor.v1.ListPhase.
+ */
+export const ListPhaseSchema: GenEnum<ListPhase> = /*@__PURE__*/
+  enumDesc(file_cursor_v1_cursor, 0);
 

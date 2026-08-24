@@ -273,6 +273,158 @@ func (x *ListFilesResponse) GetNextPageToken() string {
 	return ""
 }
 
+// ListDirectory lists the immediate children of a directory: subdirectories
+// (derived purely from key structure — S3 has no directory objects, so a
+// directory "exists" only as long as some key lives under it) followed by
+// the files directly in it. There is no content_type filter here: applying
+// one requires per-directory subtree checks that break the pagination
+// scheme, so a content-type filter means the client should switch to
+// ListFiles from this path instead (browsing is navigation; filtering is
+// search).
+type ListDirectoryRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Directory to list; "" is the bucket root. Normalized to a trailing "/"
+	// server-side if the caller omits one.
+	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	// Maximum number of entries (directories + files combined) to return.
+	// Defaults to 50, clamped to 200, same as ListFiles.
+	PageSize  int32  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	PageToken string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	// Sort applies to the files portion only; directories are always
+	// alphabetical and always precede files on a given page.
+	SortField     SortField `protobuf:"varint,4,opt,name=sort_field,json=sortField,proto3,enum=service.v1.SortField" json:"sort_field,omitempty"`
+	SortOrder     SortOrder `protobuf:"varint,5,opt,name=sort_order,json=sortOrder,proto3,enum=service.v1.SortOrder" json:"sort_order,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDirectoryRequest) Reset() {
+	*x = ListDirectoryRequest{}
+	mi := &file_service_v1_search_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDirectoryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDirectoryRequest) ProtoMessage() {}
+
+func (x *ListDirectoryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_search_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDirectoryRequest.ProtoReflect.Descriptor instead.
+func (*ListDirectoryRequest) Descriptor() ([]byte, []int) {
+	return file_service_v1_search_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ListDirectoryRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ListDirectoryRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListDirectoryRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+func (x *ListDirectoryRequest) GetSortField() SortField {
+	if x != nil {
+		return x.SortField
+	}
+	return SortField_SORT_FIELD_UNSPECIFIED
+}
+
+func (x *ListDirectoryRequest) GetSortOrder() SortOrder {
+	if x != nil {
+		return x.SortOrder
+	}
+	return SortOrder_SORT_ORDER_UNSPECIFIED
+}
+
+type ListDirectoryResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Immediate child directories, full path from the bucket root, each
+	// ending in "/". Always alphabetical, always before files.
+	Directories   []string    `protobuf:"bytes,1,rep,name=directories,proto3" json:"directories,omitempty"`
+	Files         []*FileInfo `protobuf:"bytes,2,rep,name=files,proto3" json:"files,omitempty"`
+	NextPageToken string      `protobuf:"bytes,3,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDirectoryResponse) Reset() {
+	*x = ListDirectoryResponse{}
+	mi := &file_service_v1_search_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDirectoryResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDirectoryResponse) ProtoMessage() {}
+
+func (x *ListDirectoryResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_search_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDirectoryResponse.ProtoReflect.Descriptor instead.
+func (*ListDirectoryResponse) Descriptor() ([]byte, []int) {
+	return file_service_v1_search_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ListDirectoryResponse) GetDirectories() []string {
+	if x != nil {
+		return x.Directories
+	}
+	return nil
+}
+
+func (x *ListDirectoryResponse) GetFiles() []*FileInfo {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *ListDirectoryResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
 var File_service_v1_search_proto protoreflect.FileDescriptor
 
 const file_service_v1_search_proto_rawDesc = "" +
@@ -291,7 +443,20 @@ const file_service_v1_search_proto_rawDesc = "" +
 	"sort_order\x18\x06 \x01(\x0e2\x15.service.v1.SortOrderR\tsortOrder\"g\n" +
 	"\x11ListFilesResponse\x12*\n" +
 	"\x05files\x18\x01 \x03(\v2\x14.service.v1.FileInfoR\x05files\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*n\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xd2\x01\n" +
+	"\x14ListDirectoryRequest\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\x124\n" +
+	"\n" +
+	"sort_field\x18\x04 \x01(\x0e2\x15.service.v1.SortFieldR\tsortField\x124\n" +
+	"\n" +
+	"sort_order\x18\x05 \x01(\x0e2\x15.service.v1.SortOrderR\tsortOrder\"\x8d\x01\n" +
+	"\x15ListDirectoryResponse\x12 \n" +
+	"\vdirectories\x18\x01 \x03(\tR\vdirectories\x12*\n" +
+	"\x05files\x18\x02 \x03(\v2\x14.service.v1.FileInfoR\x05files\x12&\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tR\rnextPageToken*n\n" +
 	"\tSortField\x12\x1a\n" +
 	"\x16SORT_FIELD_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSORT_FIELD_KEY\x10\x01\x12\x1c\n" +
@@ -300,9 +465,10 @@ const file_service_v1_search_proto_rawDesc = "" +
 	"\tSortOrder\x12\x1a\n" +
 	"\x16SORT_ORDER_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSORT_ORDER_ASC\x10\x01\x12\x13\n" +
-	"\x0fSORT_ORDER_DESC\x10\x022Y\n" +
+	"\x0fSORT_ORDER_DESC\x10\x022\xaf\x01\n" +
 	"\rSearchService\x12H\n" +
-	"\tListFiles\x12\x1c.service.v1.ListFilesRequest\x1a\x1d.service.v1.ListFilesResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
+	"\tListFiles\x12\x1c.service.v1.ListFilesRequest\x1a\x1d.service.v1.ListFilesResponse\x12T\n" +
+	"\rListDirectory\x12 .service.v1.ListDirectoryRequest\x1a!.service.v1.ListDirectoryResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
 
 var (
 	file_service_v1_search_proto_rawDescOnce sync.Once
@@ -317,25 +483,32 @@ func file_service_v1_search_proto_rawDescGZIP() []byte {
 }
 
 var file_service_v1_search_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_service_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_service_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_service_v1_search_proto_goTypes = []any{
-	(SortField)(0),            // 0: service.v1.SortField
-	(SortOrder)(0),            // 1: service.v1.SortOrder
-	(*ListFilesRequest)(nil),  // 2: service.v1.ListFilesRequest
-	(*ListFilesResponse)(nil), // 3: service.v1.ListFilesResponse
-	(*FileInfo)(nil),          // 4: service.v1.FileInfo
+	(SortField)(0),                // 0: service.v1.SortField
+	(SortOrder)(0),                // 1: service.v1.SortOrder
+	(*ListFilesRequest)(nil),      // 2: service.v1.ListFilesRequest
+	(*ListFilesResponse)(nil),     // 3: service.v1.ListFilesResponse
+	(*ListDirectoryRequest)(nil),  // 4: service.v1.ListDirectoryRequest
+	(*ListDirectoryResponse)(nil), // 5: service.v1.ListDirectoryResponse
+	(*FileInfo)(nil),              // 6: service.v1.FileInfo
 }
 var file_service_v1_search_proto_depIdxs = []int32{
 	0, // 0: service.v1.ListFilesRequest.sort_field:type_name -> service.v1.SortField
 	1, // 1: service.v1.ListFilesRequest.sort_order:type_name -> service.v1.SortOrder
-	4, // 2: service.v1.ListFilesResponse.files:type_name -> service.v1.FileInfo
-	2, // 3: service.v1.SearchService.ListFiles:input_type -> service.v1.ListFilesRequest
-	3, // 4: service.v1.SearchService.ListFiles:output_type -> service.v1.ListFilesResponse
-	4, // [4:5] is the sub-list for method output_type
-	3, // [3:4] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	6, // 2: service.v1.ListFilesResponse.files:type_name -> service.v1.FileInfo
+	0, // 3: service.v1.ListDirectoryRequest.sort_field:type_name -> service.v1.SortField
+	1, // 4: service.v1.ListDirectoryRequest.sort_order:type_name -> service.v1.SortOrder
+	6, // 5: service.v1.ListDirectoryResponse.files:type_name -> service.v1.FileInfo
+	2, // 6: service.v1.SearchService.ListFiles:input_type -> service.v1.ListFilesRequest
+	4, // 7: service.v1.SearchService.ListDirectory:input_type -> service.v1.ListDirectoryRequest
+	3, // 8: service.v1.SearchService.ListFiles:output_type -> service.v1.ListFilesResponse
+	5, // 9: service.v1.SearchService.ListDirectory:output_type -> service.v1.ListDirectoryResponse
+	8, // [8:10] is the sub-list for method output_type
+	6, // [6:8] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_service_v1_search_proto_init() }
@@ -350,7 +523,7 @@ func file_service_v1_search_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_v1_search_proto_rawDesc), len(file_service_v1_search_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

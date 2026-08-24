@@ -30,6 +30,42 @@ func newCursor(sortField pb.SortField, sortOrder pb.SortOrder, prefix, contentTy
 		Prefix:      prefix,
 		ContentType: contentType,
 	}
+	setSortValue(c, sortField, last)
+	return c
+}
+
+// newDirFilesCursor is newCursor's ListDirectory counterpart: it records
+// path/phase instead of prefix/content_type (see PageToken in cursor.proto).
+// last may be the zero db.FileInfo — LastId 0 then signals "no file cursor
+// yet, resume at the start of the files phase" (see listFiles' hasCursor).
+func newDirFilesCursor(sortField pb.SortField, sortOrder pb.SortOrder, path string, last db.FileInfo) *cursor {
+	c := &cursor{
+		SortField: sortField,
+		SortOrder: sortOrder,
+		LastId:    last.ID,
+		Path:      path,
+		Phase:     cursorv1.ListPhase_LIST_PHASE_FILES,
+	}
+	setSortValue(c, sortField, last)
+	return c
+}
+
+// newDirCursor records a ListDirectory page that stopped mid-way through the
+// directories phase: lastDir is the last child prefix returned, which
+// skipPastChild uses to resume the loose index scan past it.
+func newDirCursor(sortField pb.SortField, sortOrder pb.SortOrder, path, lastDir string) *cursor {
+	return &cursor{
+		SortField: sortField,
+		SortOrder: sortOrder,
+		Path:      path,
+		Phase:     cursorv1.ListPhase_LIST_PHASE_DIRECTORIES,
+		LastDir:   lastDir,
+	}
+}
+
+// setSortValue sets the cursor field matching sortField to last's value in
+// that sort order, shared by newCursor and newDirFilesCursor.
+func setSortValue(c *cursor, sortField pb.SortField, last db.FileInfo) {
 	switch sortField {
 	case pb.SortField_SORT_FIELD_KEY:
 		c.Key = last.Key
@@ -42,7 +78,6 @@ func newCursor(sortField pb.SortField, sortOrder pb.SortOrder, prefix, contentTy
 		// sorts as zero.
 		c.Size = last.SizeBytes.Int64
 	}
-	return c
 }
 
 // coalesceLastModified mirrors the list queries' COALESCE(last_modified,
