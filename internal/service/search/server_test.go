@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"file-indexer/internal/db"
+	cursorv1 "file-indexer/internal/pb/cursor/v1"
 	"net"
 	"testing"
 	"time"
@@ -370,6 +371,273 @@ func TestDbFileToProtoNullFields(t *testing.T) {
 	}
 	if pf.CreatedAt != nil || pf.UpdatedAt != nil {
 		t.Errorf("timestamps = (%v, %v), want unset for NULLs", pf.CreatedAt, pf.UpdatedAt)
+	}
+}
+
+func TestListDirectoryRoot(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().ListChildDirectories(mock.Anything, db.ListChildDirectoriesParams{
+		Parent:    "",
+		PageLimit: defaultPageSize + 1,
+	}).Return([]string{"docs/", "other/"}, nil)
+	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
+		KeyPattern: "%",
+		DirectOnly: true,
+		DirPrefix:  "",
+		PageLimit:  defaultPageSize - 2 + 1,
+	}).Return([]db.FileInfo{testFile(1, "root.txt")}, nil)
+
+	srv := SearchServer{queries: queries}
+
+	resp, err := srv.ListDirectory(context.Background(), &pb.ListDirectoryRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.GetDirectories()) != 2 || resp.GetDirectories()[0] != "docs/" || resp.GetDirectories()[1] != "other/" {
+		t.Errorf("directories = %v, want [docs/ other/]", resp.GetDirectories())
+	}
+	if len(resp.GetFiles()) != 1 || resp.GetFiles()[0].GetKey() != "root.txt" {
+		t.Errorf("files = %+v, want [root.txt]", resp.GetFiles())
+	}
+	if resp.GetNextPageToken() != "" {
+		t.Errorf("next_page_token = %q, want empty", resp.GetNextPageToken())
+	}
+}
+
+func TestListDirectoryDirectoriesPageTruncated(t *testing.T) {
+	// More directories exist than fit on the page: the files phase must not
+	// run at all, and the token must resume the directories phase.
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().ListChildDirectories(mock.Anything, db.ListChildDirectoriesParams{
+		Parent:    "docs/",
+		PageLimit: 3,
+	}).Return([]string{"docs/a/", "docs/b/", "docs/c/"}, nil)
+
+	srv := SearchServer{queries: queries}
+
+	resp, err := srv.ListDirectory(context.Background(), &pb.ListDirectoryRequest{Path: "docs/", PageSize: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.GetDirectories()) != 2 || resp.GetDirectories()[1] != "docs/b/" {
+		t.Errorf("directories = %v, want [docs/a/ docs/b/]", resp.GetDirectories())
+	}
+	if len(resp.GetFiles()) != 0 {
+		t.Errorf("files = %+v, want none (directories phase not exhausted)", resp.GetFiles())
+	}
+	if resp.GetNextPageToken() == "" {
+		t.Fatal("next_page_token is empty, want cursor")
+	}
+
+	cur, err := decodeCursor(resp.GetNextPageToken())
+	if err != nil {
+		t.Fatalf("decodeCursor: %v", err)
+	}
+	if cur.GetPhase() != cursorv1.ListPhase_LIST_PHASE_DIRECTORIES || cur.GetLastDir() != "docs/b/" {
+		t.Errorf("cursor = %+v, want phase=DIRECTORIES lastDir=docs/b/", cur)
+	}
+}
+
+func TestListDirectoryResumeDirectoriesPhase(t *testing.T) {
+	// The directories table is an exact keyset index: resuming needs only
+	// the previous page's last path as `after`, no skip trick.
+	token := encodeCursor(newDirCursor(pb.SortField_SORT_FIELD_KEY, pb.SortOrder_SORT_ORDER_ASC, "docs/", "docs/b/"))
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().ListChildDirectories(mock.Anything, db.ListChildDirectoriesParams{
+		Parent:    "docs/",
+		HasCursor: true,
+		After:     "docs/b/",
+		PageLimit: 3,
+	}).Return([]string{"docs/c/"}, nil)
+	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
+		KeyPattern: "docs/%",
+		DirectOnly: true,
+		DirPrefix:  "docs/",
+		PageLimit:  2,
+	}).Return(nil, nil)
+
+	srv := SearchServer{queries: queries}
+
+	resp, err := srv.ListDirectory(context.Background(), &pb.ListDirectoryRequest{
+		Path: "docs/", PageSize: 2, PageToken: token,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.GetDirectories()) != 1 || resp.GetDirectories()[0] != "docs/c/" {
+		t.Errorf("directories = %v, want [docs/c/]", resp.GetDirectories())
+	}
+}
+
+func TestListDirectoryDirectoriesFillPageExactlyStillProbesFiles(t *testing.T) {
+	// Directories exhausted (fetched == limit, not limit+1) leaves remaining
+	// == 0, but a FILES-phase token must still be emitted if a file exists,
+	// so the next call doesn't silently skip it.
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().ListChildDirectories(mock.Anything, db.ListChildDirectoriesParams{
+		Parent:    "",
+		PageLimit: 3,
+	}).Return([]string{"a/", "b/"}, nil)
+	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
+		KeyPattern: "%",
+		DirectOnly: true,
+		DirPrefix:  "",
+		PageLimit:  1,
+	}).Return([]db.FileInfo{testFile(9, "z.txt")}, nil)
+
+	srv := SearchServer{queries: queries}
+
+	resp, err := srv.ListDirectory(context.Background(), &pb.ListDirectoryRequest{PageSize: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.GetFiles()) != 0 {
+		t.Errorf("files = %+v, want none (remaining budget was 0)", resp.GetFiles())
+	}
+	if resp.GetNextPageToken() == "" {
+		t.Fatal("next_page_token is empty, want a FILES-phase resume token")
+	}
+	cur, err := decodeCursor(resp.GetNextPageToken())
+	if err != nil {
+		t.Fatalf("decodeCursor: %v", err)
+	}
+	if cur.GetPhase() != cursorv1.ListPhase_LIST_PHASE_FILES || cur.GetLastId() != 0 {
+		t.Errorf("cursor = %+v, want phase=FILES lastId=0 (no cursor yet)", cur)
+	}
+}
+
+func TestListDirectoryResumeFilesPhase(t *testing.T) {
+	token := encodeCursor(newDirFilesCursor(pb.SortField_SORT_FIELD_KEY, pb.SortOrder_SORT_ORDER_ASC, "docs/", testFile(9, "docs/z.txt")))
+
+	queries := NewMockFileIndex(t)
+	// Directories phase must not run again once a FILES-phase token exists.
+	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
+		KeyPattern: "docs/%",
+		DirectOnly: true,
+		DirPrefix:  "docs/",
+		HasCursor:  true,
+		LastKey:    "docs/z.txt",
+		LastID:     9,
+		PageLimit:  3,
+	}).Return([]db.FileInfo{testFile(10, "docs/zz.txt")}, nil)
+
+	srv := SearchServer{queries: queries}
+
+	resp, err := srv.ListDirectory(context.Background(), &pb.ListDirectoryRequest{
+		Path: "docs/", PageSize: 2, PageToken: token,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.GetDirectories()) != 0 {
+		t.Errorf("directories = %v, want none", resp.GetDirectories())
+	}
+	if len(resp.GetFiles()) != 1 || resp.GetFiles()[0].GetKey() != "docs/zz.txt" {
+		t.Errorf("files = %+v, want [docs/zz.txt]", resp.GetFiles())
+	}
+}
+
+func TestListDirectoryEmpty(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().ListChildDirectories(mock.Anything, mock.Anything).Return(nil, nil)
+	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, mock.Anything).Return(nil, nil)
+
+	srv := SearchServer{queries: queries}
+
+	resp, err := srv.ListDirectory(context.Background(), &pb.ListDirectoryRequest{Path: "empty/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.GetDirectories()) != 0 || len(resp.GetFiles()) != 0 || resp.GetNextPageToken() != "" {
+		t.Errorf("resp = %+v, want fully empty", resp)
+	}
+}
+
+func TestListDirectoryPathNormalized(t *testing.T) {
+	// A leading "/" is stripped and a trailing "/" is added.
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().ListChildDirectories(mock.Anything, db.ListChildDirectoriesParams{
+		Parent:    "docs/",
+		PageLimit: defaultPageSize + 1,
+	}).Return(nil, nil)
+	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, mock.Anything).Return(nil, nil)
+
+	srv := SearchServer{queries: queries}
+
+	if _, err := srv.ListDirectory(context.Background(), &pb.ListDirectoryRequest{Path: "/docs"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestListDirectoryInvalidPath(t *testing.T) {
+	srv := SearchServer{queries: NewMockFileIndex(t)}
+
+	_, err := srv.ListDirectory(context.Background(), &pb.ListDirectoryRequest{Path: "docs/../etc/"})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("error = %v, want InvalidArgument", err)
+	}
+}
+
+func TestListDirectoryPageTokenPathMismatch(t *testing.T) {
+	token := encodeCursor(newDirCursor(pb.SortField_SORT_FIELD_KEY, pb.SortOrder_SORT_ORDER_ASC, "docs/", ""))
+
+	srv := SearchServer{queries: NewMockFileIndex(t)}
+
+	_, err := srv.ListDirectory(context.Background(), &pb.ListDirectoryRequest{Path: "other/", PageToken: token})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("error = %v, want InvalidArgument", err)
+	}
+}
+
+func TestHasDotDotSegment(t *testing.T) {
+	tests := []struct {
+		s    string
+		want bool
+	}{
+		{"", false},
+		{"archive..2026.zip", false},
+		{"a/archive..zip", false},
+		{"..", true},
+		{"../a", true},
+		{"a/..", true},
+		{"a/../b", true},
+	}
+	for _, tt := range tests {
+		if got := hasDotDotSegment(tt.s); got != tt.want {
+			t.Errorf("hasDotDotSegment(%q) = %v, want %v", tt.s, got, tt.want)
+		}
+	}
+}
+
+func TestNormalizeDirPath(t *testing.T) {
+	tests := []struct {
+		in      string
+		want    string
+		wantErr bool
+	}{
+		{"", "", false},
+		{"docs", "docs/", false},
+		{"docs/", "docs/", false},
+		{"/docs/", "docs/", false},
+		{"docs/../etc/", "", true},
+		// ".." as a substring, not a whole path segment, is a legitimate name.
+		{"archive..2026/", "archive..2026/", false},
+	}
+	for _, tt := range tests {
+		got, err := normalizeDirPath(tt.in)
+		if tt.wantErr {
+			if err == nil {
+				t.Errorf("normalizeDirPath(%q): want error, got nil", tt.in)
+			}
+			continue
+		}
+		if err != nil {
+			t.Errorf("normalizeDirPath(%q): unexpected error %v", tt.in, err)
+		}
+		if got != tt.want {
+			t.Errorf("normalizeDirPath(%q) = %q, want %q", tt.in, got, tt.want)
+		}
 	}
 }
 

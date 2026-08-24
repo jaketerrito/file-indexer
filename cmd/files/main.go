@@ -30,7 +30,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	srv := files.New(cfg.GrpcAddr, s3, db.New(pool), cfg.IndexPrefix)
+	srv := files.New(cfg.GrpcAddr, s3, db.NewStore(pool), cfg.IndexPrefix)
 	if err := srv.Serve(); err != nil {
 		slog.Error("files service failed", "error", err)
 		os.Exit(1)

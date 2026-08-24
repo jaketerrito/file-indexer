@@ -8,6 +8,11 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type Directory struct {
+	Path   string
+	Parent string
+}
+
 type File struct {
 	ID        int64
 	Key       string
