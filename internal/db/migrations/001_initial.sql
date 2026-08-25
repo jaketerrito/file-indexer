@@ -33,10 +33,12 @@ CREATE TABLE IF NOT EXISTS files (
 -- through UpsertDirectoriesForKeys in the same transaction as the files
 -- write that produced it (see Store in internal/db/store.go), so a full
 -- crawl reconstructs it as a byproduct with no dedicated rebuild query
--- needed (PruneOrphanDirectories in queries/directories.sql remains as the
--- prune half of that reconciliation — see its doc comment for why only
--- that half is real). This does not violate "S3 is the source of truth" —
--- it's one hop further from S3 than files itself, not a competing source.
+-- needed. PruneOrphanDirectories in queries/directories.sql backs the prune
+-- half of reconciliation, including the crawler's out-of-band S3 delete
+-- sweep (DeleteUnseenFilesWithDirectories) — see its doc comment for why
+-- that pass stays unscoped rather than scoped to the sweep's own victim
+-- keys. This does not violate "S3 is the source of truth" — it's one hop
+-- further from S3 than files itself, not a competing source.
 -- A directory with zero files under it is not represented (matches the
 -- API's virtual-directory model: a folder "exists" only as long as
 -- something lives under it, same as S3 itself), so there is nothing here

@@ -1,5 +1,9 @@
 -- name: UpsertFiles :execrows
 -- Add new files and update marked_at if the listing shows a newer mtime.
+-- seen_at is stamped to now() on every re-upsert (the column DEFAULT covers
+-- the insert case) regardless of whether marked_at changed: it is a
+-- liveness mark for DeleteUnseenFiles below, not a change mark, so an
+-- unmodified object must still get it refreshed on every crawl that saw it.
 INSERT INTO files (key, marked_at)
 SELECT input.key, MAX(input.marked_at)
 FROM (
@@ -8,7 +12,34 @@ FROM (
 ) input
 GROUP BY input.key
 ON CONFLICT (key) DO UPDATE
-    SET marked_at = GREATEST(files.marked_at, EXCLUDED.marked_at);
+    SET marked_at = GREATEST(files.marked_at, EXCLUDED.marked_at),
+        seen_at = now();
+
+-- name: DatabaseNow :one
+-- The database's clock, read by the crawler before it starts walking so the
+-- sweep cutoff it later passes to DeleteUnseenFiles comes from the same
+-- clock UpsertFiles stamps seen_at with (see that query's doc comment and
+-- DeleteUnseenFiles below) — using the crawler process's own clock instead
+-- would make the sweep's correctness depend on API/crawler clock
+-- synchronization, which is not otherwise a requirement anywhere in this
+-- codebase.
+SELECT now()::timestamptz;
+
+-- name: DeleteUnseenFiles :execrows
+-- Deletes every files row not (re-)seen since cutoff: the reconciliation
+-- half of out-of-band S3 delete handling (crawler emits nothing for an
+-- object it no longer lists, so the object's row simply never gets
+-- re-stamped). Race-free as long as cutoff was read (via DatabaseNow) before
+-- the crawl's walk started: any row this deletes was last stamped strictly
+-- before that walk began, so if the object were still in S3 the walk's own
+-- listing (S3 listings are strongly consistent) would have re-stamped it
+-- via UpsertFiles. An object landing mid-walk (e.g. a concurrent
+-- CommitUpload) stamps seen_at after cutoff and survives. Called by
+-- DeleteUnseenFilesWithDirectories (store.go), never directly — see that
+-- method for why directory pruning cannot be folded into this single
+-- statement.
+DELETE FROM files
+WHERE seen_at < sqlc.arg(cutoff)::timestamptz;
 
 -- name: GetFile :one
 SELECT * FROM file_infos

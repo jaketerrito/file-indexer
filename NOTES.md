@@ -241,3 +241,65 @@
   (skeleton thumbnail, subtle "Processing…" label) instead of the current bare blank. Same gap
   applies to exif/stat results shown in FileMetadataModal, though preview is the visually obvious
   one — a list of thumbnails with silent gaps reads as broken, not as "still working".
+
+8/25/26
+- crawler now reconciles files deleted from S3 out of band (resolves the 7/5/26 item above):
+  mark-and-sweep on a new files.seen_at column (migrations/004_seen_at.sql), distinct from
+  marked_at (object mtime, used for edit/staleness detection) — an untouched object's mtime never
+  advances, so marked_at can't double as a liveness mark. UpsertFiles stamps seen_at = now() on
+  every insert and every re-upsert (queries/files.sql); crawler.Run reads a cutoff via the new
+  DatabaseNow query before Walk starts, then after Walk and every flush succeed, calls
+  Store.DeleteUnseenFilesWithDirectories(cutoff), which deletes every files row not re-stamped
+  since cutoff and prunes the directories that orphans, in one transaction.
+- two other designs considered and rejected: (1) a sorted merge-join exploiting S3's listing order
+  agreeing with files.key's COLLATE "C" byte order (established 8/23/26) — rejected for a
+  destructive path specifically because correctness would then depend on that order equivalence
+  holding for every key, whereas mark-and-sweep's correctness argument (below) doesn't care what
+  order Walk visits keys in; (2) a session temp table of seen keys + anti-join DELETE — rejected
+  only because it pins one pool connection for the whole crawl for no benefit seen_at doesn't
+  already give.
+- race argument: cutoff is read *before* Walk starts, not merely before the sweep call. Any row
+  DeleteUnseenFiles removes was last stamped strictly before that read; if the corresponding object
+  were still in S3, Walk's own listing (S3 listings are strongly consistent) would have re-stamped
+  it via UpsertFiles before the sweep runs, since Walk necessarily starts after cutoff was read. An
+  object landing mid-walk (e.g. a concurrent CommitUpload) stamps seen_at after cutoff and survives
+  either way. This is also why cutoff comes from DatabaseNow (the database's own clock) rather than
+  the crawler process's clock: stamp and cutoff must share one clock or crawler/API clock skew could
+  sweep a file whose CommitUpload just landed.
+- the sweep is skipped entirely — not just cutoff-guarded — if DatabaseNow, Walk, or any flush
+  fails: a partial listing must never be read as "everything unstamped is gone".
+- directory pruning cannot be folded into DeleteUnseenFiles as a single statement (e.g. a
+  data-modifying CTE piping RETURNING key into a directories DELETE): every sub-statement of one
+  SQL statement runs against the same snapshot, so a prune driven off files as it stood before this
+  statement's own delete would see every about-to-be-orphaned directory as still occupied and
+  remove nothing. It has to be a second statement, in the same transaction, after the delete — same
+  shape DeleteFileWithDirectories/DeleteFilesByIDsWithDirectories already use.
+- that second statement is the existing PruneOrphanDirectories (unscoped), not DeleteUnseenFiles
+  :many + the keys-scoped PruneDirectoriesForKeys, even though RETURNING key would make the scoped
+  option straightforward (the old claim in PruneOrphanDirectories' doc comment that there's "no
+  natural per-key list" to scope to was never actually true and has been corrected). Chose unscoped
+  because an out-of-band sweep has no natural bound on victim count — a misconfigured bucket, or a
+  large prefix deleted directly in S3, could sweep most of the table — and streaming that many keys
+  through the crawler process is worse than one unscoped pass over directories, a table sized by
+  directory count, not file count (already measured cheap at 2000+ candidates, see
+  PruneOrphanDirectories' doc comment).
+- deliberately no guardrails: no fraction-of-total circuit breaker, no grace period before a row
+  becomes sweep-eligible, no dry-run toggle. S3 remains the single source of truth, so a sweep
+  against a misconfigured bucket or a genuinely large out-of-band deletion is a cost problem, not a
+  correctness one — a subsequent correct crawl fully re-populates files (and directories,
+  second-order) from scratch, same as any other re-crawl, just paying for re-indexing again.
+- preview blobs for swept files are deliberately still left behind, same as they already are for
+  DeleteFile's best-effort cleanup — the orphaned-preview GC job flagged 7/26/26 remains unwritten.
+  This change makes that job more valuable, not less: out-of-band deletes now actively produce
+  orphaned preview objects on every sweep, not just via DeleteFile's failure path.
+- known accepted consequence, not fixed here: sweeping a files row out from under an indexer that
+  currently holds a `claimed` index_queue row for it makes that job's eventual CompleteIndexQueue/
+  FailIndexQueue call a harmless 0-row UPDATE (the row is already gone, cascade or otherwise) —
+  logged as a warning by the indexer's existing error handling, not a new failure mode introduced
+  here.
+- TestDirectoriesConsistencyAfterRandomMutations (8/23/26, above) gained a third random mutation
+  alongside create/delete: an out-of-band sweep, implemented by reading cutoff, re-stamping every
+  *other* currently-live key (simulating the rest of the bucket being re-crawled), then sweeping —
+  this is the property test that has actually caught directory-maintenance bugs before, and the
+  sweep is a third path that mutates directories, so it needed the same independent-oracle coverage
+  the other two paths already had.
