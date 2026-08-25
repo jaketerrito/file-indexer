@@ -1,15 +1,7 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import type { FileFilters } from '../lib/fileFilters'
-import { normalizeUploadPath } from '../lib/uploadPath'
-import {
-  commitUpload,
-  deleteFile,
-  getDownloadUrl,
-  getFileMetadata,
-  getUploadUrl,
-  listFiles,
-} from '../server/files'
+import { deleteFile, getDownloadUrl, getFileMetadata, listFiles } from '../server/files'
 import { FileMetadataModal } from './FileMetadataModal'
 
 const PAGE_SIZE = 50
@@ -59,46 +51,6 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
     mutationFn: (id: string) => deleteFile({ data: { id } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['files'] }),
   })
-
-  // Destination for uploads, independent of the search prefix above — typing
-  // a search term must never change where a file lands. Freeform text;
-  // normalized (trailing slash added, doubled slashes collapsed) before
-  // being prepended to each filename.
-  const [uploadPath, setUploadPath] = useState('')
-
-  // Uploads one file at a time (sequential, not parallel) so a single failure
-  // in a multi-file selection doesn't leave concurrent requests in flight.
-  // Each file: presigned PUT straight to S3, then CommitUpload registers the
-  // reference (key only, no bytes) so the indexer seed picks it up.
-  const uploadMutation = useMutation({
-    mutationFn: async (files: File[]) => {
-      const dir = normalizeUploadPath(uploadPath)
-      for (const file of files) {
-        const key = dir + file.name
-        const { url } = await getUploadUrl({ data: { key } })
-        const res = await fetch(url, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type || 'application/octet-stream' },
-        })
-        if (!res.ok) {
-          throw new Error(`upload failed for ${file.name}: ${res.status}`)
-        }
-        await commitUpload({ data: { key } })
-      }
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['files'] }),
-  })
-
-  const uploadInputRef = useRef<HTMLInputElement>(null)
-  function handleUploadChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files
-    if (files && files.length > 0) {
-      uploadMutation.mutate(Array.from(files))
-    }
-    // Reset so selecting the same file(s) again still fires onChange.
-    e.target.value = ''
-  }
 
   // The prefix input is local state, debounced into the URL-backed filters so
   // we don't fire a request (and a history replace) per keystroke.
@@ -184,35 +136,8 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
           }
         >
           {filters.order === 'asc' ? 'Ascending' : 'Descending'}
-        </button>{' '}
-        <label>
-          Upload to{' '}
-          <input
-            type="text"
-            placeholder="folder/subfolder/ (optional)"
-            value={uploadPath}
-            onChange={(e) => setUploadPath(e.target.value)}
-          />
-        </label>{' '}
-        <input
-          ref={uploadInputRef}
-          type="file"
-          multiple
-          aria-label="Upload files"
-          onChange={handleUploadChange}
-          style={{ display: 'none' }}
-        />
-        <button
-          type="button"
-          onClick={() => uploadInputRef.current?.click()}
-          disabled={uploadMutation.isPending}
-        >
-          {uploadMutation.isPending ? 'Uploading…' : 'Upload'}
         </button>
       </fieldset>
-      {uploadMutation.isError ? (
-        <p role="alert">Upload failed: {String(uploadMutation.error)}</p>
-      ) : null}
 
       {isPending ? (
         <p>Loading…</p>

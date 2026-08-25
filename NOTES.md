@@ -210,6 +210,34 @@
   no attempt to support "show only images in this folder" as a browse-mode feature.
   "New folder" has no backend call: it just navigates to a path nothing lives under yet (matches
   the derived-directory model above — directories exist only where files do, so an empty one has
-  no row until something is uploaded into it). Upload's destination defaults to the current folder
-  while browsing (the freeform "Upload to" override from 8/16 still exists, now pre-filled and
-  reset on every navigation rather than always starting blank).
+  no row until something is uploaded into it).
+- 8/25/26: uploading is browse-mode-only — FileList (search mode) has no upload UI at all anymore.
+  Originally FileList kept its own freeform "Upload to" text field (no path to default to in
+  search mode) alongside Browser's folder-scoped upload. Simplified to a single upload path:
+  navigate to the right folder, then upload there. Removes an entire redundant destination-input
+  UI and its tests; search stays pure search.
+- 8/25/26: both upload buttons (FileList's and Browser's) were dead in every real browser except
+  the ones covered by unit tests — clicking did nothing, no request ever left the page. Root
+  cause: the hidden `<input type="file">` behind each button used `display: none`. WebKit/Safari
+  silently refuses to open the native file picker from a programmatic `.click()` on a
+  `display: none` input (no error, just a no-op); Chrome and Firefox don't have this restriction,
+  which is exactly why the existing unit tests (which fire `change` directly on the hidden input,
+  never actually invoking the button's `.click()` forwarding) never caught it. Fixed by switching
+  to the standard "visually hidden" a11y pattern (`lib/visuallyHidden.ts`) — clipped to nothing,
+  off the visual flow, but still a real node in the render tree in every browser, so `.click()`
+  keeps working everywhere. Added a regression test in both files pinning `style.display !==
+  'none'`, since the failure mode has zero unit-test signal otherwise.
+- TODO: no "indexing…" status in the UI. `previewUrl: null` (impl.ts listFilesImpl/listDirectory)
+  currently means two different things the frontend can't tell apart: "this content type never
+  gets a preview" (a .txt file) and "the preview index type hasn't processed this file yet" (a
+  freshly uploaded .jpg, before the indexer's next poll claims its index_queue row). A file
+  uploaded through Browser/FileList shows with no thumbnail and no visual difference from one
+  that will simply never have one — the only way to tell right now is to keep refreshing and see
+  if a thumbnail eventually appears. index_queue already has exactly the status this needs
+  (pending/claimed/done/error per (index_type, file_id) — migrations/001_initial.sql) but nothing
+  in the read path surfaces it: ListFiles/ListDirectory join file_infos for preview_key/width/height,
+  never index_queue. Fix is server-side (join or a second query keyed on file_id + 'preview',
+  expose a status enum alongside previewUrl) plus a frontend loading/pending affordance
+  (skeleton thumbnail, subtle "Processing…" label) instead of the current bare blank. Same gap
+  applies to exif/stat results shown in FileMetadataModal, though preview is the visually obvious
+  one — a list of thumbnails with silent gaps reads as broken, not as "still working".
