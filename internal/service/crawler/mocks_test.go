@@ -8,7 +8,9 @@ import (
 	"context"
 	"file-indexer/internal/db"
 	"file-indexer/internal/storage"
+	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -123,35 +125,44 @@ func (_m *MockFileStore) EXPECT() *MockFileStore_Expecter {
 	return &MockFileStore_Expecter{mock: &_m.Mock}
 }
 
-// PruneOrphanDirectories provides a mock function for the type MockFileStore
-func (_mock *MockFileStore) PruneOrphanDirectories(ctx context.Context) error {
+// DatabaseNow provides a mock function for the type MockFileStore
+func (_mock *MockFileStore) DatabaseNow(ctx context.Context) (pgtype.Timestamptz, error) {
 	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
-		panic("no return value specified for PruneOrphanDirectories")
+		panic("no return value specified for DatabaseNow")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+	var r0 pgtype.Timestamptz
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (pgtype.Timestamptz, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) pgtype.Timestamptz); ok {
 		r0 = returnFunc(ctx)
 	} else {
-		r0 = ret.Error(0)
+		r0 = ret.Get(0).(pgtype.Timestamptz)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// MockFileStore_PruneOrphanDirectories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PruneOrphanDirectories'
-type MockFileStore_PruneOrphanDirectories_Call struct {
+// MockFileStore_DatabaseNow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DatabaseNow'
+type MockFileStore_DatabaseNow_Call struct {
 	*mock.Call
 }
 
-// PruneOrphanDirectories is a helper method to define mock.On call
+// DatabaseNow is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockFileStore_Expecter) PruneOrphanDirectories(ctx any) *MockFileStore_PruneOrphanDirectories_Call {
-	return &MockFileStore_PruneOrphanDirectories_Call{Call: _e.mock.On("PruneOrphanDirectories", ctx)}
+func (_e *MockFileStore_Expecter) DatabaseNow(ctx any) *MockFileStore_DatabaseNow_Call {
+	return &MockFileStore_DatabaseNow_Call{Call: _e.mock.On("DatabaseNow", ctx)}
 }
 
-func (_c *MockFileStore_PruneOrphanDirectories_Call) Run(run func(ctx context.Context)) *MockFileStore_PruneOrphanDirectories_Call {
+func (_c *MockFileStore_DatabaseNow_Call) Run(run func(ctx context.Context)) *MockFileStore_DatabaseNow_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -164,12 +175,78 @@ func (_c *MockFileStore_PruneOrphanDirectories_Call) Run(run func(ctx context.Co
 	return _c
 }
 
-func (_c *MockFileStore_PruneOrphanDirectories_Call) Return(err error) *MockFileStore_PruneOrphanDirectories_Call {
-	_c.Call.Return(err)
+func (_c *MockFileStore_DatabaseNow_Call) Return(timestamptz pgtype.Timestamptz, err error) *MockFileStore_DatabaseNow_Call {
+	_c.Call.Return(timestamptz, err)
 	return _c
 }
 
-func (_c *MockFileStore_PruneOrphanDirectories_Call) RunAndReturn(run func(ctx context.Context) error) *MockFileStore_PruneOrphanDirectories_Call {
+func (_c *MockFileStore_DatabaseNow_Call) RunAndReturn(run func(ctx context.Context) (pgtype.Timestamptz, error)) *MockFileStore_DatabaseNow_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteUnseenFilesWithDirectories provides a mock function for the type MockFileStore
+func (_mock *MockFileStore) DeleteUnseenFilesWithDirectories(ctx context.Context, cutoff time.Time) (int64, error) {
+	ret := _mock.Called(ctx, cutoff)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteUnseenFilesWithDirectories")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) (int64, error)); ok {
+		return returnFunc(ctx, cutoff)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) int64); ok {
+		r0 = returnFunc(ctx, cutoff)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
+		r1 = returnFunc(ctx, cutoff)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileStore_DeleteUnseenFilesWithDirectories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteUnseenFilesWithDirectories'
+type MockFileStore_DeleteUnseenFilesWithDirectories_Call struct {
+	*mock.Call
+}
+
+// DeleteUnseenFilesWithDirectories is a helper method to define mock.On call
+//   - ctx context.Context
+//   - cutoff time.Time
+func (_e *MockFileStore_Expecter) DeleteUnseenFilesWithDirectories(ctx any, cutoff any) *MockFileStore_DeleteUnseenFilesWithDirectories_Call {
+	return &MockFileStore_DeleteUnseenFilesWithDirectories_Call{Call: _e.mock.On("DeleteUnseenFilesWithDirectories", ctx, cutoff)}
+}
+
+func (_c *MockFileStore_DeleteUnseenFilesWithDirectories_Call) Run(run func(ctx context.Context, cutoff time.Time)) *MockFileStore_DeleteUnseenFilesWithDirectories_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 time.Time
+		if args[1] != nil {
+			arg1 = args[1].(time.Time)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileStore_DeleteUnseenFilesWithDirectories_Call) Return(n int64, err error) *MockFileStore_DeleteUnseenFilesWithDirectories_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *MockFileStore_DeleteUnseenFilesWithDirectories_Call) RunAndReturn(run func(ctx context.Context, cutoff time.Time) (int64, error)) *MockFileStore_DeleteUnseenFilesWithDirectories_Call {
 	_c.Call.Return(run)
 	return _c
 }

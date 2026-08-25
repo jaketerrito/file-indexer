@@ -18,6 +18,7 @@ type File struct {
 	Key       string
 	CreatedAt pgtype.Timestamptz
 	MarkedAt  pgtype.Timestamptz
+	SeenAt    pgtype.Timestamptz
 }
 
 type FileInfo struct {

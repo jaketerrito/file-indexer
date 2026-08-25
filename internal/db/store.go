@@ -2,19 +2,22 @@ package db
 
 import (
 	"context"
+	"time"
 
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // Store wraps Queries with directory-index-maintaining variants of the
-// files write queries (UpsertFiles, DeleteFile, DeleteFilesByIDs). Every
-// place in this codebase that adds or removes files rows — the crawler and
-// FilesService — depends on an interface (crawler.FileStore,
-// files.FileIndex) that exposes only these wrapped methods, never the bare
-// Queries ones, so it is a compile error for either to write files without
-// also keeping directories in sync. See the directories table's doc
-// comment in migrations/001_initial.sql for why that table exists and why
-// it is maintained here rather than by a database trigger.
+// files write queries (UpsertFiles, DeleteFile, DeleteFilesByIDs,
+// DeleteUnseenFiles). Every place in this codebase that adds or removes
+// files rows — the crawler and FilesService — depends on an interface
+// (crawler.FileStore, files.FileIndex) that exposes only these wrapped
+// methods, never the bare Queries ones, so it is a compile error for either
+// to write files without also keeping directories in sync. See the
+// directories table's doc comment in migrations/001_initial.sql for why
+// that table exists and why it is maintained here rather than by a
+// database trigger.
 //
 // Composition root wiring (cmd/*/main.go) constructs a *Store instead of
 // calling New(pool) directly wherever files are written.
@@ -98,6 +101,47 @@ func (s *Store) DeleteFilesByIDsWithDirectories(ctx context.Context, ids []int64
 		return 0, err
 	}
 	if err := txQueries.PruneDirectoriesForKeys(ctx, keys); err != nil {
+		return 0, err
+	}
+	return n, tx.Commit(ctx)
+}
+
+// DeleteUnseenFilesWithDirectories runs DeleteUnseenFiles and
+// PruneOrphanDirectories in one transaction: the crawler's out-of-band S3
+// delete reconciliation (see crawler.FileStore's doc comment). cutoff must
+// come from DatabaseNow, read before the crawl's walk started — see
+// DeleteUnseenFiles' doc comment for why.
+//
+// Directory pruning cannot be folded into DeleteUnseenFiles as a single
+// statement (e.g. a data-modifying CTE): every sub-statement of one SQL
+// statement runs against the same snapshot, so a prune driven off files as
+// it stood before this delete would see every swept directory as still
+// occupied and remove nothing. It must be a second statement, in the same
+// transaction, after the delete — same shape as DeleteFileWithDirectories
+// and DeleteFilesByIDsWithDirectories above.
+//
+// PruneOrphanDirectories (unscoped) rather than collecting the swept keys
+// via DeleteUnseenFiles :many and calling the keys-scoped
+// PruneDirectoriesForKeys: an out-of-band deletion has no natural bound on
+// how many rows it sweeps (a wrong bucket, or a large prefix deleted
+// directly in S3, could be the whole table), and streaming that many keys
+// through the crawler process is worse than one unscoped pass over
+// directories — a table sized by directory count, not file count, and
+// already measured cheap at 2000+ candidates (see PruneOrphanDirectories'
+// doc comment in queries/directories.sql).
+func (s *Store) DeleteUnseenFilesWithDirectories(ctx context.Context, cutoff time.Time) (int64, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	txQueries := New(tx)
+	n, err := txQueries.DeleteUnseenFiles(ctx, pgtype.Timestamptz{Time: cutoff, Valid: true})
+	if err != nil {
+		return 0, err
+	}
+	if err := txQueries.PruneOrphanDirectories(ctx); err != nil {
 		return 0, err
 	}
 	return n, tx.Commit(ctx)
