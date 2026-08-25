@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 import { type FileFilters, isBrowsing, toBrowsePath, toSearchFromPath } from '../lib/fileFilters'
 import { normalizeUploadPath } from '../lib/uploadPath'
+import { visuallyHiddenStyle } from '../lib/visuallyHidden'
 import { commitUpload, getUploadUrl } from '../server/files'
 import { Breadcrumbs } from './Breadcrumbs'
 import { DirectoryList } from './DirectoryList'
@@ -31,17 +32,13 @@ export function Browser({ filters, onFiltersChange }: BrowserProps) {
   const browsing = isBrowsing(filters)
   const path = filters.path ?? ''
 
-  // Upload destination while browsing defaults to the current folder; typing
-  // in the field overrides it for this view only. handleNavigate resets the
-  // override back to following the current path on every navigation —
-  // pinning an upload destination across a folder change would be surprising.
-  const [uploadPathOverride, setUploadPathOverride] = useState<string | null>(null)
-  const uploadPath = uploadPathOverride ?? path
-
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
-      const dir = normalizeUploadPath(uploadPath)
+      // Always the current folder — no freeform override here (unlike
+      // FileList's search-mode upload, which has no path to default to).
+      // Browsing to the right folder first is the destination picker.
+      const dir = normalizeUploadPath(path)
       for (const file of files) {
         const key = dir + file.name
         const { url } = await getUploadUrl({ data: { key } })
@@ -68,7 +65,6 @@ export function Browser({ filters, onFiltersChange }: BrowserProps) {
   }
 
   function handleNavigate(next: string) {
-    setUploadPathOverride(null)
     onFiltersChange(toBrowsePath(filters, next))
   }
 
@@ -126,21 +122,13 @@ export function Browser({ filters, onFiltersChange }: BrowserProps) {
         >
           {filters.order === 'asc' ? 'Ascending' : 'Descending'}
         </button>{' '}
-        <label>
-          Upload to{' '}
-          <input
-            type="text"
-            value={uploadPath}
-            onChange={(e) => setUploadPathOverride(e.target.value)}
-          />
-        </label>{' '}
         <input
           ref={uploadInputRef}
           type="file"
           multiple
           aria-label="Upload files"
           onChange={handleUploadChange}
-          style={{ display: 'none' }}
+          style={visuallyHiddenStyle}
         />
         <button
           type="button"

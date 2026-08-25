@@ -13,25 +13,14 @@ vi.mock('../server/files', () => ({
   getDownloadUrl: vi.fn(),
   deleteFile: vi.fn(),
   getFileMetadata: vi.fn(),
-  getUploadUrl: vi.fn(),
-  commitUpload: vi.fn(),
 }))
 
-import {
-  commitUpload,
-  deleteFile,
-  getDownloadUrl,
-  getFileMetadata,
-  getUploadUrl,
-  listFiles,
-} from '../server/files'
+import { deleteFile, getDownloadUrl, getFileMetadata, listFiles } from '../server/files'
 
 const listFilesMock = vi.mocked(listFiles)
 const getDownloadUrlMock = vi.mocked(getDownloadUrl)
 const deleteFileMock = vi.mocked(deleteFile)
 const getFileMetadataMock = vi.mocked(getFileMetadata)
-const getUploadUrlMock = vi.mocked(getUploadUrl)
-const commitUploadMock = vi.mocked(commitUpload)
 
 function page(keys: string[], startId: number, nextPageToken = ''): ListFilesResult {
   return {
@@ -357,108 +346,13 @@ describe('FileList', () => {
     expect(await screen.findByRole('alert')).toBeDefined()
   })
 
-  it('uploads a selected file: presigns, PUTs to S3, commits, and refetches', async () => {
-    listFilesMock
-      .mockResolvedValueOnce(page(['a.txt'], 1))
-      .mockResolvedValueOnce(page(['a.txt', 'new.txt'], 1))
-    getUploadUrlMock.mockResolvedValue({ url: 'https://s3/put-url' })
-    commitUploadMock.mockResolvedValue({
-      id: '2',
-      key: 'new.txt',
-      contentType: '',
-      sizeBytes: 3,
-      createdAt: null,
-      previewUrl: null,
-      previewWidth: null,
-      previewHeight: null,
-    })
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
-    vi.stubGlobal('fetch', fetchMock)
-
-    renderFileList()
-    await screen.findByText('a.txt')
-
-    const file = new File(['abc'], 'new.txt', { type: 'text/plain' })
-    fireEvent.change(screen.getByLabelText('Upload files'), { target: { files: [file] } })
-
-    await waitFor(() => {
-      expect(getUploadUrlMock).toHaveBeenCalledWith({ data: { key: 'new.txt' } })
-      expect(fetchMock).toHaveBeenCalledWith(
-        'https://s3/put-url',
-        expect.objectContaining({ method: 'PUT', body: file }),
-      )
-      expect(commitUploadMock).toHaveBeenCalledWith({ data: { key: 'new.txt' } })
-    })
-    expect(await screen.findByText('new.txt')).toBeDefined()
-  })
-
-  it('prefixes the upload key with the "Upload to" path, normalized', async () => {
+  it('has no upload UI — uploading is browse-mode-only (see Browser.tsx)', async () => {
     listFilesMock.mockResolvedValue(page(['a.txt'], 1))
-    getUploadUrlMock.mockResolvedValue({ url: 'https://s3/put-url' })
-    commitUploadMock.mockResolvedValue({
-      id: '2',
-      key: 'docs/housing/new.txt',
-      contentType: '',
-      sizeBytes: 3,
-      createdAt: null,
-      previewUrl: null,
-      previewWidth: null,
-      previewHeight: null,
-    })
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
-
     renderFileList()
     await screen.findByText('a.txt')
 
-    // No trailing slash typed; normalization adds it.
-    fireEvent.change(screen.getByLabelText('Upload to'), {
-      target: { value: 'docs/housing' },
-    })
-    const file = new File(['abc'], 'new.txt', { type: 'text/plain' })
-    fireEvent.change(screen.getByLabelText('Upload files'), { target: { files: [file] } })
-
-    await waitFor(() =>
-      expect(getUploadUrlMock).toHaveBeenCalledWith({ data: { key: 'docs/housing/new.txt' } }),
-    )
-  })
-
-  it('search prefix does not affect the upload destination', async () => {
-    listFilesMock.mockResolvedValue(page(['docs/a.txt'], 1))
-    getUploadUrlMock.mockResolvedValue({ url: 'https://s3/put-url' })
-    commitUploadMock.mockResolvedValue({
-      id: '2',
-      key: 'new.txt',
-      contentType: '',
-      sizeBytes: 3,
-      createdAt: null,
-      previewUrl: null,
-      previewWidth: null,
-      previewHeight: null,
-    })
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
-
-    // Search filter is 'docs/', but the upload path was left blank.
-    renderFileList({ ...DEFAULT_FILTERS, prefix: 'docs/' })
-    await screen.findByText('docs/a.txt')
-
-    const file = new File(['abc'], 'new.txt', { type: 'text/plain' })
-    fireEvent.change(screen.getByLabelText('Upload files'), { target: { files: [file] } })
-
-    await waitFor(() => expect(getUploadUrlMock).toHaveBeenCalledWith({ data: { key: 'new.txt' } }))
-  })
-
-  it('shows an error and stops after a failed PUT, without committing', async () => {
-    listFilesMock.mockResolvedValue(page(['a.txt'], 1))
-    getUploadUrlMock.mockResolvedValue({ url: 'https://s3/put-url' })
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }))
-
-    renderFileList()
-    await screen.findByText('a.txt')
-
-    const file = new File(['abc'], 'bad.txt', { type: 'text/plain' })
-    fireEvent.change(screen.getByLabelText('Upload files'), { target: { files: [file] } })
-
-    expect(await screen.findByRole('alert')).toBeDefined()
-    expect(commitUploadMock).not.toHaveBeenCalled()
+    expect(screen.queryByLabelText('Upload files')).toBeNull()
+    expect(screen.queryByLabelText('Upload to')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Upload' })).toBeNull()
   })
 })
