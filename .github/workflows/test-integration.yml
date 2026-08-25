@@ -1,0 +1,104 @@
+name: test-integration
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - ".testcoverage.yml"
+      - "justfile"
+      - ".github/workflows/test-integration.yml"
+      - ".github/actions/setup-go-cache/**"
+  push:
+    branches: [main]
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - ".testcoverage.yml"
+      - "justfile"
+      - ".github/workflows/test-integration.yml"
+      - ".github/actions/setup-go-cache/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # dbtest (internal/db/dbtest) connects as this admin user and creates a
+    # throwaway database per test package; it never touches "postgres"
+    # itself. Values must match `just test-integration`.
+    env:
+      # renovate: datasource=github-releases depName=casey/just
+      JUST_VERSION: "1.57.0"
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: mysecretpassword
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-go-cache
+        with:
+          cache-key-prefix: test-integration
+      - name: Cache tool binaries
+        id: tools-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.tools
+          key: tools-just-${{ env.JUST_VERSION }}
+      - name: Install just
+        if: steps.tools-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.tools
+          curl -fsSL "https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" | tar -xz -C ~/.tools just
+      - name: Add tools to PATH
+        run: echo "$HOME/.tools" >> "$GITHUB_PATH"
+      # Service containers can't override CMD (minio/minio needs
+      # `server /data`), so MinIO runs as a plain docker run step instead of
+      # a `services:` entry. internal/storage's integration tests create and
+      # tear down their own bucket per test, so no seeding is needed here.
+      - name: Start MinIO
+        run: |
+          docker run -d --name minio -p 9000:9000 -p 9001:9001 \
+            -e MINIO_ROOT_USER=user \
+            -e MINIO_ROOT_PASSWORD=password \
+            minio/minio server /data --console-address ":9001"
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:9000/minio/health/live > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "MinIO did not become healthy in time" >&2
+          docker logs minio >&2
+          exit 1
+      # just test-integration hardcodes the matching DB_*/S3_* values itself
+      # (see justfile); postgres/minio above are provisioned to match those,
+      # not the other way around.
+      - name: Run integration tests via just
+        run: just test-integration
+      - name: Upload coverage profile
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage
+          path: coverage.out
+          if-no-files-found: ignore

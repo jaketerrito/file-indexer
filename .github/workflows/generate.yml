@@ -1,33 +1,25 @@
 name: check-generated
 on:
-  push:
-    branches: [main]
-    paths:
-      - "**/*.go"
-      - "go.mod"
-      - "go.sum"
-      - "proto/**"
-      - "sqlc.yaml"
-      - "internal/db/migrations/**"
-      - "internal/db/queries/**"
-      - ".mockery.yaml"
-      - "web/package.json"
-      - "web/package-lock.json"
-      - ".github/workflows/generate.yml"
   pull_request:
     branches: [main]
     paths:
-      - "**/*.go"
+      - "internal/service/**"
+      - "proto/**"
+      - "internal/db/queries/**"
+      - "internal/db/migrations/**"
+      - "sqlc.yaml"
+      - ".mockery.yaml"
+      - "**/generate.go"
       - "go.mod"
       - "go.sum"
-      - "proto/**"
-      - "sqlc.yaml"
-      - "internal/db/migrations/**"
-      - "internal/db/queries/**"
-      - ".mockery.yaml"
       - "web/package.json"
       - "web/package-lock.json"
       - ".github/workflows/generate.yml"
+      - ".github/actions/setup-go-cache/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -36,21 +28,12 @@ jobs:
   check-generated:
     name: Check generated code is up-to-date
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      - uses: ./.github/actions/setup-go-cache
         with:
-          go-version-file: go.mod
-          cache: false
-      - name: Cache Go modules and build cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: generate-go-${{ runner.os }}-${{ hashFiles('go.sum') }}
-          restore-keys: |
-            generate-go-${{ runner.os }}-
+          cache-key-prefix: generate
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24

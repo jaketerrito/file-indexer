@@ -1,15 +1,14 @@
 name: lint-web
 on:
-  push:
-    branches: [main]
-    paths:
-      - "web/**"
-      - ".github/workflows/lint-web.yml"
   pull_request:
     branches: [main]
     paths:
       - "web/**"
       - ".github/workflows/lint-web.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -18,6 +17,7 @@ jobs:
   biome:
     name: biome
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: web

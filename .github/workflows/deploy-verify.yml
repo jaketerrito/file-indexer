@@ -1,0 +1,94 @@
+name: deploy-verify
+on:
+  push:
+    branches: [main]
+    paths:
+      - "deploy/**"
+      - "Tiltfile"
+      - "ctlptl.yaml"
+      - "justfile"
+      - "Dockerfile"
+      - "web/Dockerfile"
+      - ".github/workflows/deploy-verify.yml"
+      - ".github/actions/setup-go-cache/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "deploy/**"
+      - "Tiltfile"
+      - "ctlptl.yaml"
+      - "justfile"
+      - "Dockerfile"
+      - "web/Dockerfile"
+      - ".github/workflows/deploy-verify.yml"
+      - ".github/actions/setup-go-cache/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # Provisions the same kind cluster + postgres/MinIO as local dev
+  # (ctlptl.yaml + deploy/ manifests) and runs `tilt ci`, which rolls out
+  # every service from real built images and re-runs the test-integration
+  # Tilt resource (unit + integration tests + coverage thresholds from
+  # .testcoverage.yml). This is the expensive, high-fidelity check: only
+  # triggers on changes to deploy manifests, the Tiltfile, or Dockerfiles,
+  # not on every Go/web change (see test.yml / test-integration.yml for
+  # those). Reproduce locally with `just cluster-up && just ci`.
+  integration:
+    name: integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # renovate: datasource=github-releases depName=casey/just
+      JUST_VERSION: "1.57.0"
+      # renovate: datasource=github-releases depName=kubernetes-sigs/kind
+      KIND_VERSION: "0.32.0"
+      # renovate: datasource=github-releases depName=tilt-dev/ctlptl
+      CTLPTL_VERSION: "0.9.4"
+      # renovate: datasource=github-releases depName=tilt-dev/tilt
+      TILT_VERSION: "0.37.5"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/setup-go-cache
+        with:
+          cache-key-prefix: deploy-verify
+      - name: Cache tool binaries
+        id: tools-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.tools
+          key: tools-${{ env.JUST_VERSION }}-${{ env.KIND_VERSION }}-${{ env.CTLPTL_VERSION }}-${{ env.TILT_VERSION }}
+      - name: Install just, kind, ctlptl, tilt
+        if: steps.tools-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.tools
+          curl -fsSL "https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" | tar -xz -C ~/.tools just
+          curl -fsSLo ~/.tools/kind "https://kind.sigs.k8s.io/dl/v${KIND_VERSION}/kind-linux-amd64"
+          chmod +x ~/.tools/kind
+          curl -fsSL "https://github.com/tilt-dev/ctlptl/releases/download/v${CTLPTL_VERSION}/ctlptl.${CTLPTL_VERSION}.linux.x86_64.tar.gz" | tar -xz -C ~/.tools ctlptl
+          curl -fsSL "https://github.com/tilt-dev/tilt/releases/download/v${TILT_VERSION}/tilt.${TILT_VERSION}.linux.x86_64.tar.gz" | tar -xz -C ~/.tools tilt
+      - name: Add tools to PATH
+        run: echo "$HOME/.tools" >> "$GITHUB_PATH"
+      # tilt ci runs the test-web local resource and builds the web image,
+      # both of which need npm.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Create kind cluster
+        run: just cluster-up
+      - name: Run integration tests via tilt ci
+        run: just ci
+      - name: Upload coverage profile
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage
+          path: coverage.out
+          if-no-files-found: ignore
