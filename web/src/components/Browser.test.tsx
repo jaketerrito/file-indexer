@@ -182,11 +182,11 @@ describe('Browser', () => {
     )
   })
 
-  it('lets an upload override the default folder destination', async () => {
+  it('uploads into the new folder after navigating there, with no destination override field', async () => {
     getUploadUrlMock.mockResolvedValue({ url: 'https://s3/put-url' })
     commitUploadMock.mockResolvedValue({
       id: '1',
-      key: 'elsewhere/new.txt',
+      key: 'docs/sub/new.txt',
       contentType: '',
       sizeBytes: 3,
       createdAt: null,
@@ -196,35 +196,39 @@ describe('Browser', () => {
     })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
 
-    renderBrowser(normalizeFilters({ path: 'docs/' }))
-    await screen.findByRole('button', { name: 'Upload' })
-
-    fireEvent.change(screen.getByLabelText('Upload to'), { target: { value: 'elsewhere' } })
-    const file = new File(['abc'], 'new.txt', { type: 'text/plain' })
-    fireEvent.change(screen.getByLabelText('Upload files'), { target: { files: [file] } })
-
-    await waitFor(() =>
-      expect(getUploadUrlMock).toHaveBeenCalledWith({ data: { key: 'elsewhere/new.txt' } }),
-    )
-  })
-
-  it('resets the upload override after navigating to a different folder', async () => {
-    renderBrowser(normalizeFilters({ path: 'docs/' }))
-    const uploadInput = (await screen.findByLabelText('Upload to')) as HTMLInputElement
-    fireEvent.change(uploadInput, { target: { value: 'elsewhere' } })
-    expect(uploadInput.value).toBe('elsewhere')
-
     listDirectoryMock.mockResolvedValue({
       directories: ['docs/sub/'],
       files: [],
       nextPageToken: '',
     })
-    fireEvent.click(await screen.findByRole('button', { name: 'Home' }))
+    renderBrowser(normalizeFilters({ path: 'docs/' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'sub' }))
+    await waitFor(() => expect(currentFilters().path).toBe('docs/sub/'))
 
-    await waitFor(() => expect(currentFilters().path).toBe(''))
-    const uploadInputAfter = (await screen.findByLabelText('Upload to')) as HTMLInputElement
-    expect(uploadInputAfter.value).toBe('')
+    // No freeform "Upload to" override in browse mode (unlike FileList's
+    // search-mode upload) — navigating is the only way to change the
+    // destination, and it's already been done above.
+    expect(screen.queryByLabelText('Upload to')).toBeNull()
+
+    const file = new File(['abc'], 'new.txt', { type: 'text/plain' })
+    fireEvent.change(screen.getByLabelText('Upload files'), { target: { files: [file] } })
+
+    await waitFor(() =>
+      expect(getUploadUrlMock).toHaveBeenCalledWith({ data: { key: 'docs/sub/new.txt' } }),
+    )
   })
+
+  it(
+    'keeps the upload input clickable in every browser (not display:none, which WebKit ' +
+      'silently refuses to open via a programmatic click)',
+    async () => {
+      renderBrowser(normalizeFilters({ path: 'docs/' }))
+      const input = (await screen.findByLabelText('Upload files')) as HTMLInputElement
+
+      expect(input.style.display).not.toBe('none')
+      expect(input.style.position).toBe('absolute')
+    },
+  )
 
   it('refetches sort/order for the directory listing', async () => {
     renderBrowser(normalizeFilters({ path: 'docs/' }))
