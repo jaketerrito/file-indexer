@@ -78,7 +78,8 @@ Indexer can be parameterized to generate different sets of metadata
 1. standalone api with crud and search -- DONE (upload: presigned-PUT GetUploadURL + CommitUpload, see NOTES.md 8/16/26)
 1. metadata gen functions -- DONE
 1. web client that relies on the api -- DONE
-1. directory browsing (virtual, derived from key structure — no directories
-   table, no CreateDirectory) -- DONE, see NOTES.md 8/23/26
+1. directory browsing (materialized `directories` table, derived from key
+   structure — no CreateDirectory, no empty directories) -- DONE, see
+   NOTES.md 8/23/26
 1. Integrate indexing triggered via the api (using event queue)
 1. kubernetes deployment

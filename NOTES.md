@@ -209,6 +209,7 @@
   path as a recursive prefix — folders are for navigation, filtering is search's job, so there's
   no attempt to support "show only images in this folder" as a browse-mode feature.
   "New folder" has no backend call: it just navigates to a path nothing lives under yet (matches
-  the virtual-only directory model above). Upload's destination defaults to the current folder
+  the derived-directory model above — directories exist only where files do, so an empty one has
+  no row until something is uploaded into it). Upload's destination defaults to the current folder
   while browsing (the freeform "Upload to" override from 8/16 still exists, now pre-filled and
   reset on every navigation rather than always starting blank).
