@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SearchService_ListFiles_FullMethodName = "/service.v1.SearchService/ListFiles"
+	SearchService_ListFiles_FullMethodName     = "/service.v1.SearchService/ListFiles"
+	SearchService_ListDirectory_FullMethodName = "/service.v1.SearchService/ListDirectory"
 )
 
 // SearchServiceClient is the client API for SearchService service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type SearchServiceClient interface {
 	ListFiles(ctx context.Context, in *ListFilesRequest, opts ...grpc.CallOption) (*ListFilesResponse, error)
+	ListDirectory(ctx context.Context, in *ListDirectoryRequest, opts ...grpc.CallOption) (*ListDirectoryResponse, error)
 }
 
 type searchServiceClient struct {
@@ -47,11 +49,22 @@ func (c *searchServiceClient) ListFiles(ctx context.Context, in *ListFilesReques
 	return out, nil
 }
 
+func (c *searchServiceClient) ListDirectory(ctx context.Context, in *ListDirectoryRequest, opts ...grpc.CallOption) (*ListDirectoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListDirectoryResponse)
+	err := c.cc.Invoke(ctx, SearchService_ListDirectory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SearchServiceServer is the server API for SearchService service.
 // All implementations must embed UnimplementedSearchServiceServer
 // for forward compatibility.
 type SearchServiceServer interface {
 	ListFiles(context.Context, *ListFilesRequest) (*ListFilesResponse, error)
+	ListDirectory(context.Context, *ListDirectoryRequest) (*ListDirectoryResponse, error)
 	mustEmbedUnimplementedSearchServiceServer()
 }
 
@@ -64,6 +77,9 @@ type UnimplementedSearchServiceServer struct{}
 
 func (UnimplementedSearchServiceServer) ListFiles(context.Context, *ListFilesRequest) (*ListFilesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListFiles not implemented")
+}
+func (UnimplementedSearchServiceServer) ListDirectory(context.Context, *ListDirectoryRequest) (*ListDirectoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListDirectory not implemented")
 }
 func (UnimplementedSearchServiceServer) mustEmbedUnimplementedSearchServiceServer() {}
 func (UnimplementedSearchServiceServer) testEmbeddedByValue()                       {}
@@ -104,6 +120,24 @@ func _SearchService_ListFiles_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SearchService_ListDirectory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListDirectoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SearchServiceServer).ListDirectory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SearchService_ListDirectory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SearchServiceServer).ListDirectory(ctx, req.(*ListDirectoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SearchService_ServiceDesc is the grpc.ServiceDesc for SearchService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -114,6 +148,10 @@ var SearchService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListFiles",
 			Handler:    _SearchService_ListFiles_Handler,
+		},
+		{
+			MethodName: "ListDirectory",
+			Handler:    _SearchService_ListDirectory_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

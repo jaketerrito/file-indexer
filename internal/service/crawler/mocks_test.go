@@ -123,12 +123,63 @@ func (_m *MockFileStore) EXPECT() *MockFileStore_Expecter {
 	return &MockFileStore_Expecter{mock: &_m.Mock}
 }
 
-// UpsertFiles provides a mock function for the type MockFileStore
-func (_mock *MockFileStore) UpsertFiles(ctx context.Context, arg db.UpsertFilesParams) (int64, error) {
+// PruneOrphanDirectories provides a mock function for the type MockFileStore
+func (_mock *MockFileStore) PruneOrphanDirectories(ctx context.Context) error {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PruneOrphanDirectories")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockFileStore_PruneOrphanDirectories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PruneOrphanDirectories'
+type MockFileStore_PruneOrphanDirectories_Call struct {
+	*mock.Call
+}
+
+// PruneOrphanDirectories is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockFileStore_Expecter) PruneOrphanDirectories(ctx any) *MockFileStore_PruneOrphanDirectories_Call {
+	return &MockFileStore_PruneOrphanDirectories_Call{Call: _e.mock.On("PruneOrphanDirectories", ctx)}
+}
+
+func (_c *MockFileStore_PruneOrphanDirectories_Call) Run(run func(ctx context.Context)) *MockFileStore_PruneOrphanDirectories_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileStore_PruneOrphanDirectories_Call) Return(err error) *MockFileStore_PruneOrphanDirectories_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockFileStore_PruneOrphanDirectories_Call) RunAndReturn(run func(ctx context.Context) error) *MockFileStore_PruneOrphanDirectories_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpsertFilesWithDirectories provides a mock function for the type MockFileStore
+func (_mock *MockFileStore) UpsertFilesWithDirectories(ctx context.Context, arg db.UpsertFilesParams) (int64, error) {
 	ret := _mock.Called(ctx, arg)
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpsertFiles")
+		panic("no return value specified for UpsertFilesWithDirectories")
 	}
 
 	var r0 int64
@@ -149,19 +200,19 @@ func (_mock *MockFileStore) UpsertFiles(ctx context.Context, arg db.UpsertFilesP
 	return r0, r1
 }
 
-// MockFileStore_UpsertFiles_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpsertFiles'
-type MockFileStore_UpsertFiles_Call struct {
+// MockFileStore_UpsertFilesWithDirectories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpsertFilesWithDirectories'
+type MockFileStore_UpsertFilesWithDirectories_Call struct {
 	*mock.Call
 }
 
-// UpsertFiles is a helper method to define mock.On call
+// UpsertFilesWithDirectories is a helper method to define mock.On call
 //   - ctx context.Context
 //   - arg db.UpsertFilesParams
-func (_e *MockFileStore_Expecter) UpsertFiles(ctx any, arg any) *MockFileStore_UpsertFiles_Call {
-	return &MockFileStore_UpsertFiles_Call{Call: _e.mock.On("UpsertFiles", ctx, arg)}
+func (_e *MockFileStore_Expecter) UpsertFilesWithDirectories(ctx any, arg any) *MockFileStore_UpsertFilesWithDirectories_Call {
+	return &MockFileStore_UpsertFilesWithDirectories_Call{Call: _e.mock.On("UpsertFilesWithDirectories", ctx, arg)}
 }
 
-func (_c *MockFileStore_UpsertFiles_Call) Run(run func(ctx context.Context, arg db.UpsertFilesParams)) *MockFileStore_UpsertFiles_Call {
+func (_c *MockFileStore_UpsertFilesWithDirectories_Call) Run(run func(ctx context.Context, arg db.UpsertFilesParams)) *MockFileStore_UpsertFilesWithDirectories_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -179,12 +230,12 @@ func (_c *MockFileStore_UpsertFiles_Call) Run(run func(ctx context.Context, arg 
 	return _c
 }
 
-func (_c *MockFileStore_UpsertFiles_Call) Return(n int64, err error) *MockFileStore_UpsertFiles_Call {
+func (_c *MockFileStore_UpsertFilesWithDirectories_Call) Return(n int64, err error) *MockFileStore_UpsertFilesWithDirectories_Call {
 	_c.Call.Return(n, err)
 	return _c
 }
 
-func (_c *MockFileStore_UpsertFiles_Call) RunAndReturn(run func(ctx context.Context, arg db.UpsertFilesParams) (int64, error)) *MockFileStore_UpsertFiles_Call {
+func (_c *MockFileStore_UpsertFilesWithDirectories_Call) RunAndReturn(run func(ctx context.Context, arg db.UpsertFilesParams) (int64, error)) *MockFileStore_UpsertFilesWithDirectories_Call {
 	_c.Call.Return(run)
 	return _c
 }

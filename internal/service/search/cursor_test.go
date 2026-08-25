@@ -2,6 +2,7 @@ package search
 
 import (
 	"file-indexer/internal/db"
+	cursorv1 "file-indexer/internal/pb/cursor/v1"
 	"testing"
 	"time"
 
@@ -92,6 +93,47 @@ func TestCursorNilAccessors(t *testing.T) {
 	}
 	if ts := lastModifiedCursor(c); ts.Valid {
 		t.Errorf("lastModifiedCursor = %+v, want invalid", ts)
+	}
+}
+
+func TestNewDirCursorRoundTrip(t *testing.T) {
+	c := newDirCursor(pb.SortField_SORT_FIELD_KEY, pb.SortOrder_SORT_ORDER_ASC, "docs/", "docs/sub/")
+
+	got, err := decodeCursor(encodeCursor(c))
+	if err != nil {
+		t.Fatalf("decodeCursor: %v", err)
+	}
+	if got.GetPath() != "docs/" || got.GetLastDir() != "docs/sub/" {
+		t.Errorf("path/lastDir = (%q, %q), want (docs/, docs/sub/)", got.GetPath(), got.GetLastDir())
+	}
+	if got.GetPhase() != cursorv1.ListPhase_LIST_PHASE_DIRECTORIES {
+		t.Errorf("phase = %v, want DIRECTORIES", got.GetPhase())
+	}
+}
+
+func TestNewDirFilesCursorRoundTrip(t *testing.T) {
+	f := db.FileInfo{ID: 5, Key: "docs/a.txt"}
+	c := newDirFilesCursor(pb.SortField_SORT_FIELD_KEY, pb.SortOrder_SORT_ORDER_ASC, "docs/", f)
+
+	got, err := decodeCursor(encodeCursor(c))
+	if err != nil {
+		t.Fatalf("decodeCursor: %v", err)
+	}
+	if got.GetPath() != "docs/" || got.GetKey() != "docs/a.txt" || got.GetLastId() != 5 {
+		t.Errorf("round trip = %+v, want path=docs/ key=docs/a.txt lastId=5", got)
+	}
+	if got.GetPhase() != cursorv1.ListPhase_LIST_PHASE_FILES {
+		t.Errorf("phase = %v, want FILES", got.GetPhase())
+	}
+}
+
+func TestNewDirFilesCursorZeroValueSentinel(t *testing.T) {
+	// A page that exhausts directories without needing any files still
+	// emits a token to resume into the files phase; LastId 0 is the "no
+	// file cursor yet" sentinel listFiles checks for.
+	c := newDirFilesCursor(pb.SortField_SORT_FIELD_KEY, pb.SortOrder_SORT_ORDER_ASC, "docs/", db.FileInfo{})
+	if c.GetLastId() != 0 {
+		t.Errorf("LastId = %d, want 0", c.GetLastId())
 	}
 }
 
