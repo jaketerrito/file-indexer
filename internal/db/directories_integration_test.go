@@ -344,10 +344,11 @@ func TestListChildDirectoriesKeysetPagination(t *testing.T) {
 
 // TestDirectoriesConsistencyAfterRandomMutations is the test that actually
 // catches maintenance bugs: it performs a randomized sequence of file
-// creates/deletes through Store's WithDirectories wrappers (the only
-// production write path — see FileIndex/FileStore's narrowed interfaces),
-// then compares the resulting directories rows against an expected set
-// computed independently in Go from the keys still believed live.
+// creates/deletes/out-of-band-sweeps through Store's WithDirectories
+// wrappers (the only production write path — see FileIndex/FileStore's
+// narrowed interfaces), then compares the resulting directories rows
+// against an expected set computed independently in Go from the keys still
+// believed live.
 //
 // The expected set is deliberately computed by plain string splitting, not
 // by re-running any of UpsertDirectoriesForKeys/PruneDirectoriesForKeys'
@@ -378,7 +379,10 @@ func TestDirectoriesConsistencyAfterRandomMutations(t *testing.T) {
 
 	const steps = 200
 	for i := 0; i < steps; i++ {
-		if len(live) == 0 || rng.Intn(2) == 0 {
+		switch {
+		case len(live) == 0 || rng.Intn(3) == 0:
+			// Mutation 1: create (or re-upsert) a file, the crawler's
+			// normal discovery path.
 			key := randomKey()
 			if _, err := store.UpsertFilesWithDirectories(ctx, UpsertFilesParams{
 				Keys:      []string{key},
@@ -396,7 +400,10 @@ func TestDirectoriesConsistencyAfterRandomMutations(t *testing.T) {
 			if !found {
 				live = append(live, key)
 			}
-		} else {
+
+		case rng.Intn(2) == 0:
+			// Mutation 2: delete through the API/FilesService path (an
+			// explicit DeleteFile call).
 			idx := rng.Intn(len(live))
 			key := live[idx]
 			var id int64
@@ -405,6 +412,56 @@ func TestDirectoriesConsistencyAfterRandomMutations(t *testing.T) {
 			}
 			if _, err := store.DeleteFileWithDirectories(ctx, id); err != nil {
 				t.Fatalf("DeleteFileWithDirectories: %v", err)
+			}
+			live = append(live[:idx], live[idx+1:]...)
+
+		default:
+			// Mutation 3: an out-of-band S3 delete, reconciled by the
+			// crawler's sweep instead of an explicit delete call. Simulates
+			// one object vanishing from a listing: cutoff is read before
+			// "re-crawling" (re-stamping) every other currently-live key,
+			// mirroring Run's real cutoff-before-walk ordering (see
+			// crawler.Run's doc comment) — the target is the one key that
+			// does not get re-stamped, so it's the only one strictly older
+			// than cutoff when the sweep runs.
+			idx := rng.Intn(len(live))
+			target := live[idx]
+
+			cutoff, err := store.DatabaseNow(ctx)
+			if err != nil {
+				t.Fatalf("DatabaseNow: %v", err)
+			}
+
+			others := make([]string, 0, len(live)-1)
+			for j, k := range live {
+				if j != idx {
+					others = append(others, k)
+				}
+			}
+			if len(others) > 0 {
+				marks := make([]pgtype.Timestamptz, len(others))
+				for j := range marks {
+					marks[j] = pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}
+				}
+				if _, err := store.UpsertFilesWithDirectories(ctx, UpsertFilesParams{
+					Keys:      others,
+					MarkedAts: marks,
+				}); err != nil {
+					t.Fatalf("UpsertFilesWithDirectories (re-stamp others): %v", err)
+				}
+			}
+
+			deleted, err := store.DeleteUnseenFilesWithDirectories(ctx, cutoff.Time)
+			if err != nil {
+				t.Fatalf("DeleteUnseenFilesWithDirectories: %v", err)
+			}
+			// Only target should have been strictly older than cutoff: all
+			// others were just re-stamped above, and nothing outside this
+			// test's own prefix should exist in the (per-package,
+			// per-binary-run) temporary database at this point — see
+			// dbtest's doc comment.
+			if deleted != 1 {
+				t.Fatalf("DeleteUnseenFilesWithDirectories deleted %d rows, want 1 (target %q)", deleted, target)
 			}
 			live = append(live[:idx], live[idx+1:]...)
 		}

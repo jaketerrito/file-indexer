@@ -96,17 +96,21 @@ WHERE NOT EXISTS (
 
 // Deletes every directory row with no file under it: the unscoped
 // counterpart to PruneDirectoriesForKeys (which only checks a given
-// batch's own ancestors). No current write path can actually produce an
-// orphan — every insert and delete of files runs through Store's
-// WithDirectories methods, which keep directories in sync inline, in the
-// same transaction — so this is a no-op today. It earns its keep once the
-// crawler gains the ability to remove files rows for objects deleted from
-// S3 out of band (see NOTES.md): a "delete whatever we didn't just see"
-// pass is a set difference with no natural per-key list to scope
-// PruneDirectoriesForKeys to, so the unscoped scan becomes the only
-// practical way to prune what it leaves behind. Until then it's cheap
-// insurance against drift from any other cause (manual SQL, a future write
-// path that skips Store) — see cmd/crawler, which calls this every run.
+// batch's own ancestors). Load-bearing for DeleteUnseenFilesWithDirectories
+// (internal/db/store.go), which backs the crawler's out-of-band S3 delete
+// reconciliation: DeleteUnseenFiles could instead return the swept keys and
+// feed the scoped PruneDirectoriesForKeys (there is no fundamental
+// obstacle — RETURNING a key list works fine), but an out-of-band sweep has
+// no natural bound on victim count (wrong bucket, or a large prefix deleted
+// directly in S3, could be most of the table), and streaming that many keys
+// through the crawler process is worse than one unscoped pass over
+// directories — a table sized by directory count, not file count (see the
+// 2000+-candidate EXPLAIN measurement above). Beyond that use, this is also
+// cheap insurance against drift from any other cause (manual SQL, a future
+// write path that skips Store) — every insert/delete of files otherwise
+// runs through Store's WithDirectories methods, which keep directories in
+// sync inline in the same transaction, so no other write path is expected
+// to ever produce an orphan.
 func (q *Queries) PruneOrphanDirectories(ctx context.Context) error {
 	_, err := q.db.Exec(ctx, pruneOrphanDirectories)
 	return err
