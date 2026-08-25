@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file service/v1/search.proto.
  */
 export const file_service_v1_search: GenFile = /*@__PURE__*/
-  fileDesc("ChdzZXJ2aWNlL3YxL3NlYXJjaC5wcm90bxIKc2VydmljZS52MSK1AQoQTGlzdEZpbGVzUmVxdWVzdBIRCglwYWdlX3NpemUYASABKAUSEgoKcGFnZV90b2tlbhgCIAEoCRIOCgZwcmVmaXgYAyABKAkSFAoMY29udGVudF90eXBlGAQgASgJEikKCnNvcnRfZmllbGQYBSABKA4yFS5zZXJ2aWNlLnYxLlNvcnRGaWVsZBIpCgpzb3J0X29yZGVyGAYgASgOMhUuc2VydmljZS52MS5Tb3J0T3JkZXIiUQoRTGlzdEZpbGVzUmVzcG9uc2USIwoFZmlsZXMYASADKAsyFC5zZXJ2aWNlLnYxLkZpbGVJbmZvEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSpuCglTb3J0RmllbGQSGgoWU09SVF9GSUVMRF9VTlNQRUNJRklFRBAAEhIKDlNPUlRfRklFTERfS0VZEAESHAoYU09SVF9GSUVMRF9MQVNUX01PRElGSUVEEAISEwoPU09SVF9GSUVMRF9TSVpFEAMqUAoJU29ydE9yZGVyEhoKFlNPUlRfT1JERVJfVU5TUEVDSUZJRUQQABISCg5TT1JUX09SREVSX0FTQxABEhMKD1NPUlRfT1JERVJfREVTQxACMlkKDVNlYXJjaFNlcnZpY2USSAoJTGlzdEZpbGVzEhwuc2VydmljZS52MS5MaXN0RmlsZXNSZXF1ZXN0Gh0uc2VydmljZS52MS5MaXN0RmlsZXNSZXNwb25zZUIoWiZmaWxlLWluZGV4ZXIvaW50ZXJuYWwvcGIvc2VydmljZS92MTtwYmIGcHJvdG8z", [file_service_v1_files]);
+  fileDesc("ChdzZXJ2aWNlL3YxL3NlYXJjaC5wcm90bxIKc2VydmljZS52MSK1AQoQTGlzdEZpbGVzUmVxdWVzdBIRCglwYWdlX3NpemUYASABKAUSEgoKcGFnZV90b2tlbhgCIAEoCRIOCgZwcmVmaXgYAyABKAkSFAoMY29udGVudF90eXBlGAQgASgJEikKCnNvcnRfZmllbGQYBSABKA4yFS5zZXJ2aWNlLnYxLlNvcnRGaWVsZBIpCgpzb3J0X29yZGVyGAYgASgOMhUuc2VydmljZS52MS5Tb3J0T3JkZXIiUQoRTGlzdEZpbGVzUmVzcG9uc2USIwoFZmlsZXMYASADKAsyFC5zZXJ2aWNlLnYxLkZpbGVJbmZvEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSKhAQoUTGlzdERpcmVjdG9yeVJlcXVlc3QSDAoEcGF0aBgBIAEoCRIRCglwYWdlX3NpemUYAiABKAUSEgoKcGFnZV90b2tlbhgDIAEoCRIpCgpzb3J0X2ZpZWxkGAQgASgOMhUuc2VydmljZS52MS5Tb3J0RmllbGQSKQoKc29ydF9vcmRlchgFIAEoDjIVLnNlcnZpY2UudjEuU29ydE9yZGVyImoKFUxpc3REaXJlY3RvcnlSZXNwb25zZRITCgtkaXJlY3RvcmllcxgBIAMoCRIjCgVmaWxlcxgCIAMoCzIULnNlcnZpY2UudjEuRmlsZUluZm8SFwoPbmV4dF9wYWdlX3Rva2VuGAMgASgJKm4KCVNvcnRGaWVsZBIaChZTT1JUX0ZJRUxEX1VOU1BFQ0lGSUVEEAASEgoOU09SVF9GSUVMRF9LRVkQARIcChhTT1JUX0ZJRUxEX0xBU1RfTU9ESUZJRUQQAhITCg9TT1JUX0ZJRUxEX1NJWkUQAypQCglTb3J0T3JkZXISGgoWU09SVF9PUkRFUl9VTlNQRUNJRklFRBAAEhIKDlNPUlRfT1JERVJfQVNDEAESEwoPU09SVF9PUkRFUl9ERVNDEAIyrwEKDVNlYXJjaFNlcnZpY2USSAoJTGlzdEZpbGVzEhwuc2VydmljZS52MS5MaXN0RmlsZXNSZXF1ZXN0Gh0uc2VydmljZS52MS5MaXN0RmlsZXNSZXNwb25zZRJUCg1MaXN0RGlyZWN0b3J5EiAuc2VydmljZS52MS5MaXN0RGlyZWN0b3J5UmVxdWVzdBohLnNlcnZpY2UudjEuTGlzdERpcmVjdG9yeVJlc3BvbnNlQihaJmZpbGUtaW5kZXhlci9pbnRlcm5hbC9wYi9zZXJ2aWNlL3YxO3BiYgZwcm90bzM", [file_service_v1_files]);
 
 /**
  * @generated from message service.v1.ListFilesRequest
@@ -95,6 +95,92 @@ export const ListFilesResponseSchema: GenMessage<ListFilesResponse> = /*@__PURE_
   messageDesc(file_service_v1_search, 1);
 
 /**
+ * ListDirectory lists the immediate children of a directory: subdirectories
+ * (materialized in a dedicated index kept in sync with every file write —
+ * see the directories table's doc comment in
+ * internal/db/migrations/001_initial.sql; a directory "exists" only as long
+ * as some key lives under it, same as S3 itself) followed by the files
+ * directly in it. There is no content_type filter here: applying one
+ * requires per-directory subtree checks that don't fit this index, so a
+ * client that wants to filter by type should switch to ListFiles from this
+ * path instead (browsing is navigation; filtering is search).
+ *
+ * @generated from message service.v1.ListDirectoryRequest
+ */
+export type ListDirectoryRequest = Message<"service.v1.ListDirectoryRequest"> & {
+  /**
+   * Directory to list; "" is the bucket root. Normalized to a trailing "/"
+   * server-side if the caller omits one.
+   *
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * Maximum number of entries (directories + files combined) to return.
+   * Defaults to 50, clamped to 200, same as ListFiles.
+   *
+   * @generated from field: int32 page_size = 2;
+   */
+  pageSize: number;
+
+  /**
+   * @generated from field: string page_token = 3;
+   */
+  pageToken: string;
+
+  /**
+   * Sort applies to the files portion only; directories are always
+   * alphabetical and always precede files on a given page.
+   *
+   * @generated from field: service.v1.SortField sort_field = 4;
+   */
+  sortField: SortField;
+
+  /**
+   * @generated from field: service.v1.SortOrder sort_order = 5;
+   */
+  sortOrder: SortOrder;
+};
+
+/**
+ * Describes the message service.v1.ListDirectoryRequest.
+ * Use `create(ListDirectoryRequestSchema)` to create a new message.
+ */
+export const ListDirectoryRequestSchema: GenMessage<ListDirectoryRequest> = /*@__PURE__*/
+  messageDesc(file_service_v1_search, 2);
+
+/**
+ * @generated from message service.v1.ListDirectoryResponse
+ */
+export type ListDirectoryResponse = Message<"service.v1.ListDirectoryResponse"> & {
+  /**
+   * Immediate child directories, full path from the bucket root, each
+   * ending in "/". Always alphabetical, always before files.
+   *
+   * @generated from field: repeated string directories = 1;
+   */
+  directories: string[];
+
+  /**
+   * @generated from field: repeated service.v1.FileInfo files = 2;
+   */
+  files: FileInfo[];
+
+  /**
+   * @generated from field: string next_page_token = 3;
+   */
+  nextPageToken: string;
+};
+
+/**
+ * Describes the message service.v1.ListDirectoryResponse.
+ * Use `create(ListDirectoryResponseSchema)` to create a new message.
+ */
+export const ListDirectoryResponseSchema: GenMessage<ListDirectoryResponse> = /*@__PURE__*/
+  messageDesc(file_service_v1_search, 3);
+
+/**
  * SortField selects the column ListFiles orders results by.
  *
  * @generated from enum service.v1.SortField
@@ -173,6 +259,14 @@ export const SearchService: GenService<{
     methodKind: "unary";
     input: typeof ListFilesRequestSchema;
     output: typeof ListFilesResponseSchema;
+  },
+  /**
+   * @generated from rpc service.v1.SearchService.ListDirectory
+   */
+  listDirectory: {
+    methodKind: "unary";
+    input: typeof ListDirectoryRequestSchema;
+    output: typeof ListDirectoryResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_service_v1_search, 0);

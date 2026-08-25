@@ -101,8 +101,8 @@
 - files.key is now COLLATE "C" (raw byte order) rather than the database's default collation, for
   two independent reasons that turn out to have the same fix: key sort order now agrees with what
   S3's ListObjectsV2 actually returns (it never did before — locale-aware collations reorder
-  punctuation/case relative to byte value); and the upcoming directory-browsing loose index scan
-  needs byte order for its "skip past a subdirectory" trick to be correct ('/' 0x2F must sort
+  punctuation/case relative to byte value); and the directories table's subtree-emptiness check
+  (see below) needs byte order for a range-bound trick to be correct ('/' 0x2F must sort
   immediately before '0' 0x30). Folded directly into 001_initial.sql rather than a later ALTER
   migration since there's no deployed data yet (fresh project) — an ALTER would additionally have
   to drop and rebuild the file_infos view (Postgres refuses ALTER COLUMN TYPE on a column a view
@@ -126,3 +126,77 @@
   merely contain two consecutive dots without meaning "parent directory". Both it and the new
   validateDirPath now check for ".." as a whole path segment (split on "/", compare each piece)
   via a shared hasDotDotSegment helper.
+- directory browsing (SearchService.ListDirectory) is backed by a real, materialized directories
+  table (path TEXT PRIMARY KEY + a GENERATED parent column), not derived at read time. Originally
+  built as a loose-index-scan recursive CTE over files (ListChildPrefixes) instead — abandoned
+  after realizing it has a real silent-data-loss bug, not just a performance edge case: its
+  scan_limit budget and the query's own doc comment both admit "hitting it before finding
+  dir_limit directories means 'no more found within budget', which the caller must not conflate
+  with 'no more directories'" — and the server did exactly that conflation (server.go's
+  DIRECTORIES-phase code treated any shortfall as exhaustion and never resumed that phase). A
+  directory with enough top-level files sorting before a subdirectory made that subdirectory
+  permanently invisible, with no error and no truncation flag anywhere in the API. The whole
+  scan-budget concept — dirScanMultiplier, maxDirScan, skipPastChild, ListChildPrefixes' CTE — is
+  gone; ListChildDirectories is now a plain keyset SELECT off a (parent, path) index: exact,
+  O(page_limit), no budget to exhaust.
+- directories is second-order derived, same relationship files has to S3 (rebuildable from files
+  alone — every insert runs UpsertDirectoriesForKeys in the same transaction as the files write
+  that produced it, so a full crawl reconstructs it as a byproduct with no dedicated rebuild query
+  needed), so this does not violate "S3 is the source of truth" — it's one hop further from S3
+  than files itself, not a competing source.
+  Existence only, no file_count/total_bytes: sizes come from index_stat_result, written
+  asynchronously by a different worker at a different time than files/directories are written, so
+  folding that in would mean a second, much larger drift surface for a number GetDirectoryStats
+  can already compute correctly (just less cheaply, by scanning the subtree directly).
+- maintenance is application-level (internal/db/store.go's Store type), not a database trigger,
+  after actually thinking through the tradeoff rather than defaulting to "trigger = safer": the
+  SQL required is identical either way (UpsertDirectoriesForKeys/PruneDirectoriesForKeys vs. the
+  same logic in trigger form), and a trigger's real advantage — guarding against future write
+  paths nobody remembered to update — isn't worth it when there are exactly three write paths
+  (UpsertFiles/DeleteFile/DeleteFilesByIDs) and all three are now hidden behind narrow interfaces
+  (crawler.FileStore, files.FileIndex) that simply don't expose the un-wrapped queries anymore —
+  it's a compile error to write files without also writing directories from any code this repo
+  controls. Prune runs after the delete, in the same transaction, so its subtree-emptiness check
+  observes post-delete state; each DeleteDirectory batch is now atomic as a side effect (its own
+  cross-batch non-atomicity, described above, is unchanged).
+- there is no RebuildDirectories query, on purpose (an earlier version of this had one, removed
+  after review): the crawler's own per-batch UpsertFilesWithDirectories already inserts every
+  directory a crawl could produce (ON CONFLICT DO NOTHING), so a separate unscoped rebuild pass
+  afterward would only re-derive the same rows from the same keys via the same ancestor-explosion
+  SQL — it could never find anything the per-batch insert missed, and (being the same SQL) could
+  never catch a bug in that SQL either. PruneOrphanDirectories doesn't have a symmetric argument
+  against it: it's also a no-op today (nothing currently creates an orphan directory row — see its
+  doc comment in queries/directories.sql), but it becomes load-bearing the moment the crawler gains
+  the ability to remove files rows for objects deleted from S3 out of band, since "delete whatever
+  we didn't just see" is a set-difference delete with no natural per-key list to scope
+  PruneDirectoriesForKeys to. Kept, called every crawl, as cheap insurance in the meantime.
+- the subtree-emptiness check (used by both PruneDirectoriesForKeys and the unscoped
+  PruneOrphanDirectories) is a byte range — key > path AND key < skip-past(path) — not
+  key LIKE path || '%'. A per-row non-constant LIKE pattern can't drive an index range scan the
+  way a two-sided inequality can; confirmed via EXPLAIN this produces a Nested Loop [Anti] Join
+  with an Index [Only] Scan on files' key btree (not a sequential scan) at both small and larger
+  (2000+ candidate) directory counts, executing in ~1.7ms for 2003 candidates against 5001 files.
+  skip-past(path) is left(path, -1) || '0', the same '/' → '0' byte-order fact the old
+  ListChildPrefixes skip trick used, just applied as a bound instead of driving a walk.
+- the crawler runs PruneOrphanDirectories once at the end of every Run() — a cheap (one statement
+  over the whole keyspace) safety net that does nothing today (see above for why there's no
+  RebuildDirectories to pair with it) but is already in place for when crawler deletes land (see
+  7/5/26 above).
+- generated columns need an IMMUTABLE expression; verified substring(text, text) (the two-arg
+  regex overload used for parent) is provolatile='i' on Postgres 18 before committing to the
+  design, both by querying pg_proc directly and by the CREATE TABLE itself succeeding (Postgres
+  rejects a non-immutable generated-column expression outright).
+- property-tested rather than just example-tested: TestDirectoriesConsistencyAfterRandomMutations
+  runs 200 random file creates/deletes through Store's WithDirectories wrappers, then compares the
+  resulting directories rows against an expected set computed independently in Go (plain string
+  splitting on the keys still believed live) rather than by re-running any of the SQL under test.
+  That independence matters: an earlier version compared against a second invocation of the same
+  ancestor-explosion SQL (via the since-removed RebuildDirectories), which can only catch a missed
+  call, never a bug in the shared SQL itself, since both sides would compute the identical wrong
+  answer. This is the test that actually catches maintenance bugs no hand-written example happens
+  to exercise; it caught two while being written, both in the test's own oracle rather than the
+  implementation — first comparing against the whole table instead of scoping to the test's own key
+  prefix (PruneOrphanDirectories correctly prunes other tests' directory rows that were never backed
+  by a real files row), then forgetting that a test's own unique prefix is itself a real ancestor
+  directory (it has children), so trimming it off before computing expected ancestors under-counted
+  by one.

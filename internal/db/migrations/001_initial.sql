@@ -9,13 +9,11 @@
 -- key is COLLATE "C" (raw byte order), not the database default collation,
 -- for two reasons: it makes key sort order agree with what S3's
 -- ListObjectsV2 returns (a locale-aware collation does not), and it is
--- required by the directory-browsing loose index scan (ListChildPrefixes in
--- queries/files.sql), which skips from one child directory to the next by
--- incrementing a byte ('/' 0x2F -> '0' 0x30 sorts immediately past
--- everything under that directory) — only correct in byte order. Under
--- COLLATE "C" the column's own UNIQUE btree already serves LIKE 'prefix%'
--- (no locale-aware collation to work around), so no separate
--- text_pattern_ops index is needed.
+-- required by the directories table's subtree-emptiness check below (a
+-- byte-range bound only correct in byte order). Under COLLATE "C" the
+-- column's own UNIQUE btree already serves LIKE 'prefix%' (no locale-aware
+-- collation to work around), so no separate text_pattern_ops index is
+-- needed.
 CREATE TABLE IF NOT EXISTS files (
     id         BIGSERIAL PRIMARY KEY,
     key        TEXT COLLATE "C" NOT NULL UNIQUE,
@@ -25,6 +23,60 @@ CREATE TABLE IF NOT EXISTS files (
     -- re-crawls produce no change for unchanged objects.
     marked_at  TIMESTAMPTZ NOT NULL
 );
+
+-- directories is a materialized index of every distinct key prefix that
+-- currently has at least one file under it — the set of "folders" a browse
+-- UI can list, kept as a real table instead of derived at read time.
+--
+-- It is second-order derived, same as index_stat_result is derived from S3
+-- object metadata: fully rebuildable from files alone — every insert goes
+-- through UpsertDirectoriesForKeys in the same transaction as the files
+-- write that produced it (see Store in internal/db/store.go), so a full
+-- crawl reconstructs it as a byproduct with no dedicated rebuild query
+-- needed (PruneOrphanDirectories in queries/directories.sql remains as the
+-- prune half of that reconciliation — see its doc comment for why only
+-- that half is real). This does not violate "S3 is the source of truth" —
+-- it's one hop further from S3 than files itself, not a competing source.
+-- A directory with zero files under it is not represented (matches the
+-- API's virtual-directory model: a folder "exists" only as long as
+-- something lives under it, same as S3 itself), so there is nothing here
+-- that isn't reconstructible.
+--
+-- Existence only: no file_count/total_bytes. Sizes come from
+-- index_stat_result, written asynchronously by a different worker at a
+-- different time than files/directories are written — folding that in here
+-- would mean a second, much larger drift surface (a second trigger-or-app
+-- write path, racing against the stat indexer) for a number
+-- GetDirectoryStats can already compute correctly, just less cheaply, by
+-- scanning the subtree directly.
+--
+-- Maintained at the application layer (internal/db/store.go), not by a
+-- database trigger: the SQL required is identical either way (see
+-- UpsertDirectoriesForKeys/PruneDirectoriesForKeys), a full rebuild is
+-- needed regardless (crawler reconcile, below), and the write paths that
+-- need to stay in sync are few and already behind narrow interfaces
+-- (crawler.FileStore, files.FileIndex) — those interfaces expose only the
+-- transactional Store methods that keep files and directories consistent
+-- in one transaction, never the bare sqlc queries, so it is a compile error
+-- to write files without also writing directories from any code this
+-- repository controls. A trigger would guard against write paths outside
+-- that control, but there are none: every INSERT/UPDATE/DELETE against
+-- files in the whole codebase goes through exactly these two services.
+CREATE TABLE IF NOT EXISTS directories (
+    -- Full path from the bucket root, always ending in "/": 'docs/sub/'.
+    -- The root itself is never stored — it always exists implicitly, same
+    -- as the API treats "" as the root path.
+    path   TEXT COLLATE "C" PRIMARY KEY,
+    -- Immediate parent path, '' for a top-level directory. GENERATED so it
+    -- is structurally impossible for path and parent to disagree — no write
+    -- path computes parent independently.
+    parent TEXT COLLATE "C" NOT NULL
+           GENERATED ALWAYS AS (COALESCE(substring(path from '^(.*/)[^/]*/$'), '')) STORED
+);
+
+-- Serves ListChildDirectories' "immediate children of parent, keyset-paged
+-- on path" query as an index-only scan.
+CREATE INDEX IF NOT EXISTS directories_parent_path_idx ON directories (parent, path);
 
 -- index_queue is the shared job queue for every index type: one row per
 -- (index_type, file) tracking where that file is in that index type's
@@ -106,4 +158,5 @@ LEFT JOIN index_stat_result s ON s.file_id = f.id;
 DROP VIEW IF EXISTS file_infos;
 DROP TABLE IF EXISTS index_stat_result;
 DROP TABLE IF EXISTS index_queue;
+DROP TABLE IF EXISTS directories;
 DROP TABLE IF EXISTS files;

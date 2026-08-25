@@ -132,7 +132,7 @@ func TestGetFileInfoNotFound(t *testing.T) {
 func TestDeleteFile(t *testing.T) {
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "obj-key"}, nil)
-	queries.EXPECT().DeleteFile(mock.Anything, int64(1)).Return(db.File{ID: 1, Key: "obj-key"}, nil)
+	queries.EXPECT().DeleteFileWithDirectories(mock.Anything, int64(1)).Return(db.File{ID: 1, Key: "obj-key"}, nil)
 
 	storage := NewMockObjectStore(t)
 	storage.EXPECT().Delete(mock.Anything, "obj-key").Return(nil)
@@ -151,7 +151,7 @@ func TestDeleteFileRemovesPreview(t *testing.T) {
 		ID: 1, Key: "obj-key",
 		PreviewKey: pgtype.Text{String: ".index/previews/1", Valid: true},
 	}, nil)
-	queries.EXPECT().DeleteFile(mock.Anything, int64(1)).Return(db.File{ID: 1, Key: "obj-key"}, nil)
+	queries.EXPECT().DeleteFileWithDirectories(mock.Anything, int64(1)).Return(db.File{ID: 1, Key: "obj-key"}, nil)
 
 	storage := NewMockObjectStore(t)
 	storage.EXPECT().Delete(mock.Anything, "obj-key").Return(nil)
@@ -172,7 +172,7 @@ func TestDeleteFileSurvivesPreviewDeleteFailure(t *testing.T) {
 		PreviewKey: pgtype.Text{String: ".index/previews/1", Valid: true},
 	}, nil)
 	// The file delete must still proceed even though the preview delete fails.
-	queries.EXPECT().DeleteFile(mock.Anything, int64(1)).Return(db.File{ID: 1, Key: "obj-key"}, nil)
+	queries.EXPECT().DeleteFileWithDirectories(mock.Anything, int64(1)).Return(db.File{ID: 1, Key: "obj-key"}, nil)
 
 	storage := NewMockObjectStore(t)
 	storage.EXPECT().Delete(mock.Anything, "obj-key").Return(nil)
@@ -200,7 +200,7 @@ func TestDeleteFileStorageError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	queries.AssertNotCalled(t, "DeleteFile", mock.Anything, mock.Anything)
+	queries.AssertNotCalled(t, "DeleteFileWithDirectories", mock.Anything, mock.Anything)
 }
 
 func TestDeleteFileGetFileError(t *testing.T) {
@@ -221,7 +221,7 @@ func TestDeleteFileGetFileError(t *testing.T) {
 func TestDeleteFileDBDeleteError(t *testing.T) {
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "obj-key"}, nil)
-	queries.EXPECT().DeleteFile(mock.Anything, int64(1)).Return(db.File{}, errors.New("db error"))
+	queries.EXPECT().DeleteFileWithDirectories(mock.Anything, int64(1)).Return(db.File{}, errors.New("db error"))
 
 	storage := NewMockObjectStore(t)
 	storage.EXPECT().Delete(mock.Anything, "obj-key").Return(nil)
@@ -483,7 +483,7 @@ func TestHasDotDotSegment(t *testing.T) {
 func TestCommitUpload(t *testing.T) {
 	now := time.Now()
 	queries := NewMockFileIndex(t)
-	queries.EXPECT().UpsertFiles(mock.Anything, db.UpsertFilesParams{
+	queries.EXPECT().UpsertFilesWithDirectories(mock.Anything, db.UpsertFilesParams{
 		Keys:      []string{"photos/cat.jpg"},
 		MarkedAts: []pgtype.Timestamptz{{Time: now, Valid: true}},
 	}).Return(int64(1), nil)
@@ -517,7 +517,7 @@ func TestCommitUploadStatMiss(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	queries.AssertNotCalled(t, "UpsertFiles", mock.Anything, mock.Anything)
+	queries.AssertNotCalled(t, "UpsertFilesWithDirectories", mock.Anything, mock.Anything)
 }
 
 func TestCommitUploadRejectsReservedPrefix(t *testing.T) {
@@ -607,7 +607,7 @@ func TestDeleteDirectorySingleBatch(t *testing.T) {
 		KeyPattern: "docs/%",
 		PageLimit:  deleteDirectoryBatchSize,
 	}).Return(batch, nil)
-	queries.EXPECT().DeleteFilesByIDs(mock.Anything, []int64{1, 2}).Return(int64(2), nil)
+	queries.EXPECT().DeleteFilesByIDsWithDirectories(mock.Anything, []int64{1, 2}, []string{"docs/a.txt", "docs/b.jpg"}).Return(int64(2), nil)
 
 	storage := NewMockObjectStore(t)
 	storage.EXPECT().DeleteMany(mock.Anything, []string{"docs/a.txt", "docs/b.jpg", ".index/previews/2"}).Return(nil)
@@ -658,8 +658,8 @@ func TestDeleteDirectoryMultipleBatches(t *testing.T) {
 		LastID:     int64(deleteDirectoryBatchSize),
 		PageLimit:  deleteDirectoryBatchSize,
 	}).Return(second, nil)
-	queries.EXPECT().DeleteFilesByIDs(mock.Anything, mock.Anything).Return(int64(deleteDirectoryBatchSize), nil).Once()
-	queries.EXPECT().DeleteFilesByIDs(mock.Anything, []int64{int64(deleteDirectoryBatchSize + 1)}).Return(int64(1), nil).Once()
+	queries.EXPECT().DeleteFilesByIDsWithDirectories(mock.Anything, mock.Anything, mock.Anything).Return(int64(deleteDirectoryBatchSize), nil).Once()
+	queries.EXPECT().DeleteFilesByIDsWithDirectories(mock.Anything, []int64{int64(deleteDirectoryBatchSize + 1)}, []string{"docs/last.txt"}).Return(int64(1), nil).Once()
 
 	storage := NewMockObjectStore(t)
 	storage.EXPECT().DeleteMany(mock.Anything, mock.Anything).Return(nil).Times(2)
@@ -680,8 +680,9 @@ func TestDeleteDirectoryStorageErrorStopsBeforeDBDelete(t *testing.T) {
 
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().ListFilesForDelete(mock.Anything, mock.Anything).Return(batch, nil)
-	// DeleteFilesByIDs must never be called: this batch's DB rows must not
-	// be dropped when we don't know whether their S3 objects actually went.
+	// DeleteFilesByIDsWithDirectories must never be called: this batch's DB
+	// rows must not be dropped when we don't know whether their S3 objects
+	// actually went.
 
 	storage := NewMockObjectStore(t)
 	storage.EXPECT().DeleteMany(mock.Anything, []string{"docs/a.txt"}).Return(errors.New("s3 error"))
@@ -695,7 +696,7 @@ func TestDeleteDirectoryStorageErrorStopsBeforeDBDelete(t *testing.T) {
 	if resp.DeletedCount != 0 {
 		t.Errorf("DeletedCount = %d, want 0", resp.DeletedCount)
 	}
-	queries.AssertNotCalled(t, "DeleteFilesByIDs", mock.Anything, mock.Anything)
+	queries.AssertNotCalled(t, "DeleteFilesByIDsWithDirectories", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestDeleteDirectoryPartialProgressReturnedOnError(t *testing.T) {
@@ -723,9 +724,9 @@ func TestDeleteDirectoryPartialProgressReturnedOnError(t *testing.T) {
 		LastID:     int64(deleteDirectoryBatchSize),
 		PageLimit:  deleteDirectoryBatchSize,
 	}).Return(second, nil)
-	// .Once(): DeleteFilesByIDs must not be called again for the second
-	// (failed) batch.
-	queries.EXPECT().DeleteFilesByIDs(mock.Anything, mock.Anything).Return(int64(deleteDirectoryBatchSize), nil).Once()
+	// .Once(): DeleteFilesByIDsWithDirectories must not be called again for
+	// the second (failed) batch.
+	queries.EXPECT().DeleteFilesByIDsWithDirectories(mock.Anything, mock.Anything, mock.Anything).Return(int64(deleteDirectoryBatchSize), nil).Once()
 
 	storage := NewMockObjectStore(t)
 	storage.EXPECT().DeleteMany(mock.Anything, firstKeys).Return(nil)
@@ -747,7 +748,7 @@ func TestDeleteDirectoryDBDeleteError(t *testing.T) {
 
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().ListFilesForDelete(mock.Anything, mock.Anything).Return(batch, nil)
-	queries.EXPECT().DeleteFilesByIDs(mock.Anything, []int64{1}).Return(int64(0), errors.New("db error"))
+	queries.EXPECT().DeleteFilesByIDsWithDirectories(mock.Anything, []int64{1}, []string{"docs/a.txt"}).Return(int64(0), errors.New("db error"))
 
 	storage := NewMockObjectStore(t)
 	storage.EXPECT().DeleteMany(mock.Anything, []string{"docs/a.txt"}).Return(nil)

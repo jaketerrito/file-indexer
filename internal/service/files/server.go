@@ -33,18 +33,23 @@ type ObjectStore interface {
 	DeleteMany(ctx context.Context, keys []string) error
 }
 
+// FileIndex is deliberately narrower than db.Store: it exposes only the
+// directory-index-maintaining WithDirectories variants of the files write
+// queries, never the bare UpsertFiles/DeleteFile/DeleteFilesByIDs, so this
+// service cannot write a files row without also keeping the directories
+// table in sync (see directories' doc comment in migrations/001_initial.sql).
 type FileIndex interface {
 	GetFile(ctx context.Context, id int64) (db.FileInfo, error)
 	GetFilesByIDs(ctx context.Context, ids []int64) ([]db.FileInfo, error)
 	GetFileByKey(ctx context.Context, key string) (db.FileInfo, error)
-	DeleteFile(ctx context.Context, id int64) (db.File, error)
-	UpsertFiles(ctx context.Context, arg db.UpsertFilesParams) (int64, error)
+	DeleteFileWithDirectories(ctx context.Context, id int64) (db.File, error)
+	UpsertFilesWithDirectories(ctx context.Context, arg db.UpsertFilesParams) (int64, error)
 	// GetIndexExifResult returns pgx.ErrNoRows when the file has neither EXIF
 	// nor XMP data (or hasn't reached the exif indexer yet).
 	GetIndexExifResult(ctx context.Context, fileID int64) (db.IndexExifResult, error)
 	GetDirectoryStats(ctx context.Context, keyPattern string) (db.GetDirectoryStatsRow, error)
 	ListFilesForDelete(ctx context.Context, arg db.ListFilesForDeleteParams) ([]db.ListFilesForDeleteRow, error)
-	DeleteFilesByIDs(ctx context.Context, ids []int64) (int64, error)
+	DeleteFilesByIDsWithDirectories(ctx context.Context, ids []int64, keys []string) (int64, error)
 }
 
 type FilesServer struct {
@@ -145,7 +150,7 @@ func (s *FilesServer) DeleteFile(ctx context.Context, req *pb.DeleteFileRequest)
 			slog.Warn("delete preview object", "key", file.PreviewKey.String, "error", err)
 		}
 	}
-	if _, err := s.queries.DeleteFile(ctx, req.GetId()); err != nil {
+	if _, err := s.queries.DeleteFileWithDirectories(ctx, req.GetId()); err != nil {
 		return nil, err
 	}
 	return &pb.DeleteFileResponse{}, nil
@@ -181,7 +186,7 @@ func (s *FilesServer) CommitUpload(ctx context.Context, req *pb.CommitUploadRequ
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "stat uploaded object: %v", err)
 	}
-	if _, err := s.queries.UpsertFiles(ctx, db.UpsertFilesParams{
+	if _, err := s.queries.UpsertFilesWithDirectories(ctx, db.UpsertFilesParams{
 		Keys:      []string{info.Key},
 		MarkedAts: []pgtype.Timestamptz{{Time: info.LastModified, Valid: true}},
 	}); err != nil {
@@ -300,22 +305,30 @@ func (s *FilesServer) DeleteDirectory(ctx context.Context, req *pb.DeleteDirecto
 			break
 		}
 
-		keys := make([]string, 0, len(batch)*2)
+		// objectKeys includes preview keys (for storage.DeleteMany, which
+		// must remove derived objects too); sourceKeys is files' own keys
+		// only (for PruneDirectoriesForKeys via
+		// DeleteFilesByIDsWithDirectories — a preview key lives under
+		// indexPrefix, never a real directory, and has no ancestors to
+		// prune).
+		objectKeys := make([]string, 0, len(batch)*2)
+		sourceKeys := make([]string, 0, len(batch))
 		ids := make([]int64, 0, len(batch))
 		for _, f := range batch {
-			keys = append(keys, f.Key)
+			objectKeys = append(objectKeys, f.Key)
+			sourceKeys = append(sourceKeys, f.Key)
 			if f.PreviewKey.Valid && f.PreviewKey.String != "" {
-				keys = append(keys, f.PreviewKey.String)
+				objectKeys = append(objectKeys, f.PreviewKey.String)
 			}
 			ids = append(ids, f.ID)
 		}
 
-		if err := s.storage.DeleteMany(ctx, keys); err != nil {
+		if err := s.storage.DeleteMany(ctx, objectKeys); err != nil {
 			return &pb.DeleteDirectoryResponse{DeletedCount: deleted},
 				status.Errorf(codes.Internal, "delete objects under %q: %v", path, err)
 		}
 
-		n, err := s.queries.DeleteFilesByIDs(ctx, ids)
+		n, err := s.queries.DeleteFilesByIDsWithDirectories(ctx, ids, sourceKeys)
 		if err != nil {
 			return &pb.DeleteDirectoryResponse{DeletedCount: deleted}, err
 		}

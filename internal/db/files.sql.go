@@ -147,14 +147,17 @@ const listFilesByKeyAsc = `-- name: ListFilesByKeyAsc :many
 SELECT id, key, created_at, content_type, size_bytes, last_modified, preview_key, preview_width, preview_height FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR content_type LIKE $2)
-  AND (NOT $3::bool OR (key, id) > ($4::text, $5::bigint))
+  AND (NOT $3::bool OR strpos(substr(key, char_length($4::text) + 1), '/') = 0)
+  AND (NOT $5::bool OR (key, id) > ($6::text, $7::bigint))
 ORDER BY key ASC, id ASC
-LIMIT $6
+LIMIT $8
 `
 
 type ListFilesByKeyAscParams struct {
 	KeyPattern         string
 	ContentTypePattern string
+	DirectOnly         bool
+	DirPrefix          string
 	HasCursor          bool
 	LastKey            string
 	LastID             int64
@@ -169,10 +172,20 @@ type ListFilesByKeyAscParams struct {
 // arguments are ignored. Metadata columns come from the stat index via the
 // file_infos view and are NULL until a file is indexed; sorts fall back via
 // COALESCE so unindexed files group together instead of disappearing.
+//
+// direct_only/dir_prefix implement browse mode's "files directly in this
+// directory" filter (SearchService.ListDirectory's files phase): when
+// direct_only is true, rows whose key has another '/' after dir_prefix (i.e.
+// lives in a deeper subdirectory) are excluded. dir_prefix must be the bare
+// prefix (no trailing '%'); when direct_only is false it is ignored. This
+// reuses the exact sort/filter/keyset logic search already has instead of a
+// parallel set of directory-scoped queries.
 func (q *Queries) ListFilesByKeyAsc(ctx context.Context, arg ListFilesByKeyAscParams) ([]FileInfo, error) {
 	rows, err := q.db.Query(ctx, listFilesByKeyAsc,
 		arg.KeyPattern,
 		arg.ContentTypePattern,
+		arg.DirectOnly,
+		arg.DirPrefix,
 		arg.HasCursor,
 		arg.LastKey,
 		arg.LastID,
@@ -210,14 +223,17 @@ const listFilesByKeyDesc = `-- name: ListFilesByKeyDesc :many
 SELECT id, key, created_at, content_type, size_bytes, last_modified, preview_key, preview_width, preview_height FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR content_type LIKE $2)
-  AND (NOT $3::bool OR (key, id) < ($4::text, $5::bigint))
+  AND (NOT $3::bool OR strpos(substr(key, char_length($4::text) + 1), '/') = 0)
+  AND (NOT $5::bool OR (key, id) < ($6::text, $7::bigint))
 ORDER BY key DESC, id DESC
-LIMIT $6
+LIMIT $8
 `
 
 type ListFilesByKeyDescParams struct {
 	KeyPattern         string
 	ContentTypePattern string
+	DirectOnly         bool
+	DirPrefix          string
 	HasCursor          bool
 	LastKey            string
 	LastID             int64
@@ -228,6 +244,8 @@ func (q *Queries) ListFilesByKeyDesc(ctx context.Context, arg ListFilesByKeyDesc
 	rows, err := q.db.Query(ctx, listFilesByKeyDesc,
 		arg.KeyPattern,
 		arg.ContentTypePattern,
+		arg.DirectOnly,
+		arg.DirPrefix,
 		arg.HasCursor,
 		arg.LastKey,
 		arg.LastID,
@@ -265,14 +283,17 @@ const listFilesByLastModifiedAsc = `-- name: ListFilesByLastModifiedAsc :many
 SELECT id, key, created_at, content_type, size_bytes, last_modified, preview_key, preview_width, preview_height FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR content_type LIKE $2)
-  AND (NOT $3::bool OR (COALESCE(last_modified, 'epoch'::timestamptz), id) > ($4::timestamptz, $5::bigint))
+  AND (NOT $3::bool OR strpos(substr(key, char_length($4::text) + 1), '/') = 0)
+  AND (NOT $5::bool OR (COALESCE(last_modified, 'epoch'::timestamptz), id) > ($6::timestamptz, $7::bigint))
 ORDER BY COALESCE(last_modified, 'epoch'::timestamptz) ASC, id ASC
-LIMIT $6
+LIMIT $8
 `
 
 type ListFilesByLastModifiedAscParams struct {
 	KeyPattern         string
 	ContentTypePattern string
+	DirectOnly         bool
+	DirPrefix          string
 	HasCursor          bool
 	CursorLastModified pgtype.Timestamptz
 	LastID             int64
@@ -283,6 +304,8 @@ func (q *Queries) ListFilesByLastModifiedAsc(ctx context.Context, arg ListFilesB
 	rows, err := q.db.Query(ctx, listFilesByLastModifiedAsc,
 		arg.KeyPattern,
 		arg.ContentTypePattern,
+		arg.DirectOnly,
+		arg.DirPrefix,
 		arg.HasCursor,
 		arg.CursorLastModified,
 		arg.LastID,
@@ -320,14 +343,17 @@ const listFilesByLastModifiedDesc = `-- name: ListFilesByLastModifiedDesc :many
 SELECT id, key, created_at, content_type, size_bytes, last_modified, preview_key, preview_width, preview_height FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR content_type LIKE $2)
-  AND (NOT $3::bool OR (COALESCE(last_modified, 'epoch'::timestamptz), id) < ($4::timestamptz, $5::bigint))
+  AND (NOT $3::bool OR strpos(substr(key, char_length($4::text) + 1), '/') = 0)
+  AND (NOT $5::bool OR (COALESCE(last_modified, 'epoch'::timestamptz), id) < ($6::timestamptz, $7::bigint))
 ORDER BY COALESCE(last_modified, 'epoch'::timestamptz) DESC, id DESC
-LIMIT $6
+LIMIT $8
 `
 
 type ListFilesByLastModifiedDescParams struct {
 	KeyPattern         string
 	ContentTypePattern string
+	DirectOnly         bool
+	DirPrefix          string
 	HasCursor          bool
 	CursorLastModified pgtype.Timestamptz
 	LastID             int64
@@ -338,6 +364,8 @@ func (q *Queries) ListFilesByLastModifiedDesc(ctx context.Context, arg ListFiles
 	rows, err := q.db.Query(ctx, listFilesByLastModifiedDesc,
 		arg.KeyPattern,
 		arg.ContentTypePattern,
+		arg.DirectOnly,
+		arg.DirPrefix,
 		arg.HasCursor,
 		arg.CursorLastModified,
 		arg.LastID,
@@ -375,14 +403,17 @@ const listFilesBySizeAsc = `-- name: ListFilesBySizeAsc :many
 SELECT id, key, created_at, content_type, size_bytes, last_modified, preview_key, preview_width, preview_height FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR content_type LIKE $2)
-  AND (NOT $3::bool OR (COALESCE(size_bytes, 0), id) > ($4::bigint, $5::bigint))
+  AND (NOT $3::bool OR strpos(substr(key, char_length($4::text) + 1), '/') = 0)
+  AND (NOT $5::bool OR (COALESCE(size_bytes, 0), id) > ($6::bigint, $7::bigint))
 ORDER BY COALESCE(size_bytes, 0) ASC, id ASC
-LIMIT $6
+LIMIT $8
 `
 
 type ListFilesBySizeAscParams struct {
 	KeyPattern         string
 	ContentTypePattern string
+	DirectOnly         bool
+	DirPrefix          string
 	HasCursor          bool
 	LastSize           int64
 	LastID             int64
@@ -393,6 +424,8 @@ func (q *Queries) ListFilesBySizeAsc(ctx context.Context, arg ListFilesBySizeAsc
 	rows, err := q.db.Query(ctx, listFilesBySizeAsc,
 		arg.KeyPattern,
 		arg.ContentTypePattern,
+		arg.DirectOnly,
+		arg.DirPrefix,
 		arg.HasCursor,
 		arg.LastSize,
 		arg.LastID,
@@ -430,14 +463,17 @@ const listFilesBySizeDesc = `-- name: ListFilesBySizeDesc :many
 SELECT id, key, created_at, content_type, size_bytes, last_modified, preview_key, preview_width, preview_height FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR content_type LIKE $2)
-  AND (NOT $3::bool OR (COALESCE(size_bytes, 0), id) < ($4::bigint, $5::bigint))
+  AND (NOT $3::bool OR strpos(substr(key, char_length($4::text) + 1), '/') = 0)
+  AND (NOT $5::bool OR (COALESCE(size_bytes, 0), id) < ($6::bigint, $7::bigint))
 ORDER BY COALESCE(size_bytes, 0) DESC, id DESC
-LIMIT $6
+LIMIT $8
 `
 
 type ListFilesBySizeDescParams struct {
 	KeyPattern         string
 	ContentTypePattern string
+	DirectOnly         bool
+	DirPrefix          string
 	HasCursor          bool
 	LastSize           int64
 	LastID             int64
@@ -448,6 +484,8 @@ func (q *Queries) ListFilesBySizeDesc(ctx context.Context, arg ListFilesBySizeDe
 	rows, err := q.db.Query(ctx, listFilesBySizeDesc,
 		arg.KeyPattern,
 		arg.ContentTypePattern,
+		arg.DirectOnly,
+		arg.DirPrefix,
 		arg.HasCursor,
 		arg.LastSize,
 		arg.LastID,

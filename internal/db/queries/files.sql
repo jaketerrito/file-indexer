@@ -58,11 +58,20 @@ LIMIT sqlc.arg(page_limit);
 -- arguments are ignored. Metadata columns come from the stat index via the
 -- file_infos view and are NULL until a file is indexed; sorts fall back via
 -- COALESCE so unindexed files group together instead of disappearing.
+--
+-- direct_only/dir_prefix implement browse mode's "files directly in this
+-- directory" filter (SearchService.ListDirectory's files phase): when
+-- direct_only is true, rows whose key has another '/' after dir_prefix (i.e.
+-- lives in a deeper subdirectory) are excluded. dir_prefix must be the bare
+-- prefix (no trailing '%'); when direct_only is false it is ignored. This
+-- reuses the exact sort/filter/keyset logic search already has instead of a
+-- parallel set of directory-scoped queries.
 
 -- name: ListFilesByKeyAsc :many
 SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
+  AND (NOT sqlc.arg(direct_only)::bool OR strpos(substr(key, char_length(sqlc.arg(dir_prefix)::text) + 1), '/') = 0)
   AND (NOT sqlc.arg(has_cursor)::bool OR (key, id) > (sqlc.arg(last_key)::text, sqlc.arg(last_id)::bigint))
 ORDER BY key ASC, id ASC
 LIMIT sqlc.arg(page_limit);
@@ -71,6 +80,7 @@ LIMIT sqlc.arg(page_limit);
 SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
+  AND (NOT sqlc.arg(direct_only)::bool OR strpos(substr(key, char_length(sqlc.arg(dir_prefix)::text) + 1), '/') = 0)
   AND (NOT sqlc.arg(has_cursor)::bool OR (key, id) < (sqlc.arg(last_key)::text, sqlc.arg(last_id)::bigint))
 ORDER BY key DESC, id DESC
 LIMIT sqlc.arg(page_limit);
@@ -79,6 +89,7 @@ LIMIT sqlc.arg(page_limit);
 SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
+  AND (NOT sqlc.arg(direct_only)::bool OR strpos(substr(key, char_length(sqlc.arg(dir_prefix)::text) + 1), '/') = 0)
   AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(last_modified, 'epoch'::timestamptz), id) > (sqlc.arg(cursor_last_modified)::timestamptz, sqlc.arg(last_id)::bigint))
 ORDER BY COALESCE(last_modified, 'epoch'::timestamptz) ASC, id ASC
 LIMIT sqlc.arg(page_limit);
@@ -87,6 +98,7 @@ LIMIT sqlc.arg(page_limit);
 SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
+  AND (NOT sqlc.arg(direct_only)::bool OR strpos(substr(key, char_length(sqlc.arg(dir_prefix)::text) + 1), '/') = 0)
   AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(last_modified, 'epoch'::timestamptz), id) < (sqlc.arg(cursor_last_modified)::timestamptz, sqlc.arg(last_id)::bigint))
 ORDER BY COALESCE(last_modified, 'epoch'::timestamptz) DESC, id DESC
 LIMIT sqlc.arg(page_limit);
@@ -95,6 +107,7 @@ LIMIT sqlc.arg(page_limit);
 SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
+  AND (NOT sqlc.arg(direct_only)::bool OR strpos(substr(key, char_length(sqlc.arg(dir_prefix)::text) + 1), '/') = 0)
   AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(size_bytes, 0), id) > (sqlc.arg(last_size)::bigint, sqlc.arg(last_id)::bigint))
 ORDER BY COALESCE(size_bytes, 0) ASC, id ASC
 LIMIT sqlc.arg(page_limit);
@@ -103,6 +116,7 @@ LIMIT sqlc.arg(page_limit);
 SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
+  AND (NOT sqlc.arg(direct_only)::bool OR strpos(substr(key, char_length(sqlc.arg(dir_prefix)::text) + 1), '/') = 0)
   AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(size_bytes, 0), id) < (sqlc.arg(last_size)::bigint, sqlc.arg(last_id)::bigint))
 ORDER BY COALESCE(size_bytes, 0) DESC, id DESC
 LIMIT sqlc.arg(page_limit);
