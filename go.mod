@@ -341,7 +341,7 @@ require (
 	github.com/ultraware/whitespace v0.2.0 // indirect
 	github.com/uudashr/gocognit v1.2.1 // indirect
 	github.com/uudashr/iface v1.4.2 // indirect
-	github.com/vektra/mockery/v3 v3.7.1 // indirect
+	github.com/vektra/mockery/v3 v3.7.3 // indirect
 	github.com/vladopajic/go-test-coverage/v2 v2.18.9 // indirect
 	github.com/wasilibs/go-pgquery v0.0.0-20250409022910-10ac41983c07 // indirect
 	github.com/wasilibs/wazero-helpers v0.0.0-20240620070341-3dff1577cd52 // indirect
