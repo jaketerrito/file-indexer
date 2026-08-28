@@ -6,6 +6,9 @@
   ],
   "minimumReleaseAge": "7 days",
   "internalChecksFilter": "strict",
+  "schedule": ["before 6am on monday"],
+  "prConcurrentLimit": 3,
+  "platformAutomerge": false,
   "customManagers": [
     {
       "customType": "regex",
@@ -29,6 +32,15 @@
     {
       "matchManagers": ["dockerfile", "docker-compose"],
       "pinDigests": true
+    },
+    {
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "all non-major",
+      "automerge": true
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "automerge": false
     }
   ]
 }
