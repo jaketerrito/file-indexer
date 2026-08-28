@@ -303,3 +303,34 @@
   this is the property test that has actually caught directory-maintenance bugs before, and the
   sweep is a third path that mutates directories, so it needed the same independent-oracle coverage
   the other two paths already had.
+
+8/25/26
+- CI rework, resolving the two items logged 7/3/26:
+  - `tilt ci` (kind cluster + full manifest rollout) is no longer in the hot path for Go/web
+    changes. It only ran because it was the one place the integration test suite + coverage gate
+    lived, but every `//go:build integration` test provisions its own throwaway DB/bucket
+    (internal/db/dbtest, internal/storage's setupBucket) and needs nothing else deployed — no test
+    dials a live gRPC service. Integration tests + the coverage gate moved to a new
+    test-integration.yml using postgres/MinIO directly (service container + docker run, no kind),
+    ~8m faster per run. tilt ci is now deploy-verify.yml, gated on deploy/**, Tiltfile,
+    ctlptl.yaml, Dockerfile, web/Dockerfile — a deploy-manifest check, not a test runner.
+  - trivy's image scan (7-way matrix, one build per cmd/) moved off PR/push entirely, onto a
+    weekly cron. All 7 targets are FROM scratch + one static binary from the same go.mod: no OS
+    packages exist to scan, so the matrix only ever reported Go-binary vulns — a strict subset of
+    what the filesystem scan already reports from go.sum. Not worth rebuilding 7 images on every
+    PR for that. image-web (node:24-alpine, real OS packages, actual incremental coverage) stays
+    on PRs, path-filtered to web/**.
+  - added timeout-minutes to every job (previously only the old tilt-ci job had one; default is
+    6h, so one hung job could burn 10%+ of the monthly Actions minutes on this private repo).
+  - added concurrency groups (cancel-in-progress on PRs only) to every workflow.
+  - Go module cache is now shared across jobs via .github/actions/setup-go-cache (content-
+    addressed on go.sum, safe to share); only the build cache stays per-job-keyed. The old
+    per-job module cache copies (README's prior justification) were mostly redundant storage
+    against the 10GB/repo cache budget.
+  - open follow-up, not done here: if this repo goes public, branch protection + merge queue
+    become available, which changes two things back: (1) required status checks can't tolerate
+    path-filtered workflows being skipped entirely (they'd block PRs forever waiting on a status
+    that never reports), so the cheap lint/unit jobs should drop their path filters and become the
+    required checks, filtering reserved for the genuinely expensive jobs; (2) Renovate's
+    `platformAutomerge` should flip true once required checks exist — currently false because
+    native GitHub automerge would otherwise merge without waiting on any check.

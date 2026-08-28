@@ -65,7 +65,9 @@ Integration tests fail hard if postgres/MinIO are unreachable; they never skip.
 
 ### CI caching
 
-`setup-go`'s built-in caching is disabled in CI because its cache key (a hash of `go.sum`) is shared across all Go jobs. Jobs with different module or build-cache needs end up poisoning each other's caches. Instead, each job uses `actions/cache` with its own unique key prefix.
+`setup-go`'s built-in caching is disabled in CI; every Go job instead uses the `.github/actions/setup-go-cache` composite action, which layers two `actions/cache` entries:
+- **Module cache** (`~/go/pkg/mod`), keyed only on a hash of `go.sum`. Content-addressed and identical across every job, so it's shared — no poisoning risk.
+- **Build cache** (`~/.cache/go-build`), keyed on a per-job `cache-key-prefix` input. This one isn't content-addressed (it's keyed on package import graphs, which differ per job, e.g. `-tags=integration`), so it stays job-scoped.
 
 #### Conventions
 - **Table-driven tests with standard `testing` package.** No external assertion libraries.

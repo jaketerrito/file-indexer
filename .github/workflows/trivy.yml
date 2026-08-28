@@ -1,9 +1,24 @@
 name: trivy
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - "**/*.go"
+      - "go.mod"
+      - "go.sum"
+      - "Dockerfile"
+      - "web/**"
+      - "deploy/**"
+      - ".github/workflows/trivy.yml"
+  schedule:
+    # Weekly, unfiltered: catches CVE-database drift against unchanged code,
+    # which push/PR triggers can never do. Also the only trigger that runs
+    # the full per-image matrix below (see the `image` job's `if`).
+    - cron: "0 6 * * 1"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -12,6 +27,7 @@ jobs:
   filesystem:
     name: filesystem scan
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Trivy filesystem scan (vuln, misconfig, secrets)
@@ -24,9 +40,16 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
 
+  # All seven Go targets are FROM scratch + one static binary built from the
+  # same go.mod: no OS packages exist to scan, so this reports only
+  # Go-binary vulns -- a strict subset of what `filesystem` already reports
+  # from go.sum. Not worth 7 redundant image builds on every PR; runs on the
+  # weekly cron only, where its only job is catching vuln-DB drift.
   image:
     name: image scan
+    if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -49,9 +72,13 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
 
+  # node:24-alpine (unlike the scratch-based Go images above) has real OS
+  # packages, so this is the only image job with genuine layer coverage.
+  # Runs on both PRs (path-filtered to web/**) and the weekly cron.
   image-web:
     name: image scan (web)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Build image

@@ -1,0 +1,36 @@
+name: Setup Go with caching
+description: >
+  actions/setup-go (with its own cache disabled) plus two actions/cache
+  layers: one shared module cache keyed only on go.sum (content-addressed,
+  safe to share across every Go job) and one per-job build cache (not
+  content-addressed, so it must stay job-scoped to avoid poisoning). See
+  README.md#ci-caching. Assumes actions/checkout already ran.
+
+inputs:
+  cache-key-prefix:
+    description: >
+      Unique per-job prefix for the build-cache key (e.g. "test-unit",
+      "generate"). Do not reuse across jobs with different build inputs.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      with:
+        go-version-file: go.mod
+        cache: false
+    - name: Cache Go modules (shared, content-addressed on go.sum)
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/go/pkg/mod
+        key: go-mod-${{ runner.os }}-${{ hashFiles('go.sum') }}
+        restore-keys: |
+          go-mod-${{ runner.os }}-
+    - name: Cache Go build cache (per-job)
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/go-build
+        key: go-build-${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ hashFiles('go.sum') }}
+        restore-keys: |
+          go-build-${{ inputs.cache-key-prefix }}-${{ runner.os }}-

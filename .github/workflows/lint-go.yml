@@ -1,13 +1,5 @@
 name: golangci-lint
 on:
-  push:
-    branches: [main]
-    paths:
-      - "**/*.go"
-      - "go.mod"
-      - "go.sum"
-      - ".golangci.yml"
-      - ".github/workflows/lint-go.yml"
   pull_request:
     branches: [main]
     paths:
@@ -17,6 +9,10 @@ on:
       - ".golangci.yml"
       - ".github/workflows/lint-go.yml"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
@@ -24,6 +20,7 @@ jobs:
   lint:
     name: lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7

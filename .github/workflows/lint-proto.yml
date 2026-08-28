@@ -1,15 +1,14 @@
 name: lint-proto
 on:
-  push:
-    branches: [main]
-    paths:
-      - "proto/**"
-      - ".github/workflows/lint-proto.yml"
   pull_request:
     branches: [main]
     paths:
       - "proto/**"
       - ".github/workflows/lint-proto.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -19,6 +18,7 @@ jobs:
   lint-proto:
     name: lint-proto
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: bufbuild/buf-action@8c6a16e16f12ba20b6470afa9c2ba9b5ba8c97c3 # v1
