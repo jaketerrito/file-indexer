@@ -18,6 +18,10 @@ packages:
     interfaces:
       ObjectStore:
       FileStore:
+  file-indexer/internal/service/previewgc:
+    interfaces:
+      ObjectStore:
+      PreviewStore:
   file-indexer/internal/service/search:
     interfaces:
       FileIndex:

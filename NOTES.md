@@ -42,7 +42,7 @@
 
 7/26/26
 - preview index writes derived images to the same bucket under INDEX_PREFIX (default .index/); crawler skips that prefix so derived objects never become files rows
-- orphaned preview blobs need a GC job: DeleteFile removes previews best-effort only, files deleted from s3 out of band never trigger it, and index_preview_result rows vanish by cascade without touching storage. Job should list INDEX_PREFIX + "previews/" and delete keys with no matching index_preview_result row
+- orphaned preview blobs need a GC job: DeleteFile removes previews best-effort only, files deleted from s3 out of band never trigger it, and index_preview_result rows vanish by cascade without touching storage. Job should list INDEX_PREFIX + "previews/" and delete keys with no matching index_preview_result row — implemented in cmd/preview-gc and internal/service/previewgc
 - preview URLs are presigned per request, so the browser HTTP cache never hits across page loads. If thumbnail bandwidth becomes a problem, swap GetPreviewURL for a cacheable BFF route serving bytes with immutable cache headers
 - no HEIC/AVIF previews: no pure-Go decoder and the binaries are CGO_ENABLED=0 on scratch
 
@@ -289,7 +289,7 @@
   correctness one — a subsequent correct crawl fully re-populates files (and directories,
   second-order) from scratch, same as any other re-crawl, just paying for re-indexing again.
 - preview blobs for swept files are deliberately still left behind, same as they already are for
-  DeleteFile's best-effort cleanup — the orphaned-preview GC job flagged 7/26/26 remains unwritten.
+  DeleteFile's best-effort cleanup — the orphaned-preview GC job flagged 7/26/26 remains unwritten. (Done — see 7/26/26 entry and cmd/preview-gc.)
   This change makes that job more valuable, not less: out-of-band deletes now actively produce
   orphaned preview objects on every sweep, not just via DeleteFile's failure path.
 - known accepted consequence, not fixed here: sweeping a files row out from under an indexer that
