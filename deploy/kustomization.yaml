@@ -12,6 +12,7 @@ resources:
   - search.yaml
   - crawler.yaml
   - web.yaml
+  - preview-gc.yaml
 
 configMapGenerator:
   - name: index-config

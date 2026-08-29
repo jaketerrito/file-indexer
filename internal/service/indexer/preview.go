@@ -86,6 +86,14 @@ func (p *PreviewIndexer) previewKey(fileID int64) string {
 	return path.Join(p.indexPrefix, "previews", strconv.FormatInt(fileID, 10))
 }
 
+// PreviewPrefix returns the object key prefix beneath indexPrefix that all
+// previewKey outputs live under (e.g. ".index/previews/"). Exported for the
+// preview GC, which scans exactly this prefix; the trailing slash keeps the
+// match on a path boundary.
+func PreviewPrefix(indexPrefix string) string {
+	return path.Join(indexPrefix, "previews") + "/"
+}
+
 // Process implements ProcessFunc[PreviewResult]. Only I/O failures return an
 // error, so only those are retried with backoff. Anything inherent to the
 // file's content returns a skipped result instead: retrying cannot change the

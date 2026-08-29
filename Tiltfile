@@ -38,6 +38,7 @@ docker_build('index-exif', '.', build_args={'BUILD_TARGET': './cmd/index-exif'})
 docker_build('files', '.', build_args={'BUILD_TARGET': './cmd/files'})
 docker_build('search', '.', build_args={'BUILD_TARGET': './cmd/search'})
 docker_build('crawler', '.', build_args={'BUILD_TARGET': './cmd/crawler'})
+docker_build('preview-gc', '.', build_args={'BUILD_TARGET': './cmd/preview-gc'})
 docker_build('web', 'web')
 
 k8s_yaml(kustomize('deploy'))
@@ -74,6 +75,12 @@ k8s_resource(
 )
 k8s_resource(
     'crawler',
+    resource_deps=['postgres', 'migrate', 'local-s3'],
+    trigger_mode=TRIGGER_MODE_MANUAL,
+    auto_init=False,
+)
+k8s_resource(
+    'preview-gc',
     resource_deps=['postgres', 'migrate', 'local-s3'],
     trigger_mode=TRIGGER_MODE_MANUAL,
     auto_init=False,

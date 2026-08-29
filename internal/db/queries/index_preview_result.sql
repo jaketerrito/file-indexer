@@ -9,3 +9,9 @@ ON CONFLICT (file_id) DO UPDATE
         width       = EXCLUDED.width,
         height      = EXCLUDED.height,
         updated_at  = now();
+-- name: ListIndexPreviewKeys :many
+-- Every preview object key the index claims ownership of. The preview GC
+-- set-diffs a bucket listing of the previews/ prefix against this: a listed
+-- key absent here is an orphan (its row vanished by files-row cascade or its
+-- PUT never reached Complete) and is deleted from storage.
+SELECT preview_key FROM index_preview_result;
