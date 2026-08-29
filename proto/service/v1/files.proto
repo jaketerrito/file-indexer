@@ -67,6 +67,31 @@ message FileInfo {
   // least one of the two. Unset when the file has no exif index result yet,
   // or has neither EXIF nor XMP data.
   ExifMetadata exif = 10;
+  // Where this file stands in the preview index pipeline, so clients can
+  // distinguish "no preview is coming" from "not yet indexed" — both surface
+  // as an empty preview_key. Computed from the index queue by SearchService
+  // list RPCs; UNSPECIFIED from RPCs that do not compute it.
+  PreviewStatus preview_status = 11;
+}
+// PreviewStatus describes a file's position in the preview index pipeline.
+enum PreviewStatus {
+  // The RPC did not compute a status.
+  PREVIEW_STATUS_UNSPECIFIED = 0;
+  // No preview exists and none is coming: the file is not an image, or the
+  // preview indexer processed it and produced nothing (e.g. unsupported or
+  // oversized source).
+  PREVIEW_STATUS_NONE = 1;
+  // Indexing is in flight: the job is queued, or the file is so new that
+  // queue seeding has not enqueued it yet and (without a stat result) its
+  // content type is not yet known.
+  PREVIEW_STATUS_PENDING = 2;
+  // An indexer holds the job right now.
+  PREVIEW_STATUS_PROCESSING = 3;
+  // preview_key is set; the preview is ready to serve.
+  PREVIEW_STATUS_READY = 4;
+  // Indexing attempts are exhausted; the job is parked as error until
+  // manually reset.
+  PREVIEW_STATUS_FAILED = 5;
 }
 
 // EXIF and XMP metadata extracted from an image or camera-RAW file. Mirrors

@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
+import { PreviewStatus } from '../gen/service/v1/files_pb'
 import type { FileFilters } from '../lib/fileFilters'
 import { deleteFile, getDownloadUrl, getFileMetadata, listFiles } from '../server/files'
 import { FileMetadataModal } from './FileMetadataModal'
@@ -45,6 +46,7 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
         }),
       initialPageParam: '',
       getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+      refetchInterval: 2000,
     })
 
   const deleteMutation = useMutation({
@@ -161,6 +163,25 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
                         height={file.previewHeight ?? undefined}
                         loading="lazy"
                       />
+                    ) : file.previewStatus === PreviewStatus.PENDING ||
+                      file.previewStatus === PreviewStatus.PROCESSING ? (
+                      file.contentType.startsWith('image/') ? (
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            width: '4em',
+                            height: '4em',
+                            border: '1px solid #ccc',
+                            background: '#f5f5f5',
+                          }}
+                        >
+                          Processing…
+                        </span>
+                      ) : (
+                        <span>Indexing…</span>
+                      )
+                    ) : file.previewStatus === PreviewStatus.FAILED ? (
+                      <span>Preview failed</span>
                     ) : null}{' '}
                     <span>{file.key}</span>{' '}
                     <button type="button" onClick={() => void handleDownload(file.id)}>

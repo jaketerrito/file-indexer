@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { PreviewStatus } from '../gen/service/v1/files_pb'
 import { DEFAULT_FILTERS, type FileFilters } from '../lib/fileFilters'
 import type { ListFilesResult } from '../server/impl'
 import { FileList } from './FileList'
@@ -33,6 +34,7 @@ function page(keys: string[], startId: number, nextPageToken = ''): ListFilesRes
       previewUrl: null,
       previewWidth: null,
       previewHeight: null,
+      previewStatus: PreviewStatus.NONE,
     })),
     nextPageToken,
   }
@@ -262,6 +264,78 @@ describe('FileList', () => {
     await screen.findByText('a.txt')
 
     expect(screen.queryByRole('presentation')).toBeNull()
+  })
+
+  it('shows a placeholder for image files whose preview is pending', async () => {
+    listFilesMock.mockResolvedValue({
+      files: [
+        {
+          id: '1',
+          key: 'photo.jpg',
+          contentType: 'image/jpeg',
+          sizeBytes: 1,
+          createdAt: null,
+          previewUrl: null,
+          previewWidth: null,
+          previewHeight: null,
+          previewStatus: PreviewStatus.PENDING,
+        },
+      ],
+      nextPageToken: '',
+    })
+
+    renderFileList()
+    await screen.findByText('photo.jpg')
+
+    expect(screen.getByText('Processing…')).toBeDefined()
+  })
+
+  it('shows an indexing indicator for non-image files that are pending', async () => {
+    listFilesMock.mockResolvedValue({
+      files: [
+        {
+          id: '1',
+          key: 'report.pdf',
+          contentType: 'application/pdf',
+          sizeBytes: 1,
+          createdAt: null,
+          previewUrl: null,
+          previewWidth: null,
+          previewHeight: null,
+          previewStatus: PreviewStatus.PENDING,
+        },
+      ],
+      nextPageToken: '',
+    })
+
+    renderFileList()
+    await screen.findByText('report.pdf')
+
+    expect(screen.getByText('Indexing…')).toBeDefined()
+  })
+
+  it('shows a failed indicator when preview indexing failed', async () => {
+    listFilesMock.mockResolvedValue({
+      files: [
+        {
+          id: '1',
+          key: 'photo.jpg',
+          contentType: 'image/jpeg',
+          sizeBytes: 1,
+          createdAt: null,
+          previewUrl: null,
+          previewWidth: null,
+          previewHeight: null,
+          previewStatus: PreviewStatus.FAILED,
+        },
+      ],
+      nextPageToken: '',
+    })
+
+    renderFileList()
+    await screen.findByText('photo.jpg')
+
+    expect(screen.getByText('Preview failed')).toBeDefined()
   })
 
   it('deletes a file and refetches the list', async () => {

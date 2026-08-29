@@ -22,6 +22,76 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// PreviewStatus describes a file's position in the preview index pipeline.
+type PreviewStatus int32
+
+const (
+	// The RPC did not compute a status.
+	PreviewStatus_PREVIEW_STATUS_UNSPECIFIED PreviewStatus = 0
+	// No preview exists and none is coming: the file is not an image, or the
+	// preview indexer processed it and produced nothing (e.g. unsupported or
+	// oversized source).
+	PreviewStatus_PREVIEW_STATUS_NONE PreviewStatus = 1
+	// Indexing is in flight: the job is queued, or the file is so new that
+	// queue seeding has not enqueued it yet and (without a stat result) its
+	// content type is not yet known.
+	PreviewStatus_PREVIEW_STATUS_PENDING PreviewStatus = 2
+	// An indexer holds the job right now.
+	PreviewStatus_PREVIEW_STATUS_PROCESSING PreviewStatus = 3
+	// preview_key is set; the preview is ready to serve.
+	PreviewStatus_PREVIEW_STATUS_READY PreviewStatus = 4
+	// Indexing attempts are exhausted; the job is parked as error until
+	// manually reset.
+	PreviewStatus_PREVIEW_STATUS_FAILED PreviewStatus = 5
+)
+
+// Enum value maps for PreviewStatus.
+var (
+	PreviewStatus_name = map[int32]string{
+		0: "PREVIEW_STATUS_UNSPECIFIED",
+		1: "PREVIEW_STATUS_NONE",
+		2: "PREVIEW_STATUS_PENDING",
+		3: "PREVIEW_STATUS_PROCESSING",
+		4: "PREVIEW_STATUS_READY",
+		5: "PREVIEW_STATUS_FAILED",
+	}
+	PreviewStatus_value = map[string]int32{
+		"PREVIEW_STATUS_UNSPECIFIED": 0,
+		"PREVIEW_STATUS_NONE":        1,
+		"PREVIEW_STATUS_PENDING":     2,
+		"PREVIEW_STATUS_PROCESSING":  3,
+		"PREVIEW_STATUS_READY":       4,
+		"PREVIEW_STATUS_FAILED":      5,
+	}
+)
+
+func (x PreviewStatus) Enum() *PreviewStatus {
+	p := new(PreviewStatus)
+	*p = x
+	return p
+}
+
+func (x PreviewStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PreviewStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_service_v1_files_proto_enumTypes[0].Descriptor()
+}
+
+func (PreviewStatus) Type() protoreflect.EnumType {
+	return &file_service_v1_files_proto_enumTypes[0]
+}
+
+func (x PreviewStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PreviewStatus.Descriptor instead.
+func (PreviewStatus) EnumDescriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{0}
+}
+
 type GetDownloadURLRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ids           []int64                `protobuf:"varint,1,rep,packed,name=ids,proto3" json:"ids,omitempty"`
@@ -366,7 +436,12 @@ type FileInfo struct {
 	// EXIF/XMP metadata, present only for image/camera-RAW files that carry at
 	// least one of the two. Unset when the file has no exif index result yet,
 	// or has neither EXIF nor XMP data.
-	Exif          *ExifMetadata `protobuf:"bytes,10,opt,name=exif,proto3" json:"exif,omitempty"`
+	Exif *ExifMetadata `protobuf:"bytes,10,opt,name=exif,proto3" json:"exif,omitempty"`
+	// Where this file stands in the preview index pipeline, so clients can
+	// distinguish "no preview is coming" from "not yet indexed" — both surface
+	// as an empty preview_key. Computed from the index queue by SearchService
+	// list RPCs; UNSPECIFIED from RPCs that do not compute it.
+	PreviewStatus PreviewStatus `protobuf:"varint,11,opt,name=preview_status,json=previewStatus,proto3,enum=service.v1.PreviewStatus" json:"preview_status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -469,6 +544,13 @@ func (x *FileInfo) GetExif() *ExifMetadata {
 		return x.Exif
 	}
 	return nil
+}
+
+func (x *FileInfo) GetPreviewStatus() PreviewStatus {
+	if x != nil {
+		return x.PreviewStatus
+	}
+	return PreviewStatus_PREVIEW_STATUS_UNSPECIFIED
 }
 
 // EXIF and XMP metadata extracted from an image or camera-RAW file. Mirrors
@@ -1322,7 +1404,7 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\x15GetPreviewURLResponse\x12=\n" +
 	"\fpreview_urls\x18\x01 \x03(\v2\x1a.service.v1.PreviewURLSpecR\vpreviewUrls\"$\n" +
 	"\x12GetFileInfoRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x03R\x02id\"\xff\x02\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\"\xc1\x03\n" +
 	"\bFileInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x03R\x02id\x12\x10\n" +
 	"\x03key\x18\x02 \x01(\tR\x03key\x12!\n" +
@@ -1338,7 +1420,8 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\rpreview_width\x18\b \x01(\x05R\fpreviewWidth\x12%\n" +
 	"\x0epreview_height\x18\t \x01(\x05R\rpreviewHeight\x12,\n" +
 	"\x04exif\x18\n" +
-	" \x01(\v2\x18.service.v1.ExifMetadataR\x04exif\"\xb0\x0e\n" +
+	" \x01(\v2\x18.service.v1.ExifMetadataR\x04exif\x12@\n" +
+	"\x0epreview_status\x18\v \x01(\x0e2\x19.service.v1.PreviewStatusR\rpreviewStatus\"\xb0\x0e\n" +
 	"\fExifMetadata\x12\"\n" +
 	"\n" +
 	"image_type\x18\x01 \x01(\tH\x00R\timageType\x88\x01\x01\x12$\n" +
@@ -1439,7 +1522,14 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\x16DeleteDirectoryRequest\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\">\n" +
 	"\x17DeleteDirectoryResponse\x12#\n" +
-	"\rdeleted_count\x18\x01 \x01(\x03R\fdeletedCount2\xbe\x05\n" +
+	"\rdeleted_count\x18\x01 \x01(\x03R\fdeletedCount*\xb8\x01\n" +
+	"\rPreviewStatus\x12\x1e\n" +
+	"\x1aPREVIEW_STATUS_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13PREVIEW_STATUS_NONE\x10\x01\x12\x1a\n" +
+	"\x16PREVIEW_STATUS_PENDING\x10\x02\x12\x1d\n" +
+	"\x19PREVIEW_STATUS_PROCESSING\x10\x03\x12\x18\n" +
+	"\x14PREVIEW_STATUS_READY\x10\x04\x12\x19\n" +
+	"\x15PREVIEW_STATUS_FAILED\x10\x052\xbe\x05\n" +
 	"\fFilesService\x12W\n" +
 	"\x0eGetDownloadURL\x12!.service.v1.GetDownloadURLRequest\x1a\".service.v1.GetDownloadURLResponse\x12T\n" +
 	"\rGetPreviewURL\x12 .service.v1.GetPreviewURLRequest\x1a!.service.v1.GetPreviewURLResponse\x12N\n" +
@@ -1463,62 +1553,65 @@ func file_service_v1_files_proto_rawDescGZIP() []byte {
 	return file_service_v1_files_proto_rawDescData
 }
 
+var file_service_v1_files_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_service_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_service_v1_files_proto_goTypes = []any{
-	(*GetDownloadURLRequest)(nil),     // 0: service.v1.GetDownloadURLRequest
-	(*DownloadURLSpec)(nil),           // 1: service.v1.DownloadURLSpec
-	(*GetDownloadURLResponse)(nil),    // 2: service.v1.GetDownloadURLResponse
-	(*GetPreviewURLRequest)(nil),      // 3: service.v1.GetPreviewURLRequest
-	(*PreviewURLSpec)(nil),            // 4: service.v1.PreviewURLSpec
-	(*GetPreviewURLResponse)(nil),     // 5: service.v1.GetPreviewURLResponse
-	(*GetFileInfoRequest)(nil),        // 6: service.v1.GetFileInfoRequest
-	(*FileInfo)(nil),                  // 7: service.v1.FileInfo
-	(*ExifMetadata)(nil),              // 8: service.v1.ExifMetadata
-	(*GetFileInfoResponse)(nil),       // 9: service.v1.GetFileInfoResponse
-	(*DeleteFileRequest)(nil),         // 10: service.v1.DeleteFileRequest
-	(*DeleteFileResponse)(nil),        // 11: service.v1.DeleteFileResponse
-	(*GetUploadURLRequest)(nil),       // 12: service.v1.GetUploadURLRequest
-	(*GetUploadURLResponse)(nil),      // 13: service.v1.GetUploadURLResponse
-	(*CommitUploadRequest)(nil),       // 14: service.v1.CommitUploadRequest
-	(*CommitUploadResponse)(nil),      // 15: service.v1.CommitUploadResponse
-	(*GetDirectoryStatsRequest)(nil),  // 16: service.v1.GetDirectoryStatsRequest
-	(*GetDirectoryStatsResponse)(nil), // 17: service.v1.GetDirectoryStatsResponse
-	(*DeleteDirectoryRequest)(nil),    // 18: service.v1.DeleteDirectoryRequest
-	(*DeleteDirectoryResponse)(nil),   // 19: service.v1.DeleteDirectoryResponse
-	(*timestamppb.Timestamp)(nil),     // 20: google.protobuf.Timestamp
+	(PreviewStatus)(0),                // 0: service.v1.PreviewStatus
+	(*GetDownloadURLRequest)(nil),     // 1: service.v1.GetDownloadURLRequest
+	(*DownloadURLSpec)(nil),           // 2: service.v1.DownloadURLSpec
+	(*GetDownloadURLResponse)(nil),    // 3: service.v1.GetDownloadURLResponse
+	(*GetPreviewURLRequest)(nil),      // 4: service.v1.GetPreviewURLRequest
+	(*PreviewURLSpec)(nil),            // 5: service.v1.PreviewURLSpec
+	(*GetPreviewURLResponse)(nil),     // 6: service.v1.GetPreviewURLResponse
+	(*GetFileInfoRequest)(nil),        // 7: service.v1.GetFileInfoRequest
+	(*FileInfo)(nil),                  // 8: service.v1.FileInfo
+	(*ExifMetadata)(nil),              // 9: service.v1.ExifMetadata
+	(*GetFileInfoResponse)(nil),       // 10: service.v1.GetFileInfoResponse
+	(*DeleteFileRequest)(nil),         // 11: service.v1.DeleteFileRequest
+	(*DeleteFileResponse)(nil),        // 12: service.v1.DeleteFileResponse
+	(*GetUploadURLRequest)(nil),       // 13: service.v1.GetUploadURLRequest
+	(*GetUploadURLResponse)(nil),      // 14: service.v1.GetUploadURLResponse
+	(*CommitUploadRequest)(nil),       // 15: service.v1.CommitUploadRequest
+	(*CommitUploadResponse)(nil),      // 16: service.v1.CommitUploadResponse
+	(*GetDirectoryStatsRequest)(nil),  // 17: service.v1.GetDirectoryStatsRequest
+	(*GetDirectoryStatsResponse)(nil), // 18: service.v1.GetDirectoryStatsResponse
+	(*DeleteDirectoryRequest)(nil),    // 19: service.v1.DeleteDirectoryRequest
+	(*DeleteDirectoryResponse)(nil),   // 20: service.v1.DeleteDirectoryResponse
+	(*timestamppb.Timestamp)(nil),     // 21: google.protobuf.Timestamp
 }
 var file_service_v1_files_proto_depIdxs = []int32{
-	1,  // 0: service.v1.GetDownloadURLResponse.download_urls:type_name -> service.v1.DownloadURLSpec
-	4,  // 1: service.v1.GetPreviewURLResponse.preview_urls:type_name -> service.v1.PreviewURLSpec
-	20, // 2: service.v1.FileInfo.created_at:type_name -> google.protobuf.Timestamp
-	20, // 3: service.v1.FileInfo.updated_at:type_name -> google.protobuf.Timestamp
-	8,  // 4: service.v1.FileInfo.exif:type_name -> service.v1.ExifMetadata
-	20, // 5: service.v1.ExifMetadata.taken_at:type_name -> google.protobuf.Timestamp
-	20, // 6: service.v1.ExifMetadata.gps_at:type_name -> google.protobuf.Timestamp
-	20, // 7: service.v1.ExifMetadata.xmp_create_date:type_name -> google.protobuf.Timestamp
-	7,  // 8: service.v1.GetFileInfoResponse.file:type_name -> service.v1.FileInfo
-	7,  // 9: service.v1.CommitUploadResponse.file:type_name -> service.v1.FileInfo
-	0,  // 10: service.v1.FilesService.GetDownloadURL:input_type -> service.v1.GetDownloadURLRequest
-	3,  // 11: service.v1.FilesService.GetPreviewURL:input_type -> service.v1.GetPreviewURLRequest
-	6,  // 12: service.v1.FilesService.GetFileInfo:input_type -> service.v1.GetFileInfoRequest
-	10, // 13: service.v1.FilesService.DeleteFile:input_type -> service.v1.DeleteFileRequest
-	12, // 14: service.v1.FilesService.GetUploadURL:input_type -> service.v1.GetUploadURLRequest
-	14, // 15: service.v1.FilesService.CommitUpload:input_type -> service.v1.CommitUploadRequest
-	16, // 16: service.v1.FilesService.GetDirectoryStats:input_type -> service.v1.GetDirectoryStatsRequest
-	18, // 17: service.v1.FilesService.DeleteDirectory:input_type -> service.v1.DeleteDirectoryRequest
-	2,  // 18: service.v1.FilesService.GetDownloadURL:output_type -> service.v1.GetDownloadURLResponse
-	5,  // 19: service.v1.FilesService.GetPreviewURL:output_type -> service.v1.GetPreviewURLResponse
-	9,  // 20: service.v1.FilesService.GetFileInfo:output_type -> service.v1.GetFileInfoResponse
-	11, // 21: service.v1.FilesService.DeleteFile:output_type -> service.v1.DeleteFileResponse
-	13, // 22: service.v1.FilesService.GetUploadURL:output_type -> service.v1.GetUploadURLResponse
-	15, // 23: service.v1.FilesService.CommitUpload:output_type -> service.v1.CommitUploadResponse
-	17, // 24: service.v1.FilesService.GetDirectoryStats:output_type -> service.v1.GetDirectoryStatsResponse
-	19, // 25: service.v1.FilesService.DeleteDirectory:output_type -> service.v1.DeleteDirectoryResponse
-	18, // [18:26] is the sub-list for method output_type
-	10, // [10:18] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	2,  // 0: service.v1.GetDownloadURLResponse.download_urls:type_name -> service.v1.DownloadURLSpec
+	5,  // 1: service.v1.GetPreviewURLResponse.preview_urls:type_name -> service.v1.PreviewURLSpec
+	21, // 2: service.v1.FileInfo.created_at:type_name -> google.protobuf.Timestamp
+	21, // 3: service.v1.FileInfo.updated_at:type_name -> google.protobuf.Timestamp
+	9,  // 4: service.v1.FileInfo.exif:type_name -> service.v1.ExifMetadata
+	0,  // 5: service.v1.FileInfo.preview_status:type_name -> service.v1.PreviewStatus
+	21, // 6: service.v1.ExifMetadata.taken_at:type_name -> google.protobuf.Timestamp
+	21, // 7: service.v1.ExifMetadata.gps_at:type_name -> google.protobuf.Timestamp
+	21, // 8: service.v1.ExifMetadata.xmp_create_date:type_name -> google.protobuf.Timestamp
+	8,  // 9: service.v1.GetFileInfoResponse.file:type_name -> service.v1.FileInfo
+	8,  // 10: service.v1.CommitUploadResponse.file:type_name -> service.v1.FileInfo
+	1,  // 11: service.v1.FilesService.GetDownloadURL:input_type -> service.v1.GetDownloadURLRequest
+	4,  // 12: service.v1.FilesService.GetPreviewURL:input_type -> service.v1.GetPreviewURLRequest
+	7,  // 13: service.v1.FilesService.GetFileInfo:input_type -> service.v1.GetFileInfoRequest
+	11, // 14: service.v1.FilesService.DeleteFile:input_type -> service.v1.DeleteFileRequest
+	13, // 15: service.v1.FilesService.GetUploadURL:input_type -> service.v1.GetUploadURLRequest
+	15, // 16: service.v1.FilesService.CommitUpload:input_type -> service.v1.CommitUploadRequest
+	17, // 17: service.v1.FilesService.GetDirectoryStats:input_type -> service.v1.GetDirectoryStatsRequest
+	19, // 18: service.v1.FilesService.DeleteDirectory:input_type -> service.v1.DeleteDirectoryRequest
+	3,  // 19: service.v1.FilesService.GetDownloadURL:output_type -> service.v1.GetDownloadURLResponse
+	6,  // 20: service.v1.FilesService.GetPreviewURL:output_type -> service.v1.GetPreviewURLResponse
+	10, // 21: service.v1.FilesService.GetFileInfo:output_type -> service.v1.GetFileInfoResponse
+	12, // 22: service.v1.FilesService.DeleteFile:output_type -> service.v1.DeleteFileResponse
+	14, // 23: service.v1.FilesService.GetUploadURL:output_type -> service.v1.GetUploadURLResponse
+	16, // 24: service.v1.FilesService.CommitUpload:output_type -> service.v1.CommitUploadResponse
+	18, // 25: service.v1.FilesService.GetDirectoryStats:output_type -> service.v1.GetDirectoryStatsResponse
+	20, // 26: service.v1.FilesService.DeleteDirectory:output_type -> service.v1.DeleteDirectoryResponse
+	19, // [19:27] is the sub-list for method output_type
+	11, // [11:19] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_service_v1_files_proto_init() }
@@ -1532,13 +1625,14 @@ func file_service_v1_files_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_v1_files_proto_rawDesc), len(file_service_v1_files_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_service_v1_files_proto_goTypes,
 		DependencyIndexes: file_service_v1_files_proto_depIdxs,
+		EnumInfos:         file_service_v1_files_proto_enumTypes,
 		MessageInfos:      file_service_v1_files_proto_msgTypes,
 	}.Build()
 	File_service_v1_files_proto = out.File

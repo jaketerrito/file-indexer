@@ -52,6 +52,7 @@ function fileInfo(
     previewKey?: string
     previewWidth?: number
     previewHeight?: number
+    previewStatus?: number
   } = {},
 ) {
   return create(FileInfoSchema, {
@@ -63,6 +64,7 @@ function fileInfo(
     previewKey: overrides.previewKey ?? '',
     previewWidth: overrides.previewWidth ?? 0,
     previewHeight: overrides.previewHeight ?? 0,
+    previewStatus: overrides.previewStatus ?? 0,
   })
 }
 
@@ -86,6 +88,7 @@ describe('toFileDto', () => {
       previewUrl: null,
       previewWidth: null,
       previewHeight: null,
+      previewStatus: 0,
     })
   })
 

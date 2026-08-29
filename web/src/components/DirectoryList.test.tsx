@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { PreviewStatus } from '../gen/service/v1/files_pb'
 import type { ListDirectoryResult } from '../server/impl'
 import { DirectoryList } from './DirectoryList'
 
@@ -45,6 +46,7 @@ function page(
       previewUrl: null,
       previewWidth: null,
       previewHeight: null,
+      previewStatus: PreviewStatus.NONE,
     })),
     nextPageToken,
   }
@@ -201,6 +203,81 @@ describe('DirectoryList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Metadata' }))
 
     expect(await screen.findByRole('dialog')).toBeDefined()
+  })
+
+  it('shows a placeholder for pending image previews', async () => {
+    listDirectoryMock.mockResolvedValue({
+      directories: [],
+      files: [
+        {
+          id: '1',
+          key: 'docs/photo.jpg',
+          contentType: 'image/jpeg',
+          sizeBytes: 1,
+          createdAt: null,
+          previewUrl: null,
+          previewWidth: null,
+          previewHeight: null,
+          previewStatus: PreviewStatus.PENDING,
+        },
+      ],
+      nextPageToken: '',
+    })
+
+    renderDirectoryList()
+    await screen.findByText('photo.jpg')
+
+    expect(screen.getByText('Processing…')).toBeDefined()
+  })
+
+  it('shows an indexing indicator for pending non-images', async () => {
+    listDirectoryMock.mockResolvedValue({
+      directories: [],
+      files: [
+        {
+          id: '1',
+          key: 'docs/report.pdf',
+          contentType: 'application/pdf',
+          sizeBytes: 1,
+          createdAt: null,
+          previewUrl: null,
+          previewWidth: null,
+          previewHeight: null,
+          previewStatus: PreviewStatus.PENDING,
+        },
+      ],
+      nextPageToken: '',
+    })
+
+    renderDirectoryList()
+    await screen.findByText('report.pdf')
+
+    expect(screen.getByText('Indexing…')).toBeDefined()
+  })
+
+  it('shows a failed indicator for failed previews', async () => {
+    listDirectoryMock.mockResolvedValue({
+      directories: [],
+      files: [
+        {
+          id: '1',
+          key: 'docs/photo.jpg',
+          contentType: 'image/jpeg',
+          sizeBytes: 1,
+          createdAt: null,
+          previewUrl: null,
+          previewWidth: null,
+          previewHeight: null,
+          previewStatus: PreviewStatus.FAILED,
+        },
+      ],
+      nextPageToken: '',
+    })
+
+    renderDirectoryList()
+    await screen.findByText('photo.jpg')
+
+    expect(screen.getByText('Preview failed')).toBeDefined()
   })
 
   it('shows folder contents in a confirm dialog before deleting', async () => {
