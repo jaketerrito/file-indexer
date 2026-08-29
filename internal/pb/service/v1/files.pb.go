@@ -92,6 +92,155 @@ func (PreviewStatus) EnumDescriptor() ([]byte, []int) {
 	return file_service_v1_files_proto_rawDescGZIP(), []int{0}
 }
 
+type GetFilePreviewStatusesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ids           []int64                `protobuf:"varint,1,rep,packed,name=ids,proto3" json:"ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFilePreviewStatusesRequest) Reset() {
+	*x = GetFilePreviewStatusesRequest{}
+	mi := &file_service_v1_files_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFilePreviewStatusesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFilePreviewStatusesRequest) ProtoMessage() {}
+
+func (x *GetFilePreviewStatusesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFilePreviewStatusesRequest.ProtoReflect.Descriptor instead.
+func (*GetFilePreviewStatusesRequest) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *GetFilePreviewStatusesRequest) GetIds() []int64 {
+	if x != nil {
+		return x.Ids
+	}
+	return nil
+}
+
+type FilePreviewStatus struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            int64                  `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	PreviewStatus PreviewStatus          `protobuf:"varint,2,opt,name=preview_status,json=previewStatus,proto3,enum=service.v1.PreviewStatus" json:"preview_status,omitempty"`
+	// Presigned preview URL when status is READY; empty otherwise.
+	PreviewUrl    string `protobuf:"bytes,3,opt,name=preview_url,json=previewUrl,proto3" json:"preview_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FilePreviewStatus) Reset() {
+	*x = FilePreviewStatus{}
+	mi := &file_service_v1_files_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FilePreviewStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FilePreviewStatus) ProtoMessage() {}
+
+func (x *FilePreviewStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FilePreviewStatus.ProtoReflect.Descriptor instead.
+func (*FilePreviewStatus) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *FilePreviewStatus) GetId() int64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *FilePreviewStatus) GetPreviewStatus() PreviewStatus {
+	if x != nil {
+		return x.PreviewStatus
+	}
+	return PreviewStatus_PREVIEW_STATUS_UNSPECIFIED
+}
+
+func (x *FilePreviewStatus) GetPreviewUrl() string {
+	if x != nil {
+		return x.PreviewUrl
+	}
+	return ""
+}
+
+type GetFilePreviewStatusesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Statuses      []*FilePreviewStatus   `protobuf:"bytes,1,rep,name=statuses,proto3" json:"statuses,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetFilePreviewStatusesResponse) Reset() {
+	*x = GetFilePreviewStatusesResponse{}
+	mi := &file_service_v1_files_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetFilePreviewStatusesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetFilePreviewStatusesResponse) ProtoMessage() {}
+
+func (x *GetFilePreviewStatusesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetFilePreviewStatusesResponse.ProtoReflect.Descriptor instead.
+func (*GetFilePreviewStatusesResponse) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetFilePreviewStatusesResponse) GetStatuses() []*FilePreviewStatus {
+	if x != nil {
+		return x.Statuses
+	}
+	return nil
+}
+
 type GetDownloadURLRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ids           []int64                `protobuf:"varint,1,rep,packed,name=ids,proto3" json:"ids,omitempty"`
@@ -101,7 +250,7 @@ type GetDownloadURLRequest struct {
 
 func (x *GetDownloadURLRequest) Reset() {
 	*x = GetDownloadURLRequest{}
-	mi := &file_service_v1_files_proto_msgTypes[0]
+	mi := &file_service_v1_files_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -113,7 +262,7 @@ func (x *GetDownloadURLRequest) String() string {
 func (*GetDownloadURLRequest) ProtoMessage() {}
 
 func (x *GetDownloadURLRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[0]
+	mi := &file_service_v1_files_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -126,7 +275,7 @@ func (x *GetDownloadURLRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDownloadURLRequest.ProtoReflect.Descriptor instead.
 func (*GetDownloadURLRequest) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{0}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetDownloadURLRequest) GetIds() []int64 {
@@ -146,7 +295,7 @@ type DownloadURLSpec struct {
 
 func (x *DownloadURLSpec) Reset() {
 	*x = DownloadURLSpec{}
-	mi := &file_service_v1_files_proto_msgTypes[1]
+	mi := &file_service_v1_files_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -158,7 +307,7 @@ func (x *DownloadURLSpec) String() string {
 func (*DownloadURLSpec) ProtoMessage() {}
 
 func (x *DownloadURLSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[1]
+	mi := &file_service_v1_files_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -171,7 +320,7 @@ func (x *DownloadURLSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadURLSpec.ProtoReflect.Descriptor instead.
 func (*DownloadURLSpec) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{1}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *DownloadURLSpec) GetId() int64 {
@@ -197,7 +346,7 @@ type GetDownloadURLResponse struct {
 
 func (x *GetDownloadURLResponse) Reset() {
 	*x = GetDownloadURLResponse{}
-	mi := &file_service_v1_files_proto_msgTypes[2]
+	mi := &file_service_v1_files_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -209,7 +358,7 @@ func (x *GetDownloadURLResponse) String() string {
 func (*GetDownloadURLResponse) ProtoMessage() {}
 
 func (x *GetDownloadURLResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[2]
+	mi := &file_service_v1_files_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -222,7 +371,7 @@ func (x *GetDownloadURLResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDownloadURLResponse.ProtoReflect.Descriptor instead.
 func (*GetDownloadURLResponse) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{2}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *GetDownloadURLResponse) GetDownloadUrls() []*DownloadURLSpec {
@@ -241,7 +390,7 @@ type GetPreviewURLRequest struct {
 
 func (x *GetPreviewURLRequest) Reset() {
 	*x = GetPreviewURLRequest{}
-	mi := &file_service_v1_files_proto_msgTypes[3]
+	mi := &file_service_v1_files_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -253,7 +402,7 @@ func (x *GetPreviewURLRequest) String() string {
 func (*GetPreviewURLRequest) ProtoMessage() {}
 
 func (x *GetPreviewURLRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[3]
+	mi := &file_service_v1_files_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -266,7 +415,7 @@ func (x *GetPreviewURLRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPreviewURLRequest.ProtoReflect.Descriptor instead.
 func (*GetPreviewURLRequest) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{3}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetPreviewURLRequest) GetIds() []int64 {
@@ -286,7 +435,7 @@ type PreviewURLSpec struct {
 
 func (x *PreviewURLSpec) Reset() {
 	*x = PreviewURLSpec{}
-	mi := &file_service_v1_files_proto_msgTypes[4]
+	mi := &file_service_v1_files_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -298,7 +447,7 @@ func (x *PreviewURLSpec) String() string {
 func (*PreviewURLSpec) ProtoMessage() {}
 
 func (x *PreviewURLSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[4]
+	mi := &file_service_v1_files_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -311,7 +460,7 @@ func (x *PreviewURLSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewURLSpec.ProtoReflect.Descriptor instead.
 func (*PreviewURLSpec) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{4}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PreviewURLSpec) GetId() int64 {
@@ -339,7 +488,7 @@ type GetPreviewURLResponse struct {
 
 func (x *GetPreviewURLResponse) Reset() {
 	*x = GetPreviewURLResponse{}
-	mi := &file_service_v1_files_proto_msgTypes[5]
+	mi := &file_service_v1_files_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -351,7 +500,7 @@ func (x *GetPreviewURLResponse) String() string {
 func (*GetPreviewURLResponse) ProtoMessage() {}
 
 func (x *GetPreviewURLResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[5]
+	mi := &file_service_v1_files_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -364,7 +513,7 @@ func (x *GetPreviewURLResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPreviewURLResponse.ProtoReflect.Descriptor instead.
 func (*GetPreviewURLResponse) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{5}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetPreviewURLResponse) GetPreviewUrls() []*PreviewURLSpec {
@@ -383,7 +532,7 @@ type GetFileInfoRequest struct {
 
 func (x *GetFileInfoRequest) Reset() {
 	*x = GetFileInfoRequest{}
-	mi := &file_service_v1_files_proto_msgTypes[6]
+	mi := &file_service_v1_files_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -395,7 +544,7 @@ func (x *GetFileInfoRequest) String() string {
 func (*GetFileInfoRequest) ProtoMessage() {}
 
 func (x *GetFileInfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[6]
+	mi := &file_service_v1_files_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -408,7 +557,7 @@ func (x *GetFileInfoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFileInfoRequest.ProtoReflect.Descriptor instead.
 func (*GetFileInfoRequest) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{6}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetFileInfoRequest) GetId() int64 {
@@ -448,7 +597,7 @@ type FileInfo struct {
 
 func (x *FileInfo) Reset() {
 	*x = FileInfo{}
-	mi := &file_service_v1_files_proto_msgTypes[7]
+	mi := &file_service_v1_files_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -460,7 +609,7 @@ func (x *FileInfo) String() string {
 func (*FileInfo) ProtoMessage() {}
 
 func (x *FileInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[7]
+	mi := &file_service_v1_files_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -473,7 +622,7 @@ func (x *FileInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileInfo.ProtoReflect.Descriptor instead.
 func (*FileInfo) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{7}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *FileInfo) GetId() int64 {
@@ -609,7 +758,7 @@ type ExifMetadata struct {
 
 func (x *ExifMetadata) Reset() {
 	*x = ExifMetadata{}
-	mi := &file_service_v1_files_proto_msgTypes[8]
+	mi := &file_service_v1_files_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -621,7 +770,7 @@ func (x *ExifMetadata) String() string {
 func (*ExifMetadata) ProtoMessage() {}
 
 func (x *ExifMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[8]
+	mi := &file_service_v1_files_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -634,7 +783,7 @@ func (x *ExifMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExifMetadata.ProtoReflect.Descriptor instead.
 func (*ExifMetadata) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{8}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ExifMetadata) GetImageType() string {
@@ -891,7 +1040,7 @@ type GetFileInfoResponse struct {
 
 func (x *GetFileInfoResponse) Reset() {
 	*x = GetFileInfoResponse{}
-	mi := &file_service_v1_files_proto_msgTypes[9]
+	mi := &file_service_v1_files_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -903,7 +1052,7 @@ func (x *GetFileInfoResponse) String() string {
 func (*GetFileInfoResponse) ProtoMessage() {}
 
 func (x *GetFileInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[9]
+	mi := &file_service_v1_files_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -916,7 +1065,7 @@ func (x *GetFileInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFileInfoResponse.ProtoReflect.Descriptor instead.
 func (*GetFileInfoResponse) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{9}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetFileInfoResponse) GetFile() *FileInfo {
@@ -935,7 +1084,7 @@ type DeleteFileRequest struct {
 
 func (x *DeleteFileRequest) Reset() {
 	*x = DeleteFileRequest{}
-	mi := &file_service_v1_files_proto_msgTypes[10]
+	mi := &file_service_v1_files_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -947,7 +1096,7 @@ func (x *DeleteFileRequest) String() string {
 func (*DeleteFileRequest) ProtoMessage() {}
 
 func (x *DeleteFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[10]
+	mi := &file_service_v1_files_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -960,7 +1109,7 @@ func (x *DeleteFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFileRequest.ProtoReflect.Descriptor instead.
 func (*DeleteFileRequest) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{10}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *DeleteFileRequest) GetId() int64 {
@@ -978,7 +1127,7 @@ type DeleteFileResponse struct {
 
 func (x *DeleteFileResponse) Reset() {
 	*x = DeleteFileResponse{}
-	mi := &file_service_v1_files_proto_msgTypes[11]
+	mi := &file_service_v1_files_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -990,7 +1139,7 @@ func (x *DeleteFileResponse) String() string {
 func (*DeleteFileResponse) ProtoMessage() {}
 
 func (x *DeleteFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[11]
+	mi := &file_service_v1_files_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1003,7 +1152,7 @@ func (x *DeleteFileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFileResponse.ProtoReflect.Descriptor instead.
 func (*DeleteFileResponse) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{11}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{14}
 }
 
 type GetUploadURLRequest struct {
@@ -1018,7 +1167,7 @@ type GetUploadURLRequest struct {
 
 func (x *GetUploadURLRequest) Reset() {
 	*x = GetUploadURLRequest{}
-	mi := &file_service_v1_files_proto_msgTypes[12]
+	mi := &file_service_v1_files_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1030,7 +1179,7 @@ func (x *GetUploadURLRequest) String() string {
 func (*GetUploadURLRequest) ProtoMessage() {}
 
 func (x *GetUploadURLRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[12]
+	mi := &file_service_v1_files_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1043,7 +1192,7 @@ func (x *GetUploadURLRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUploadURLRequest.ProtoReflect.Descriptor instead.
 func (*GetUploadURLRequest) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{12}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetUploadURLRequest) GetKey() string {
@@ -1062,7 +1211,7 @@ type GetUploadURLResponse struct {
 
 func (x *GetUploadURLResponse) Reset() {
 	*x = GetUploadURLResponse{}
-	mi := &file_service_v1_files_proto_msgTypes[13]
+	mi := &file_service_v1_files_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1074,7 +1223,7 @@ func (x *GetUploadURLResponse) String() string {
 func (*GetUploadURLResponse) ProtoMessage() {}
 
 func (x *GetUploadURLResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[13]
+	mi := &file_service_v1_files_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1087,7 +1236,7 @@ func (x *GetUploadURLResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUploadURLResponse.ProtoReflect.Descriptor instead.
 func (*GetUploadURLResponse) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{13}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetUploadURLResponse) GetUrl() string {
@@ -1107,7 +1256,7 @@ type CommitUploadRequest struct {
 
 func (x *CommitUploadRequest) Reset() {
 	*x = CommitUploadRequest{}
-	mi := &file_service_v1_files_proto_msgTypes[14]
+	mi := &file_service_v1_files_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1119,7 +1268,7 @@ func (x *CommitUploadRequest) String() string {
 func (*CommitUploadRequest) ProtoMessage() {}
 
 func (x *CommitUploadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[14]
+	mi := &file_service_v1_files_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1132,7 +1281,7 @@ func (x *CommitUploadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommitUploadRequest.ProtoReflect.Descriptor instead.
 func (*CommitUploadRequest) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{14}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CommitUploadRequest) GetKey() string {
@@ -1154,7 +1303,7 @@ type CommitUploadResponse struct {
 
 func (x *CommitUploadResponse) Reset() {
 	*x = CommitUploadResponse{}
-	mi := &file_service_v1_files_proto_msgTypes[15]
+	mi := &file_service_v1_files_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1166,7 +1315,7 @@ func (x *CommitUploadResponse) String() string {
 func (*CommitUploadResponse) ProtoMessage() {}
 
 func (x *CommitUploadResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[15]
+	mi := &file_service_v1_files_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1179,7 +1328,7 @@ func (x *CommitUploadResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommitUploadResponse.ProtoReflect.Descriptor instead.
 func (*CommitUploadResponse) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{15}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *CommitUploadResponse) GetFile() *FileInfo {
@@ -1200,7 +1349,7 @@ type GetDirectoryStatsRequest struct {
 
 func (x *GetDirectoryStatsRequest) Reset() {
 	*x = GetDirectoryStatsRequest{}
-	mi := &file_service_v1_files_proto_msgTypes[16]
+	mi := &file_service_v1_files_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1212,7 +1361,7 @@ func (x *GetDirectoryStatsRequest) String() string {
 func (*GetDirectoryStatsRequest) ProtoMessage() {}
 
 func (x *GetDirectoryStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[16]
+	mi := &file_service_v1_files_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1225,7 +1374,7 @@ func (x *GetDirectoryStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDirectoryStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetDirectoryStatsRequest) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{16}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *GetDirectoryStatsRequest) GetPath() string {
@@ -1245,7 +1394,7 @@ type GetDirectoryStatsResponse struct {
 
 func (x *GetDirectoryStatsResponse) Reset() {
 	*x = GetDirectoryStatsResponse{}
-	mi := &file_service_v1_files_proto_msgTypes[17]
+	mi := &file_service_v1_files_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1257,7 +1406,7 @@ func (x *GetDirectoryStatsResponse) String() string {
 func (*GetDirectoryStatsResponse) ProtoMessage() {}
 
 func (x *GetDirectoryStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[17]
+	mi := &file_service_v1_files_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1270,7 +1419,7 @@ func (x *GetDirectoryStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDirectoryStatsResponse.ProtoReflect.Descriptor instead.
 func (*GetDirectoryStatsResponse) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{17}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetDirectoryStatsResponse) GetFileCount() int64 {
@@ -1299,7 +1448,7 @@ type DeleteDirectoryRequest struct {
 
 func (x *DeleteDirectoryRequest) Reset() {
 	*x = DeleteDirectoryRequest{}
-	mi := &file_service_v1_files_proto_msgTypes[18]
+	mi := &file_service_v1_files_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1311,7 +1460,7 @@ func (x *DeleteDirectoryRequest) String() string {
 func (*DeleteDirectoryRequest) ProtoMessage() {}
 
 func (x *DeleteDirectoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[18]
+	mi := &file_service_v1_files_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1324,7 +1473,7 @@ func (x *DeleteDirectoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDirectoryRequest.ProtoReflect.Descriptor instead.
 func (*DeleteDirectoryRequest) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{18}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *DeleteDirectoryRequest) GetPath() string {
@@ -1348,7 +1497,7 @@ type DeleteDirectoryResponse struct {
 
 func (x *DeleteDirectoryResponse) Reset() {
 	*x = DeleteDirectoryResponse{}
-	mi := &file_service_v1_files_proto_msgTypes[19]
+	mi := &file_service_v1_files_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1360,7 +1509,7 @@ func (x *DeleteDirectoryResponse) String() string {
 func (*DeleteDirectoryResponse) ProtoMessage() {}
 
 func (x *DeleteDirectoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[19]
+	mi := &file_service_v1_files_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1373,7 +1522,7 @@ func (x *DeleteDirectoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDirectoryResponse.ProtoReflect.Descriptor instead.
 func (*DeleteDirectoryResponse) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{19}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *DeleteDirectoryResponse) GetDeletedCount() int64 {
@@ -1388,7 +1537,16 @@ var File_service_v1_files_proto protoreflect.FileDescriptor
 const file_service_v1_files_proto_rawDesc = "" +
 	"\n" +
 	"\x16service/v1/files.proto\x12\n" +
-	"service.v1\x1a\x1fgoogle/protobuf/timestamp.proto\")\n" +
+	"service.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"1\n" +
+	"\x1dGetFilePreviewStatusesRequest\x12\x10\n" +
+	"\x03ids\x18\x01 \x03(\x03R\x03ids\"\x86\x01\n" +
+	"\x11FilePreviewStatus\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x03R\x02id\x12@\n" +
+	"\x0epreview_status\x18\x02 \x01(\x0e2\x19.service.v1.PreviewStatusR\rpreviewStatus\x12\x1f\n" +
+	"\vpreview_url\x18\x03 \x01(\tR\n" +
+	"previewUrl\"[\n" +
+	"\x1eGetFilePreviewStatusesResponse\x129\n" +
+	"\bstatuses\x18\x01 \x03(\v2\x1d.service.v1.FilePreviewStatusR\bstatuses\")\n" +
 	"\x15GetDownloadURLRequest\x12\x10\n" +
 	"\x03ids\x18\x01 \x03(\x03R\x03ids\"3\n" +
 	"\x0fDownloadURLSpec\x12\x0e\n" +
@@ -1529,7 +1687,7 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\x16PREVIEW_STATUS_PENDING\x10\x02\x12\x1d\n" +
 	"\x19PREVIEW_STATUS_PROCESSING\x10\x03\x12\x18\n" +
 	"\x14PREVIEW_STATUS_READY\x10\x04\x12\x19\n" +
-	"\x15PREVIEW_STATUS_FAILED\x10\x052\xbe\x05\n" +
+	"\x15PREVIEW_STATUS_FAILED\x10\x052\xaf\x06\n" +
 	"\fFilesService\x12W\n" +
 	"\x0eGetDownloadURL\x12!.service.v1.GetDownloadURLRequest\x1a\".service.v1.GetDownloadURLResponse\x12T\n" +
 	"\rGetPreviewURL\x12 .service.v1.GetPreviewURLRequest\x1a!.service.v1.GetPreviewURLResponse\x12N\n" +
@@ -1539,7 +1697,8 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\fGetUploadURL\x12\x1f.service.v1.GetUploadURLRequest\x1a .service.v1.GetUploadURLResponse\x12Q\n" +
 	"\fCommitUpload\x12\x1f.service.v1.CommitUploadRequest\x1a .service.v1.CommitUploadResponse\x12`\n" +
 	"\x11GetDirectoryStats\x12$.service.v1.GetDirectoryStatsRequest\x1a%.service.v1.GetDirectoryStatsResponse\x12Z\n" +
-	"\x0fDeleteDirectory\x12\".service.v1.DeleteDirectoryRequest\x1a#.service.v1.DeleteDirectoryResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
+	"\x0fDeleteDirectory\x12\".service.v1.DeleteDirectoryRequest\x1a#.service.v1.DeleteDirectoryResponse\x12o\n" +
+	"\x16GetFilePreviewStatuses\x12).service.v1.GetFilePreviewStatusesRequest\x1a*.service.v1.GetFilePreviewStatusesResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
 
 var (
 	file_service_v1_files_proto_rawDescOnce sync.Once
@@ -1554,64 +1713,71 @@ func file_service_v1_files_proto_rawDescGZIP() []byte {
 }
 
 var file_service_v1_files_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_service_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_service_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_service_v1_files_proto_goTypes = []any{
-	(PreviewStatus)(0),                // 0: service.v1.PreviewStatus
-	(*GetDownloadURLRequest)(nil),     // 1: service.v1.GetDownloadURLRequest
-	(*DownloadURLSpec)(nil),           // 2: service.v1.DownloadURLSpec
-	(*GetDownloadURLResponse)(nil),    // 3: service.v1.GetDownloadURLResponse
-	(*GetPreviewURLRequest)(nil),      // 4: service.v1.GetPreviewURLRequest
-	(*PreviewURLSpec)(nil),            // 5: service.v1.PreviewURLSpec
-	(*GetPreviewURLResponse)(nil),     // 6: service.v1.GetPreviewURLResponse
-	(*GetFileInfoRequest)(nil),        // 7: service.v1.GetFileInfoRequest
-	(*FileInfo)(nil),                  // 8: service.v1.FileInfo
-	(*ExifMetadata)(nil),              // 9: service.v1.ExifMetadata
-	(*GetFileInfoResponse)(nil),       // 10: service.v1.GetFileInfoResponse
-	(*DeleteFileRequest)(nil),         // 11: service.v1.DeleteFileRequest
-	(*DeleteFileResponse)(nil),        // 12: service.v1.DeleteFileResponse
-	(*GetUploadURLRequest)(nil),       // 13: service.v1.GetUploadURLRequest
-	(*GetUploadURLResponse)(nil),      // 14: service.v1.GetUploadURLResponse
-	(*CommitUploadRequest)(nil),       // 15: service.v1.CommitUploadRequest
-	(*CommitUploadResponse)(nil),      // 16: service.v1.CommitUploadResponse
-	(*GetDirectoryStatsRequest)(nil),  // 17: service.v1.GetDirectoryStatsRequest
-	(*GetDirectoryStatsResponse)(nil), // 18: service.v1.GetDirectoryStatsResponse
-	(*DeleteDirectoryRequest)(nil),    // 19: service.v1.DeleteDirectoryRequest
-	(*DeleteDirectoryResponse)(nil),   // 20: service.v1.DeleteDirectoryResponse
-	(*timestamppb.Timestamp)(nil),     // 21: google.protobuf.Timestamp
+	(PreviewStatus)(0),                     // 0: service.v1.PreviewStatus
+	(*GetFilePreviewStatusesRequest)(nil),  // 1: service.v1.GetFilePreviewStatusesRequest
+	(*FilePreviewStatus)(nil),              // 2: service.v1.FilePreviewStatus
+	(*GetFilePreviewStatusesResponse)(nil), // 3: service.v1.GetFilePreviewStatusesResponse
+	(*GetDownloadURLRequest)(nil),          // 4: service.v1.GetDownloadURLRequest
+	(*DownloadURLSpec)(nil),                // 5: service.v1.DownloadURLSpec
+	(*GetDownloadURLResponse)(nil),         // 6: service.v1.GetDownloadURLResponse
+	(*GetPreviewURLRequest)(nil),           // 7: service.v1.GetPreviewURLRequest
+	(*PreviewURLSpec)(nil),                 // 8: service.v1.PreviewURLSpec
+	(*GetPreviewURLResponse)(nil),          // 9: service.v1.GetPreviewURLResponse
+	(*GetFileInfoRequest)(nil),             // 10: service.v1.GetFileInfoRequest
+	(*FileInfo)(nil),                       // 11: service.v1.FileInfo
+	(*ExifMetadata)(nil),                   // 12: service.v1.ExifMetadata
+	(*GetFileInfoResponse)(nil),            // 13: service.v1.GetFileInfoResponse
+	(*DeleteFileRequest)(nil),              // 14: service.v1.DeleteFileRequest
+	(*DeleteFileResponse)(nil),             // 15: service.v1.DeleteFileResponse
+	(*GetUploadURLRequest)(nil),            // 16: service.v1.GetUploadURLRequest
+	(*GetUploadURLResponse)(nil),           // 17: service.v1.GetUploadURLResponse
+	(*CommitUploadRequest)(nil),            // 18: service.v1.CommitUploadRequest
+	(*CommitUploadResponse)(nil),           // 19: service.v1.CommitUploadResponse
+	(*GetDirectoryStatsRequest)(nil),       // 20: service.v1.GetDirectoryStatsRequest
+	(*GetDirectoryStatsResponse)(nil),      // 21: service.v1.GetDirectoryStatsResponse
+	(*DeleteDirectoryRequest)(nil),         // 22: service.v1.DeleteDirectoryRequest
+	(*DeleteDirectoryResponse)(nil),        // 23: service.v1.DeleteDirectoryResponse
+	(*timestamppb.Timestamp)(nil),          // 24: google.protobuf.Timestamp
 }
 var file_service_v1_files_proto_depIdxs = []int32{
-	2,  // 0: service.v1.GetDownloadURLResponse.download_urls:type_name -> service.v1.DownloadURLSpec
-	5,  // 1: service.v1.GetPreviewURLResponse.preview_urls:type_name -> service.v1.PreviewURLSpec
-	21, // 2: service.v1.FileInfo.created_at:type_name -> google.protobuf.Timestamp
-	21, // 3: service.v1.FileInfo.updated_at:type_name -> google.protobuf.Timestamp
-	9,  // 4: service.v1.FileInfo.exif:type_name -> service.v1.ExifMetadata
-	0,  // 5: service.v1.FileInfo.preview_status:type_name -> service.v1.PreviewStatus
-	21, // 6: service.v1.ExifMetadata.taken_at:type_name -> google.protobuf.Timestamp
-	21, // 7: service.v1.ExifMetadata.gps_at:type_name -> google.protobuf.Timestamp
-	21, // 8: service.v1.ExifMetadata.xmp_create_date:type_name -> google.protobuf.Timestamp
-	8,  // 9: service.v1.GetFileInfoResponse.file:type_name -> service.v1.FileInfo
-	8,  // 10: service.v1.CommitUploadResponse.file:type_name -> service.v1.FileInfo
-	1,  // 11: service.v1.FilesService.GetDownloadURL:input_type -> service.v1.GetDownloadURLRequest
-	4,  // 12: service.v1.FilesService.GetPreviewURL:input_type -> service.v1.GetPreviewURLRequest
-	7,  // 13: service.v1.FilesService.GetFileInfo:input_type -> service.v1.GetFileInfoRequest
-	11, // 14: service.v1.FilesService.DeleteFile:input_type -> service.v1.DeleteFileRequest
-	13, // 15: service.v1.FilesService.GetUploadURL:input_type -> service.v1.GetUploadURLRequest
-	15, // 16: service.v1.FilesService.CommitUpload:input_type -> service.v1.CommitUploadRequest
-	17, // 17: service.v1.FilesService.GetDirectoryStats:input_type -> service.v1.GetDirectoryStatsRequest
-	19, // 18: service.v1.FilesService.DeleteDirectory:input_type -> service.v1.DeleteDirectoryRequest
-	3,  // 19: service.v1.FilesService.GetDownloadURL:output_type -> service.v1.GetDownloadURLResponse
-	6,  // 20: service.v1.FilesService.GetPreviewURL:output_type -> service.v1.GetPreviewURLResponse
-	10, // 21: service.v1.FilesService.GetFileInfo:output_type -> service.v1.GetFileInfoResponse
-	12, // 22: service.v1.FilesService.DeleteFile:output_type -> service.v1.DeleteFileResponse
-	14, // 23: service.v1.FilesService.GetUploadURL:output_type -> service.v1.GetUploadURLResponse
-	16, // 24: service.v1.FilesService.CommitUpload:output_type -> service.v1.CommitUploadResponse
-	18, // 25: service.v1.FilesService.GetDirectoryStats:output_type -> service.v1.GetDirectoryStatsResponse
-	20, // 26: service.v1.FilesService.DeleteDirectory:output_type -> service.v1.DeleteDirectoryResponse
-	19, // [19:27] is the sub-list for method output_type
-	11, // [11:19] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	0,  // 0: service.v1.FilePreviewStatus.preview_status:type_name -> service.v1.PreviewStatus
+	2,  // 1: service.v1.GetFilePreviewStatusesResponse.statuses:type_name -> service.v1.FilePreviewStatus
+	5,  // 2: service.v1.GetDownloadURLResponse.download_urls:type_name -> service.v1.DownloadURLSpec
+	8,  // 3: service.v1.GetPreviewURLResponse.preview_urls:type_name -> service.v1.PreviewURLSpec
+	24, // 4: service.v1.FileInfo.created_at:type_name -> google.protobuf.Timestamp
+	24, // 5: service.v1.FileInfo.updated_at:type_name -> google.protobuf.Timestamp
+	12, // 6: service.v1.FileInfo.exif:type_name -> service.v1.ExifMetadata
+	0,  // 7: service.v1.FileInfo.preview_status:type_name -> service.v1.PreviewStatus
+	24, // 8: service.v1.ExifMetadata.taken_at:type_name -> google.protobuf.Timestamp
+	24, // 9: service.v1.ExifMetadata.gps_at:type_name -> google.protobuf.Timestamp
+	24, // 10: service.v1.ExifMetadata.xmp_create_date:type_name -> google.protobuf.Timestamp
+	11, // 11: service.v1.GetFileInfoResponse.file:type_name -> service.v1.FileInfo
+	11, // 12: service.v1.CommitUploadResponse.file:type_name -> service.v1.FileInfo
+	4,  // 13: service.v1.FilesService.GetDownloadURL:input_type -> service.v1.GetDownloadURLRequest
+	7,  // 14: service.v1.FilesService.GetPreviewURL:input_type -> service.v1.GetPreviewURLRequest
+	10, // 15: service.v1.FilesService.GetFileInfo:input_type -> service.v1.GetFileInfoRequest
+	14, // 16: service.v1.FilesService.DeleteFile:input_type -> service.v1.DeleteFileRequest
+	16, // 17: service.v1.FilesService.GetUploadURL:input_type -> service.v1.GetUploadURLRequest
+	18, // 18: service.v1.FilesService.CommitUpload:input_type -> service.v1.CommitUploadRequest
+	20, // 19: service.v1.FilesService.GetDirectoryStats:input_type -> service.v1.GetDirectoryStatsRequest
+	22, // 20: service.v1.FilesService.DeleteDirectory:input_type -> service.v1.DeleteDirectoryRequest
+	1,  // 21: service.v1.FilesService.GetFilePreviewStatuses:input_type -> service.v1.GetFilePreviewStatusesRequest
+	6,  // 22: service.v1.FilesService.GetDownloadURL:output_type -> service.v1.GetDownloadURLResponse
+	9,  // 23: service.v1.FilesService.GetPreviewURL:output_type -> service.v1.GetPreviewURLResponse
+	13, // 24: service.v1.FilesService.GetFileInfo:output_type -> service.v1.GetFileInfoResponse
+	15, // 25: service.v1.FilesService.DeleteFile:output_type -> service.v1.DeleteFileResponse
+	17, // 26: service.v1.FilesService.GetUploadURL:output_type -> service.v1.GetUploadURLResponse
+	19, // 27: service.v1.FilesService.CommitUpload:output_type -> service.v1.CommitUploadResponse
+	21, // 28: service.v1.FilesService.GetDirectoryStats:output_type -> service.v1.GetDirectoryStatsResponse
+	23, // 29: service.v1.FilesService.DeleteDirectory:output_type -> service.v1.DeleteDirectoryResponse
+	3,  // 30: service.v1.FilesService.GetFilePreviewStatuses:output_type -> service.v1.GetFilePreviewStatusesResponse
+	22, // [22:31] is the sub-list for method output_type
+	13, // [13:22] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_service_v1_files_proto_init() }
@@ -1619,14 +1785,14 @@ func file_service_v1_files_proto_init() {
 	if File_service_v1_files_proto != nil {
 		return
 	}
-	file_service_v1_files_proto_msgTypes[8].OneofWrappers = []any{}
+	file_service_v1_files_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_v1_files_proto_rawDesc), len(file_service_v1_files_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   20,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

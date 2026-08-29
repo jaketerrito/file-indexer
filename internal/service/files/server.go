@@ -50,6 +50,36 @@ type FileIndex interface {
 	GetDirectoryStats(ctx context.Context, keyPattern string) (db.GetDirectoryStatsRow, error)
 	ListFilesForDelete(ctx context.Context, arg db.ListFilesForDeleteParams) ([]db.ListFilesForDeleteRow, error)
 	DeleteFilesByIDsWithDirectories(ctx context.Context, ids []int64, keys []string) (int64, error)
+	GetIndexQueueStatuses(ctx context.Context, arg db.GetIndexQueueStatusesParams) ([]db.GetIndexQueueStatusesRow, error)
+}
+
+// previewIndexType is duplicated from internal/service/search for the same
+// reason hasDotDotSegment is: services share queue names by convention.
+const previewIndexType = "preview"
+
+// previewStatus maps a file's read-model row and its preview index_queue
+// state onto the API enum. Duplicated from internal/service/search; kept
+// local because both services depend on the same queue semantics but not on
+// each other.
+func previewStatus(f db.FileInfo, qStatus string, qQueued bool) pb.PreviewStatus {
+	if f.PreviewKey.Valid {
+		return pb.PreviewStatus_PREVIEW_STATUS_READY
+	}
+	if qQueued {
+		switch qStatus {
+		case "pending":
+			return pb.PreviewStatus_PREVIEW_STATUS_PENDING
+		case "claimed":
+			return pb.PreviewStatus_PREVIEW_STATUS_PROCESSING
+		case "error":
+			return pb.PreviewStatus_PREVIEW_STATUS_FAILED
+		}
+		return pb.PreviewStatus_PREVIEW_STATUS_NONE
+	}
+	if !f.ContentType.Valid || strings.HasPrefix(f.ContentType.String, "image/") {
+		return pb.PreviewStatus_PREVIEW_STATUS_PENDING
+	}
+	return pb.PreviewStatus_PREVIEW_STATUS_NONE
 }
 
 type FilesServer struct {
@@ -113,6 +143,51 @@ func (s *FilesServer) GetPreviewURL(ctx context.Context, req *pb.GetPreviewURLRe
 		specs = append(specs, &pb.PreviewURLSpec{Id: f.ID, Url: url})
 	}
 	return &pb.GetPreviewURLResponse{PreviewUrls: specs}, nil
+}
+
+// GetFilePreviewStatuses returns the preview pipeline status (and presigned
+// URL when ready) for a batch of files. This is a targeted read intended for
+// frontend polling: it avoids re-fetching entire pages just to watch a few
+// pending items transition.
+func (s *FilesServer) GetFilePreviewStatuses(ctx context.Context, req *pb.GetFilePreviewStatusesRequest) (*pb.GetFilePreviewStatusesResponse, error) {
+	ids := req.GetIds()
+	if len(ids) == 0 {
+		return &pb.GetFilePreviewStatusesResponse{}, nil
+	}
+	files, err := s.queries.GetFilesByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.queries.GetIndexQueueStatuses(ctx, db.GetIndexQueueStatusesParams{
+		IndexType: previewIndexType,
+		FileIds:   ids,
+	})
+	if err != nil {
+		return nil, err
+	}
+	queued := make(map[int64]string, len(rows))
+	for _, r := range rows {
+		queued[r.FileID] = r.Status
+	}
+
+	statuses := make([]*pb.FilePreviewStatus, 0, len(files))
+	for _, f := range files {
+		st, ok := queued[f.ID]
+		ps := previewStatus(f, st, ok)
+		fps := &pb.FilePreviewStatus{
+			Id:            f.ID,
+			PreviewStatus: ps,
+		}
+		if ps == pb.PreviewStatus_PREVIEW_STATUS_READY {
+			url, err := s.storage.GetInlineURL(ctx, f.PreviewKey.String)
+			if err != nil {
+				return nil, err
+			}
+			fps.PreviewUrl = url
+		}
+		statuses = append(statuses, fps)
+	}
+	return &pb.GetFilePreviewStatusesResponse{Statuses: statuses}, nil
 }
 
 func (s *FilesServer) GetFileInfo(ctx context.Context, req *pb.GetFileInfoRequest) (*pb.GetFileInfoResponse, error) {

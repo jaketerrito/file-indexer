@@ -14,6 +14,7 @@ vi.mock('../server/files', () => ({
   getDownloadUrl: vi.fn(),
   deleteFile: vi.fn(),
   getFileMetadata: vi.fn(),
+  getFilePreviewStatuses: vi.fn(),
 }))
 
 import { deleteFile, getDownloadUrl, getFileMetadata, listFiles } from '../server/files'

@@ -471,3 +471,21 @@ export async function deleteDirectoryImpl(
   const res = await client.deleteDirectory({ path })
   return { deletedCount: Number(res.deletedCount) }
 }
+
+export interface FilePreviewStatusDto {
+  id: string
+  previewStatus: PreviewStatus
+  previewUrl: string | null
+}
+
+export async function getFilePreviewStatusesImpl(
+  client: Client<typeof FilesService>,
+  ids: string[],
+): Promise<FilePreviewStatusDto[]> {
+  const res = await client.getFilePreviewStatuses({ ids: ids.map(BigInt) })
+  return res.statuses.map((s) => ({
+    id: s.id.toString(),
+    previewStatus: s.previewStatus,
+    previewUrl: s.previewUrl || null,
+  }))
+}

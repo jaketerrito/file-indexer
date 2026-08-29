@@ -15,6 +15,22 @@ service FilesService {
   rpc CommitUpload(CommitUploadRequest) returns (CommitUploadResponse);
   rpc GetDirectoryStats(GetDirectoryStatsRequest) returns (GetDirectoryStatsResponse);
   rpc DeleteDirectory(DeleteDirectoryRequest) returns (DeleteDirectoryResponse);
+  rpc GetFilePreviewStatuses(GetFilePreviewStatusesRequest) returns (GetFilePreviewStatusesResponse);
+}
+
+message GetFilePreviewStatusesRequest {
+  repeated int64 ids = 1;
+}
+
+message FilePreviewStatus {
+  int64 id = 1;
+  PreviewStatus preview_status = 2;
+  // Presigned preview URL when status is READY; empty otherwise.
+  string preview_url = 3;
+}
+
+message GetFilePreviewStatusesResponse {
+  repeated FilePreviewStatus statuses = 1;
 }
 
 message GetDownloadURLRequest {

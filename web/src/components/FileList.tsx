@@ -2,6 +2,7 @@ import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-q
 import { useEffect, useRef, useState } from 'react'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
 import type { FileFilters } from '../lib/fileFilters'
+import { useFileStatusPoller } from '../lib/useFileStatusPoller'
 import { deleteFile, getDownloadUrl, getFileMetadata, listFiles } from '../server/files'
 import { FileMetadataModal } from './FileMetadataModal'
 
@@ -46,7 +47,6 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
         }),
       initialPageParam: '',
       getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
-      refetchInterval: 2000,
     })
 
   const deleteMutation = useMutation({
@@ -90,6 +90,8 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
   }
 
   const [metadataId, setMetadataId] = useState<string | null>(null)
+
+  useFileStatusPoller(data?.pages, ['files', filters])
 
   const isFiltered = filters.prefix !== '' || filters.type !== ''
 

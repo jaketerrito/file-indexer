@@ -7,6 +7,7 @@ import {
   getDirectoryStatsImpl,
   getDownloadUrlImpl,
   getFileMetadataImpl,
+  getFilePreviewStatusesImpl,
   getUploadUrlImpl,
   listDirectoryImpl,
   listFilesImpl,
@@ -55,3 +56,13 @@ export const getDirectoryStats = createServerFn({ method: 'GET' })
 export const deleteDirectory = createServerFn({ method: 'POST' })
   .validator(validatePathInput)
   .handler(({ data }) => deleteDirectoryImpl(getFilesClient(), data.path))
+
+export const getFilePreviewStatuses = createServerFn({ method: 'GET' })
+  .validator((input: unknown) => {
+    const data = (input ?? {}) as Record<string, unknown>
+    if (!Array.isArray(data.ids) || !data.ids.every((id) => typeof id === 'string')) {
+      throw new Error('ids must be an array of strings')
+    }
+    return data as { ids: string[] }
+  })
+  .handler(({ data }) => getFilePreviewStatusesImpl(getFilesClient(), data.ids))
