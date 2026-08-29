@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useRef } from 'react'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
 import { getFilePreviewStatuses } from '../server/files'
 
@@ -15,27 +15,30 @@ interface HasFiles {
  */
 export function useFileStatusPoller(pages: HasFiles[] | undefined, queryKey: unknown[]) {
   const queryClient = useQueryClient()
-
-  const pendingIds = useMemo(() => {
-    const ids: string[] = []
-    if (!pages) return ids
-    for (const page of pages) {
-      for (const file of page.files) {
-        if (
-          file.previewStatus === PreviewStatus.PENDING ||
-          file.previewStatus === PreviewStatus.PROCESSING
-        ) {
-          ids.push(file.id)
-        }
-      }
-    }
-    return ids
-  }, [pages])
+  const queryKeyRef = useRef(queryKey)
+  queryKeyRef.current = queryKey
+  const pagesRef = useRef(pages)
+  pagesRef.current = pages
 
   useEffect(() => {
-    if (pendingIds.length === 0) return
+    const interval = setInterval(async () => {
+      const pendingIds: string[] = []
+      const currentPages = pagesRef.current
+      if (currentPages) {
+        for (const page of currentPages) {
+          for (const file of page.files) {
+            if (
+              file.previewStatus === PreviewStatus.PENDING ||
+              file.previewStatus === PreviewStatus.PROCESSING
+            ) {
+              pendingIds.push(file.id)
+            }
+          }
+        }
+      }
 
-    const tick = async () => {
+      if (pendingIds.length === 0) return
+
       try {
         const res = await getFilePreviewStatuses({ data: { ids: pendingIds } })
         const byId = new Map<string, { previewStatus: number; previewUrl: string | null }>()
@@ -43,7 +46,7 @@ export function useFileStatusPoller(pages: HasFiles[] | undefined, queryKey: unk
           byId.set(s.id, { previewStatus: s.previewStatus, previewUrl: s.previewUrl })
         }
 
-        queryClient.setQueryData(queryKey, (old: unknown) => {
+        queryClient.setQueryData(queryKeyRef.current, (old: unknown) => {
           if (!old || typeof old !== 'object') return old
           const cached = old as { pages: HasFiles[] }
           return {
@@ -65,9 +68,8 @@ export function useFileStatusPoller(pages: HasFiles[] | undefined, queryKey: unk
       } catch {
         // Polling is best-effort; retry next tick.
       }
-    }
+    }, 2000)
 
-    const interval = setInterval(tick, 2000)
     return () => clearInterval(interval)
-  }, [pendingIds, queryClient, queryKey])
+  }, [queryClient])
 }
