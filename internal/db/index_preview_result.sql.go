@@ -9,6 +9,34 @@ import (
 	"context"
 )
 
+const listIndexPreviewKeys = `-- name: ListIndexPreviewKeys :many
+SELECT preview_key FROM index_preview_result
+`
+
+// Every preview object key the index claims ownership of. The preview GC
+// set-diffs a bucket listing of the previews/ prefix against this: a listed
+// key absent here is an orphan (its row vanished by files-row cascade or its
+// PUT never reached Complete) and is deleted from storage.
+func (q *Queries) ListIndexPreviewKeys(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, listIndexPreviewKeys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var preview_key string
+		if err := rows.Scan(&preview_key); err != nil {
+			return nil, err
+		}
+		items = append(items, preview_key)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertIndexPreviewResult = `-- name: UpsertIndexPreviewResult :exec
 
 INSERT INTO index_preview_result (file_id, preview_key, width, height)
