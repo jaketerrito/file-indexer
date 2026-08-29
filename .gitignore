@@ -1,3 +1,6 @@
 # Coverage artifacts
 coverage.out
 coverage.xml
+
+# Tilt per-checkout pidfile
+.tilt.pid

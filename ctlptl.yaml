@@ -1,14 +1,10 @@
-# Local dev/CI Kubernetes cluster, managed declaratively by ctlptl
+# Local dev/CI image registry, managed declaratively by ctlptl
 # (https://github.com/tilt-dev/ctlptl). Apply with `just cluster-up`.
 #
-# The registry is where Tilt pushes locally built images; Tilt auto-detects it
-# through the cluster's LocalRegistryHosting config, so no registry settings
-# are needed in the Tiltfile.
+# The registry is shared across all checkouts: each worktree gets its own
+# kind cluster, but they all push images through the same registry. Tilt
+# auto-detects the registry via the cluster's LocalRegistryHosting config,
+# so no registry settings are needed in the Tiltfile.
 apiVersion: ctlptl.dev/v1alpha1
 kind: Registry
 name: ctlptl-registry
----
-apiVersion: ctlptl.dev/v1alpha1
-kind: Cluster
-product: kind
-registry: ctlptl-registry

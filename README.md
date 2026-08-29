@@ -44,7 +44,6 @@ SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) i
   - Automatically generates code
   - Automatically rebuilds containers
 
-### Getting started
 Run `just` to see all available commands.
 
 `just up` — Launches local kind cluster and usese Tilt to provision resources, runs DB migrations, builds and deploys the app containers (index-stat, index-preview, files), and keeps them live-reloading on code changes. Code generation (sqlc, protobuf) runs automatically. Opens the Tilt web UI at http://localhost:10350.
@@ -53,6 +52,46 @@ The MinIO bucket comes pre-seeded with a small sample dataset (see
 `deploy/seed/`) — a few EXIF-bearing photos and text files. The crawler is
 manual-trigger in Tilt (click it in the web UI) since it's not something you
 want running on every code change; trigger it once to index the seed data.
+
+### Git worktrees
+
+All checkouts share **one** kind cluster and image registry; isolation is
+per-namespace plus a per-checkout port block. That way a laptop can run
+several worktrees at once without paying for a control plane each.
+
+- The main checkout deploys to namespace `default` on the historical ports
+  (Tilt UI 10350, web 3000, postgres 5432, MinIO 9000/9001, gRPC
+  50052/50053) — identical to CI.
+- A git worktree deploys to namespace `wt-<slug>` and derives a stable
+  `WORKTREE_INDEX` (N) from its path, shifting every port:
+
+| Service | Port |
+| --- | --- |
+| Tilt UI | `10350 + N` |
+| Web | `3000 + N` |
+| Postgres | `5432 + N` |
+| MinIO API / console | `9000 + 2N` / `9001 + 2N` |
+| gRPC files / search | `50052 + 2N` / `50053 + 2N` |
+
+`just up` in any checkout ensures the shared cluster exists, creates that
+checkout's namespace, and starts Tilt against it. `just down` stops Tilt and
+deletes only that namespace — the shared cluster and every other worktree
+keep running. `just cluster-down` destroys the shared cluster and therefore
+**every** checkout's stack.
+
+If two checkouts hash to the same index, start one with
+`WORKTREE_INDEX=<n> just up`. The Tiltfile refuses to run if the target
+namespace isn't this checkout's, so a stray `tilt up` can't deploy into
+another worktree.
+
+Running many stacks on one node needs a higher inotify ceiling than the
+kernel default (Tilt watches source files and streams pod logs; the symptom
+is `too many open files`):
+
+```
+fs.inotify.max_user_instances=8192
+fs.inotify.max_user_watches=524288
+```
 
 ### Testing
 `just test` runs unit tests only

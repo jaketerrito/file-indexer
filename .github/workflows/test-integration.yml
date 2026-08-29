@@ -8,6 +8,7 @@ on:
       - "go.sum"
       - ".testcoverage.yml"
       - "justfile"
+      - "hack/**"
       - ".github/workflows/test-integration.yml"
       - ".github/actions/setup-go-cache/**"
   push:
@@ -18,6 +19,7 @@ on:
       - "go.sum"
       - ".testcoverage.yml"
       - "justfile"
+      - "hack/**"
       - ".github/workflows/test-integration.yml"
       - ".github/actions/setup-go-cache/**"
 
@@ -90,9 +92,10 @@ jobs:
           echo "MinIO did not become healthy in time" >&2
           docker logs minio >&2
           exit 1
-      # just test-integration hardcodes the matching DB_*/S3_* values itself
-      # (see justfile); postgres/minio above are provisioned to match those,
-      # not the other way around.
+      # just test-integration derives the matching DB_*/S3_* values from
+      # hack/dev-env.sh, which yields the historical 5432/9000 for a plain
+      # checkout (WORKTREE_INDEX=0); postgres/minio above are provisioned to
+      # match those, not the other way around.
       - name: Run integration tests via just
         run: just test-integration
       - name: Upload coverage profile

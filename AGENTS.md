@@ -27,15 +27,30 @@ interfaces listed in `.mockery.yaml`, and commit the output.
 - Integration tests: `//go:build integration`, excluded from
   `go test ./...`; only add when real DB/S3 interaction is required.
 
-## Invariants (see DESIGN.md for rationale)
+## Dev environment — worktrees
 
-- **S3 is the single source of truth.** Nothing is indexed unless it lives
-  in S3; the DB is a derived search index, not a store.
-- **Reference-based indexing.** Index requests carry only `(source, s3 key)`
-  — never file bytes. The indexer GETs the object itself and computes all
-  metadata, uniformly across API, uploader CLI, and crawler paths.
-- **Idempotent indexing.** Re-indexing the same key must be safe (upsert
-  semantics); the crawler may re-emit references for unchanged files.
-- **Crawler skips derived objects.** Preview images are written back under
-  the `INDEX_PREFIX` key prefix; the crawler ignores that prefix so derived
-  objects never become `files` rows.
+- **One shared kind cluster** (`kind-kind`) and one shared registry serve
+  every checkout. Isolation is per-namespace, not per-cluster, so a laptop
+  can host several worktrees at once.
+- `hack/dev-env.sh` is the single source of truth for the context, this
+  checkout's namespace, and every forwarded port. It derives a stable
+  `WORKTREE_INDEX` from the worktree path.
+- Main checkout → namespace `default` on the historical ports
+  (10350/3000/5432/9000/9001/50052/50053), identical to CI. Worktrees →
+  namespace `wt-<slug>` with ports shifted: Tilt UI `10350+N`, web
+  `3000+N`, postgres `5432+N`, MinIO `9000+2N`/`9001+2N`, gRPC
+  `50052+2N`/`50053+2N`. Override a collision with `WORKTREE_INDEX=<n>`.
+- `cluster-up` is strictly additive — it never re-applies an existing
+  cluster or registry, because doing so would disturb other checkouts'
+  running stacks.
+- `just down` = tilt-down + delete this checkout's namespace. `just
+  cluster-down` destroys the SHARED cluster and every checkout's stack.
+- Recipes always pass `--context` and `--namespace` to tilt, and the
+  Tiltfile hard-fails when `k8s_namespace()` isn't this checkout's — the
+  context alone can't distinguish checkouts now that it's shared.
+- `deploy/` manifests deliberately contain no namespace at all; Tilt's
+  `--namespace` retargets them. Tilt does NOT create the namespace, which is
+  why `cluster-up` does.
+- Many stacks on one node exhaust the default inotify ceiling (symptom:
+  `too many open files` from fsnotify). Raise
+  `fs.inotify.max_user_instances` / `max_user_watches`.
