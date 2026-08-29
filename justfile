@@ -51,14 +51,14 @@ fmt-web:
     npm --prefix web ci
     npm --prefix web run fmt
 
-# Ensure the shared dev cluster, the shared image registry, and this
-# checkout's namespace all exist. Every checkout shares ONE kind cluster
-# ("kind-kind"); isolation is per-namespace — the main checkout deploys to
-# "default" (identical to CI), worktrees to "wt-<slug>" (hack/dev-env.sh).
-# Creation is strictly additive: an existing cluster or registry is never
-# re-applied, so bringing up one checkout can never disturb another
-# checkout's running stack. Fails early if this checkout's dev ports are
-# taken; override with WORKTREE_INDEX=<n> if two checkouts collide.
+# Ensure the shared dev cluster and image registry exist. Every checkout
+# shares ONE kind cluster ("kind-kind"); isolation is per-namespace — the
+# main checkout deploys to "default" (identical to CI), worktrees to
+# "wt-<slug>" (hack/dev-env.sh). Creation is strictly additive: an existing
+# cluster or registry is never re-applied, so bringing up one checkout can
+# never disturb another checkout's running stack. Fails early if this
+# checkout's dev ports are taken; override with WORKTREE_INDEX=<n> if two
+# checkouts collide.
 cluster-up:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -73,26 +73,7 @@ cluster-up:
         printf 'apiVersion: ctlptl.dev/v1alpha1\nkind: Cluster\nproduct: kind\nname: %s\nregistry: ctlptl-registry\n' "$CLUSTER_NAME" > "$cluster_yaml"
         ctlptl apply -f "$cluster_yaml"
     fi
-    # "default" exists in every cluster; applying it only emits a warning.
-    if [[ "$K8S_NAMESPACE" != "default" ]]; then
-        kubectl --context "$K8S_CONTEXT" create namespace "$K8S_NAMESPACE" \
-            --dry-run=client -o yaml | kubectl --context "$K8S_CONTEXT" apply -f - > /dev/null
-    fi
-    echo "namespace '${K8S_NAMESPACE}' ready on shared cluster (context ${K8S_CONTEXT})"
-
-# Delete this checkout's namespace, taking every resource in it along. The
-# shared cluster and registry are left alone for the other checkouts. The
-# main checkout uses "default", which k8s forbids deleting, so there
-# `tilt-down` alone does the cleanup.
-ns-down:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    eval "$(hack/dev-env.sh)"
-    if [[ "$K8S_NAMESPACE" == "default" ]]; then
-        echo "refusing to delete the 'default' namespace; tilt-down already removed this checkout's resources"
-        exit 0
-    fi
-    kubectl --context "$K8S_CONTEXT" delete namespace "$K8S_NAMESPACE" --ignore-not-found
+    echo "shared cluster '${CLUSTER_NAME}' ready (context ${K8S_CONTEXT})"
 
 # Destroy the SHARED kind cluster and its registry. This affects EVERY
 # checkout, not just this one — every worktree's stack goes with it. For
@@ -106,19 +87,28 @@ cluster-down:
     printf 'apiVersion: ctlptl.dev/v1alpha1\nkind: Cluster\nproduct: kind\nname: %s\nregistry: ctlptl-registry\n' "$CLUSTER_NAME" > "$cluster_yaml"
     ctlptl delete -f "$cluster_yaml" || true
 
-# Start Tilt dev environment (background) in this checkout's namespace.
-# Worktrees get their own Tilt UI port (10350+N, see hack/dev-env.sh).
+# Start Tilt dev environment (background) in this checkout's namespace,
+# creating it first — Tilt does not create namespaces. Worktrees get their
+# own Tilt UI port (10350+N, see hack/dev-env.sh).
 tilt-up:
     #!/usr/bin/env bash
     set -euo pipefail
     hack/dev-env.sh --check > /dev/null
     eval "$(hack/dev-env.sh)"
+    # Tilt does not create namespaces; "default" exists in every cluster.
+    if [[ "$K8S_NAMESPACE" != "default" ]]; then
+        kubectl --context "$K8S_CONTEXT" create namespace "$K8S_NAMESPACE" \
+            --dry-run=client -o yaml | kubectl --context "$K8S_CONTEXT" apply -f - > /dev/null
+    fi
     nohup tilt up --context "$K8S_CONTEXT" --namespace "$K8S_NAMESPACE" --port "$TILT_PORT" > /dev/null 2>&1 &
     echo $! > .tilt.pid
     xdg-open "http://localhost:$TILT_PORT" 2>/dev/null || true
 
-# Tear down Tilt dev environment for this checkout only (leaves other
-# checkouts' Tilt instances and namespaces running).
+# Tear down Tilt and delete this checkout's namespace, taking every
+# resource in it along. Other checkouts' Tilt instances and namespaces are
+# left alone; the shared cluster and registry survive. The main checkout
+# uses "default", which k8s forbids deleting, so there `tilt down` alone
+# does the cleanup.
 tilt-down:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -132,12 +122,17 @@ tilt-down:
     fi
     pkill -f "tilt up.*--port $TILT_PORT" 2>/dev/null || true
     tilt down --context "$K8S_CONTEXT" --namespace "$K8S_NAMESPACE" || true
+    if [[ "$K8S_NAMESPACE" == "default" ]]; then
+        echo "leaving the 'default' namespace in place; tilt down already removed this checkout's resources"
+    else
+        kubectl --context "$K8S_CONTEXT" delete namespace "$K8S_NAMESPACE" --ignore-not-found
+    fi
 
 # Ensure cluster + namespace, then start Tilt
 up: cluster-up tilt-up
 
 # Stop Tilt and delete this checkout's namespace (shared cluster survives)
-down: tilt-down ns-down
+down: tilt-down
 
 # Deploy everything with auto_init=True (all services, postgres, MinIO,
 # secrets, the lint local resource) and run the full test suite + coverage
@@ -148,6 +143,11 @@ ci:
     #!/usr/bin/env bash
     set -euo pipefail
     eval "$(hack/dev-env.sh)"
+    # Tilt does not create namespaces; "default" exists in every cluster.
+    if [[ "$K8S_NAMESPACE" != "default" ]]; then
+        kubectl --context "$K8S_CONTEXT" create namespace "$K8S_NAMESPACE" \
+            --dry-run=client -o yaml | kubectl --context "$K8S_CONTEXT" apply -f - > /dev/null
+    fi
     tilt ci --context "$K8S_CONTEXT" --namespace "$K8S_NAMESPACE" --port "$TILT_PORT"
 
 # Run unit tests with race detector and write a coverage profile. Integration

@@ -50,7 +50,8 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   context alone can't distinguish checkouts now that it's shared.
 - `deploy/` manifests deliberately contain no namespace at all; Tilt's
   `--namespace` retargets them. Tilt does NOT create the namespace, which is
-  why `cluster-up` does.
+  why `tilt-up` and `ci` ensure it (idempotent kubectl apply) before
+  invoking tilt.
 - Many stacks on one node exhaust the default inotify ceiling (symptom:
   `too many open files` from fsnotify). Raise
   `fs.inotify.max_user_instances` / `max_user_watches`.
