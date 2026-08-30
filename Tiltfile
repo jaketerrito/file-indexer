@@ -3,16 +3,13 @@
 if not str(local('command -v npm || true', quiet=True, echo_off=True)).strip():
     fail('npm not found on PATH; install Node >= 24 (https://nodejs.org) and restart tilt')
 
-# Per-checkout dev environment: hack/dev-env.sh (sourced by the just recipes)
-# exports CLUSTER_NAME/K8S_CONTEXT and every host port below, so concurrent
-# git worktrees each get their own cluster and non-conflicting port-forwards.
-# Defaults reproduce the main checkout's historical values.
-DB_PORT = int(os.getenv('DB_PORT', '5432'))
-S3_PORT = int(os.getenv('S3_PORT', '9000'))
-S3_CONSOLE_PORT = int(os.getenv('S3_CONSOLE_PORT', '9001'))
-FILES_PORT = int(os.getenv('FILES_PORT', '50052'))
-SEARCH_PORT = int(os.getenv('SEARCH_PORT', '50053'))
-WEB_PORT = int(os.getenv('WEB_PORT', '3000'))
+# Per-checkout dev environment: all checkouts share one kind cluster (see
+# `just cluster-up`). Local addressing is per-checkout HOSTNAME —
+# `<namespace>.<service>.localhost:$GATEWAY_PORT` — routed by the shared
+# cloud-provider-kind gateway; hack/dev-env.sh (sourced by the just recipes)
+# exports K8S_NAMESPACE plus the WEB_HOST/S3_HOST/S3_CONSOLE_HOST/
+# S3_PUBLIC_ENDPOINT values used below. There are no per-checkout host ports
+# except the Tilt UI.
 
 local_resource('generate',
    cmd='just generate',
@@ -72,13 +69,16 @@ k8s_yaml(local(
 ))
 
 # The s3-secret is generated here rather than via kustomization.yaml's
-# secretGenerator: S3_PUBLIC_ENDPOINT must point at this checkout's forwarded
-# MinIO port, which differs per worktree — kustomize has no env substitution.
-# Same pattern as the seed-data ConfigMap above.
+# secretGenerator: S3_PUBLIC_ENDPOINT must point at this checkout's gateway
+# hostname (with the discovered GATEWAY_PORT baked in), which differs per
+# worktree — kustomize has no env substitution. Same pattern as the seed-data
+# ConfigMap above.
+if not os.getenv('S3_PUBLIC_ENDPOINT', ''):
+    fail('S3_PUBLIC_ENDPOINT not set — run via `just up` so hack/dev-env.sh can discover the gateway port')
 k8s_yaml(local(
     'kubectl create secret generic s3-secret'
     + ' --from-literal=S3_ENDPOINT=local-s3:9000'
-    + ' --from-literal=S3_PUBLIC_ENDPOINT=localhost:%d' % S3_PORT
+    + ' --from-literal=S3_PUBLIC_ENDPOINT=' + os.getenv('S3_PUBLIC_ENDPOINT', '')
     + ' --from-literal=S3_ACCESS_ID=user'
     + ' --from-literal=S3_SECRET=password'
     + ' --from-literal=S3_BUCKET=test'
@@ -87,26 +87,41 @@ k8s_yaml(local(
     quiet=True,
 ))
 
-k8s_resource(
-    'local-s3',
-    port_forwards=[
-        port_forward(local_port=S3_PORT, container_port=9000, name='S3 API Endpoint'),
-        port_forward(local_port=S3_CONSOLE_PORT, container_port=9001, name='MinIO Web Console')
-    ],
-)
-k8s_resource('postgres', port_forwards='%d:5432' % DB_PORT)
+# Route this checkout's gateway hostnames to its services. Tilt applies these
+# into the checkout's namespace (--namespace), so they die with `tilt down`.
+# A cross-namespace parentRef needs no ReferenceGrant (grants are for
+# cross-namespace backendRefs); the Gateway's `allowedRoutes: from: All`
+# admits these.
+for route in [
+    {'name': 'web', 'host': os.getenv('WEB_HOST', ''), 'svc': 'web', 'port': 3000},
+    {'name': 's3', 'host': os.getenv('S3_HOST', ''), 'svc': 'local-s3', 'port': 9000},
+    {'name': 's3-console', 'host': os.getenv('S3_CONSOLE_HOST', ''), 'svc': 'local-s3', 'port': 9001},
+]:
+    if not route['host']:
+        fail('WEB_HOST/S3_HOST/S3_CONSOLE_HOST not set — run via `just up` (see hack/dev-env.sh)')
+    k8s_yaml(blob(
+        'apiVersion: gateway.networking.k8s.io/v1\n'
+        + 'kind: HTTPRoute\n'
+        + 'metadata:\n  name: %s\n' % route['name']
+        + 'spec:\n'
+        + '  parentRefs:\n'
+        + '    - name: shared-gateway\n'
+        + '      namespace: gateway-system\n'
+        + '  hostnames:\n'
+        + '    - %s\n' % route['host']
+        + '  rules:\n'
+        + '    - backendRefs:\n'
+        + '        - name: %s\n' % route['svc']
+        + '          port: %d\n' % route['port'],
+    ))
 
 k8s_resource('migrate', resource_deps=['postgres'])
 k8s_resource('index-stat', resource_deps=['postgres', 'migrate', 'local-s3'])
 k8s_resource('index-preview', resource_deps=['postgres', 'migrate', 'local-s3'])
 k8s_resource('index-exif', resource_deps=['postgres', 'migrate', 'local-s3'])
-k8s_resource('files', resource_deps=['postgres', 'migrate', 'local-s3'], port_forwards='%d:50051' % FILES_PORT)
-k8s_resource('search', resource_deps=['postgres', 'migrate'], port_forwards='%d:50051' % SEARCH_PORT)
-k8s_resource(
-    'web',
-    resource_deps=['files', 'search'],
-    port_forwards=port_forward(local_port=WEB_PORT, container_port=3000, name='Web UI'),
-)
+k8s_resource('files', resource_deps=['postgres', 'migrate', 'local-s3'])
+k8s_resource('search', resource_deps=['postgres', 'migrate'])
+k8s_resource('web', resource_deps=['files', 'search'])
 k8s_resource(
     'crawler',
     resource_deps=['postgres', 'migrate', 'local-s3'],

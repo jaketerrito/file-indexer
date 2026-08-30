@@ -92,11 +92,14 @@ jobs:
           echo "MinIO did not become healthy in time" >&2
           docker logs minio >&2
           exit 1
-      # just test-integration derives the matching DB_*/S3_* values from
-      # hack/dev-env.sh, which yields the historical 5432/9000 for a plain
-      # checkout (WORKTREE_INDEX=0); postgres/minio above are provisioned to
-      # match those, not the other way around.
+      # The recipe uses explicit DB_HOST/S3_ENDPOINT when set (as here,
+      # against the runner-local containers); without them it opens ephemeral
+      # port-forwards into the checkout's kind namespace (local `just up`).
       - name: Run integration tests via just
+        env:
+          DB_HOST: localhost
+          DB_PORT: "5432"
+          S3_ENDPOINT: localhost:9000
         run: just test-integration
       - name: Upload coverage profile
         if: always()
