@@ -33,13 +33,23 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   every checkout. Isolation is per-namespace, not per-cluster, so a laptop
   can host several worktrees at once.
 - `hack/dev-env.sh` is the single source of truth for the context, this
-  checkout's namespace, and every forwarded port. It derives a stable
+  checkout's namespace, and its gateway hostnames. It derives a stable
   `WORKTREE_INDEX` from the worktree path.
-- Main checkout → namespace `default` on the historical ports
-  (10350/3000/5432/9000/9001/50052/50053), identical to CI. Worktrees →
-  namespace `wt-<slug>` with ports shifted: Tilt UI `10350+N`, web
-  `3000+N`, postgres `5432+N`, MinIO `9000+2N`/`9001+2N`, gRPC
-  `50052+2N`/`50053+2N`. Override a collision with `WORKTREE_INDEX=<n>`.
+- Local addressing is per-checkout HOSTNAME, not port: a shared
+  cloud-provider-kind gateway (installed by `just cluster-up`, see
+  `cluster/gateway.yaml`) routes
+  `<namespace>.<web|s3|s3-console>.localhost:$GATEWAY_PORT` to each
+  checkout's services. GATEWAY_PORT is the ephemeral host port of the
+  `kind-gateway-proxy` loopback forwarder; dev-env.sh re-discovers it on
+  every run. The Tilt UI (`10350+N`) is the only per-checkout host port —
+  override a collision with `WORKTREE_INDEX=<n>`.
+- Raw TCP can't be hostname-routed: `just psql` uses `kubectl exec`, and
+  `just test-integration` uses explicit DB_HOST/S3_ENDPOINT (CI) or
+  ephemeral kubectl port-forwards (local).
+- `cluster/` holds cluster-scoped shared infra (applied by `just
+  cluster-up`, survives `tilt down`); it is deliberately NOT `deploy/`,
+  which Tilt applies per-checkout and `just lint-k8s` kubeconform-checks
+  without Gateway API schemas.
 - `cluster-up` is strictly additive — it never re-applies an existing
   cluster or registry, because doing so would disturb other checkouts'
   running stacks.
