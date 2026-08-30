@@ -19,14 +19,15 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	FilesService_GetDownloadURL_FullMethodName    = "/service.v1.FilesService/GetDownloadURL"
-	FilesService_GetPreviewURL_FullMethodName     = "/service.v1.FilesService/GetPreviewURL"
-	FilesService_GetFileInfo_FullMethodName       = "/service.v1.FilesService/GetFileInfo"
-	FilesService_DeleteFile_FullMethodName        = "/service.v1.FilesService/DeleteFile"
-	FilesService_GetUploadURL_FullMethodName      = "/service.v1.FilesService/GetUploadURL"
-	FilesService_CommitUpload_FullMethodName      = "/service.v1.FilesService/CommitUpload"
-	FilesService_GetDirectoryStats_FullMethodName = "/service.v1.FilesService/GetDirectoryStats"
-	FilesService_DeleteDirectory_FullMethodName   = "/service.v1.FilesService/DeleteDirectory"
+	FilesService_GetDownloadURL_FullMethodName         = "/service.v1.FilesService/GetDownloadURL"
+	FilesService_GetPreviewURL_FullMethodName          = "/service.v1.FilesService/GetPreviewURL"
+	FilesService_GetFileInfo_FullMethodName            = "/service.v1.FilesService/GetFileInfo"
+	FilesService_DeleteFile_FullMethodName             = "/service.v1.FilesService/DeleteFile"
+	FilesService_GetUploadURL_FullMethodName           = "/service.v1.FilesService/GetUploadURL"
+	FilesService_CommitUpload_FullMethodName           = "/service.v1.FilesService/CommitUpload"
+	FilesService_GetDirectoryStats_FullMethodName      = "/service.v1.FilesService/GetDirectoryStats"
+	FilesService_DeleteDirectory_FullMethodName        = "/service.v1.FilesService/DeleteDirectory"
+	FilesService_GetFilePreviewStatuses_FullMethodName = "/service.v1.FilesService/GetFilePreviewStatuses"
 )
 
 // FilesServiceClient is the client API for FilesService service.
@@ -41,6 +42,7 @@ type FilesServiceClient interface {
 	CommitUpload(ctx context.Context, in *CommitUploadRequest, opts ...grpc.CallOption) (*CommitUploadResponse, error)
 	GetDirectoryStats(ctx context.Context, in *GetDirectoryStatsRequest, opts ...grpc.CallOption) (*GetDirectoryStatsResponse, error)
 	DeleteDirectory(ctx context.Context, in *DeleteDirectoryRequest, opts ...grpc.CallOption) (*DeleteDirectoryResponse, error)
+	GetFilePreviewStatuses(ctx context.Context, in *GetFilePreviewStatusesRequest, opts ...grpc.CallOption) (*GetFilePreviewStatusesResponse, error)
 }
 
 type filesServiceClient struct {
@@ -131,6 +133,16 @@ func (c *filesServiceClient) DeleteDirectory(ctx context.Context, in *DeleteDire
 	return out, nil
 }
 
+func (c *filesServiceClient) GetFilePreviewStatuses(ctx context.Context, in *GetFilePreviewStatusesRequest, opts ...grpc.CallOption) (*GetFilePreviewStatusesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetFilePreviewStatusesResponse)
+	err := c.cc.Invoke(ctx, FilesService_GetFilePreviewStatuses_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // FilesServiceServer is the server API for FilesService service.
 // All implementations must embed UnimplementedFilesServiceServer
 // for forward compatibility.
@@ -143,6 +155,7 @@ type FilesServiceServer interface {
 	CommitUpload(context.Context, *CommitUploadRequest) (*CommitUploadResponse, error)
 	GetDirectoryStats(context.Context, *GetDirectoryStatsRequest) (*GetDirectoryStatsResponse, error)
 	DeleteDirectory(context.Context, *DeleteDirectoryRequest) (*DeleteDirectoryResponse, error)
+	GetFilePreviewStatuses(context.Context, *GetFilePreviewStatusesRequest) (*GetFilePreviewStatusesResponse, error)
 	mustEmbedUnimplementedFilesServiceServer()
 }
 
@@ -176,6 +189,9 @@ func (UnimplementedFilesServiceServer) GetDirectoryStats(context.Context, *GetDi
 }
 func (UnimplementedFilesServiceServer) DeleteDirectory(context.Context, *DeleteDirectoryRequest) (*DeleteDirectoryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteDirectory not implemented")
+}
+func (UnimplementedFilesServiceServer) GetFilePreviewStatuses(context.Context, *GetFilePreviewStatusesRequest) (*GetFilePreviewStatusesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetFilePreviewStatuses not implemented")
 }
 func (UnimplementedFilesServiceServer) mustEmbedUnimplementedFilesServiceServer() {}
 func (UnimplementedFilesServiceServer) testEmbeddedByValue()                      {}
@@ -342,6 +358,24 @@ func _FilesService_DeleteDirectory_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FilesService_GetFilePreviewStatuses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetFilePreviewStatusesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FilesServiceServer).GetFilePreviewStatuses(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FilesService_GetFilePreviewStatuses_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FilesServiceServer).GetFilePreviewStatuses(ctx, req.(*GetFilePreviewStatusesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // FilesService_ServiceDesc is the grpc.ServiceDesc for FilesService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -380,6 +414,10 @@ var FilesService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteDirectory",
 			Handler:    _FilesService_DeleteDirectory_Handler,
+		},
+		{
+			MethodName: "GetFilePreviewStatuses",
+			Handler:    _FilesService_GetFilePreviewStatuses_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

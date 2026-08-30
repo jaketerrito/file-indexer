@@ -129,6 +129,48 @@ func (q *Queries) FailIndexQueue(ctx context.Context, arg FailIndexQueueParams) 
 	return err
 }
 
+const getIndexQueueStatuses = `-- name: GetIndexQueueStatuses :many
+SELECT file_id, status
+FROM index_queue
+WHERE index_type = $1::text
+  AND file_id = ANY($2::bigint[])
+`
+
+type GetIndexQueueStatusesParams struct {
+	IndexType string
+	FileIds   []int64
+}
+
+type GetIndexQueueStatusesRow struct {
+	FileID int64
+	Status string
+}
+
+// Read-side batch lookup of queue state for a page of files, used by the
+// search service to surface per-file indexing progress. Returns at most one
+// row per requested file (the PK is (index_type, file_id)); files with no
+// row yet are simply absent from the result, which the caller must
+// distinguish from any real status.
+func (q *Queries) GetIndexQueueStatuses(ctx context.Context, arg GetIndexQueueStatusesParams) ([]GetIndexQueueStatusesRow, error) {
+	rows, err := q.db.Query(ctx, getIndexQueueStatuses, arg.IndexType, arg.FileIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetIndexQueueStatusesRow
+	for rows.Next() {
+		var i GetIndexQueueStatusesRow
+		if err := rows.Scan(&i.FileID, &i.Status); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const requeueStaleIndexQueue = `-- name: RequeueStaleIndexQueue :execrows
 UPDATE index_queue q
 SET status = 'pending',

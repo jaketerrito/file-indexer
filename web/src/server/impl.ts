@@ -1,6 +1,11 @@
 import { timestampDate } from '@bufbuild/protobuf/wkt'
 import type { Client } from '@connectrpc/connect'
-import type { ExifMetadata, FileInfo, FilesService } from '../gen/service/v1/files_pb'
+import type {
+  ExifMetadata,
+  FileInfo,
+  FilesService,
+  PreviewStatus,
+} from '../gen/service/v1/files_pb'
 import { type SearchService, SortField, SortOrder } from '../gen/service/v1/search_pb'
 
 // Pure request/response logic for the server functions in files.ts, kept
@@ -27,6 +32,8 @@ export interface FileDto {
   /** Intrinsic dimensions of the preview, used to reserve layout space. */
   previewWidth: number | null
   previewHeight: number | null
+  /** Where this file stands in the preview index pipeline. */
+  previewStatus: PreviewStatus
 }
 
 /**
@@ -184,6 +191,7 @@ export function toFileDto(file: FileInfo): FileDto {
     previewUrl: null,
     previewWidth: hasPreview ? file.previewWidth : null,
     previewHeight: hasPreview ? file.previewHeight : null,
+    previewStatus: file.previewStatus,
   }
 }
 
@@ -462,4 +470,22 @@ export async function deleteDirectoryImpl(
 ): Promise<{ deletedCount: number }> {
   const res = await client.deleteDirectory({ path })
   return { deletedCount: Number(res.deletedCount) }
+}
+
+export interface FilePreviewStatusDto {
+  id: string
+  previewStatus: PreviewStatus
+  previewUrl: string | null
+}
+
+export async function getFilePreviewStatusesImpl(
+  client: Client<typeof FilesService>,
+  ids: string[],
+): Promise<FilePreviewStatusDto[]> {
+  const res = await client.getFilePreviewStatuses({ ids: ids.map(BigInt) })
+  return res.statuses.map((s) => ({
+    id: s.id.toString(),
+    previewStatus: s.previewStatus,
+    previewUrl: s.previewUrl || null,
+  }))
 }

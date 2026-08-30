@@ -1,5 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
+import { PreviewStatus } from '../gen/service/v1/files_pb'
+import { useFileStatusPoller } from '../lib/useFileStatusPoller'
 import {
   deleteDirectory,
   deleteFile,
@@ -60,6 +62,8 @@ export function DirectoryList({ path, sort, order, onNavigate }: DirectoryListPr
   // be removed (DeleteDirectory has no dry-run flag by design; this is the
   // client-side substitute).
   const [folderToDelete, setFolderToDelete] = useState<string | null>(null)
+
+  useFileStatusPoller(data?.pages, ['directory', path, sort, order])
   const statsQuery = useQuery({
     queryKey: ['directory-stats', folderToDelete],
     queryFn: () => getDirectoryStats({ data: { path: folderToDelete as string } }),
@@ -131,6 +135,25 @@ export function DirectoryList({ path, sort, order, onNavigate }: DirectoryListPr
                   height={file.previewHeight ?? undefined}
                   loading="lazy"
                 />
+              ) : file.previewStatus === PreviewStatus.PENDING ||
+                file.previewStatus === PreviewStatus.PROCESSING ? (
+                file.contentType.startsWith('image/') ? (
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '4em',
+                      height: '4em',
+                      border: '1px solid #ccc',
+                      background: '#f5f5f5',
+                    }}
+                  >
+                    Processing…
+                  </span>
+                ) : (
+                  <span>Indexing…</span>
+                )
+              ) : file.previewStatus === PreviewStatus.FAILED ? (
+                <span>Preview failed</span>
               ) : null}{' '}
               <span>{basename(file.key)}</span>{' '}
               <button type="button" onClick={() => void handleDownload(file.id)}>

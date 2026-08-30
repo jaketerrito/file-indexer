@@ -54,6 +54,7 @@ func TestListFilesDefaults(t *testing.T) {
 		HasCursor:          false,
 		PageLimit:          defaultPageSize + 1,
 	}).Return([]db.FileInfo{testFile(1, "a"), testFile(2, "b")}, nil)
+	queries.EXPECT().GetIndexQueueStatuses(mock.Anything, mock.Anything).Return(nil, nil)
 
 	srv := SearchServer{queries: queries}
 
@@ -213,6 +214,7 @@ func TestListFilesPagination(t *testing.T) {
 		KeyPattern: "%",
 		PageLimit:  3,
 	}).Return(files, nil)
+	queries.EXPECT().GetIndexQueueStatuses(mock.Anything, mock.Anything).Return(nil, nil)
 
 	srv := SearchServer{queries: queries}
 
@@ -374,12 +376,45 @@ func TestDbFileToProtoNullFields(t *testing.T) {
 	}
 }
 
+func TestPreviewStatusMapping(t *testing.T) {
+	image := db.FileInfo{ContentType: pgtype.Text{String: "image/png", Valid: true}}
+	txt := db.FileInfo{ContentType: pgtype.Text{String: "text/plain", Valid: true}}
+	unknown := db.FileInfo{}
+
+	tests := []struct {
+		name    string
+		f       db.FileInfo
+		qStatus string
+		qQueued bool
+		want    pb.PreviewStatus
+	}{
+		{"ready with key", db.FileInfo{PreviewKey: pgtype.Text{String: "pk", Valid: true}}, "pending", true, pb.PreviewStatus_PREVIEW_STATUS_READY},
+		{"pending", image, "pending", true, pb.PreviewStatus_PREVIEW_STATUS_PENDING},
+		{"processing", image, "claimed", true, pb.PreviewStatus_PREVIEW_STATUS_PROCESSING},
+		{"failed", image, "error", true, pb.PreviewStatus_PREVIEW_STATUS_FAILED},
+		{"done none", image, "done", true, pb.PreviewStatus_PREVIEW_STATUS_NONE},
+		{"no row image", image, "", false, pb.PreviewStatus_PREVIEW_STATUS_PENDING},
+		{"no row text", txt, "", false, pb.PreviewStatus_PREVIEW_STATUS_NONE},
+		{"no row unknown", unknown, "", false, pb.PreviewStatus_PREVIEW_STATUS_PENDING},
+		{"ready ignores done", db.FileInfo{PreviewKey: pgtype.Text{String: "pk", Valid: true}}, "done", true, pb.PreviewStatus_PREVIEW_STATUS_READY},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := previewStatus(tt.f, tt.qStatus, tt.qQueued)
+			if got != tt.want {
+				t.Errorf("previewStatus = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestListDirectoryRoot(t *testing.T) {
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().ListChildDirectories(mock.Anything, db.ListChildDirectoriesParams{
 		Parent:    "",
 		PageLimit: defaultPageSize + 1,
 	}).Return([]string{"docs/", "other/"}, nil)
+	queries.EXPECT().GetIndexQueueStatuses(mock.Anything, mock.Anything).Return(nil, nil)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
 		KeyPattern: "%",
 		DirectOnly: true,
@@ -511,6 +546,7 @@ func TestListDirectoryResumeFilesPhase(t *testing.T) {
 	token := encodeCursor(newDirFilesCursor(pb.SortField_SORT_FIELD_KEY, pb.SortOrder_SORT_ORDER_ASC, "docs/", testFile(9, "docs/z.txt")))
 
 	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetIndexQueueStatuses(mock.Anything, mock.Anything).Return(nil, nil)
 	// Directories phase must not run again once a FILES-phase token exists.
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
 		KeyPattern: "docs/%",
@@ -661,6 +697,7 @@ func TestServe(t *testing.T) {
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, mock.Anything).
 		Return([]db.FileInfo{testFile(7, "obj-key")}, nil)
+	queries.EXPECT().GetIndexQueueStatuses(mock.Anything, mock.Anything).Return(nil, nil)
 
 	addr := freeAddr(t)
 	srv := New(addr, queries)
