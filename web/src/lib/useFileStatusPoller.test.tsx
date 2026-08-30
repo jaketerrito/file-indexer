@@ -22,15 +22,13 @@ describe('useFileStatusPoller', () => {
 
   it('polls pending IDs and patches the cache', async () => {
     vi.useFakeTimers()
-    mock.mockResolvedValue({
-      statuses: [
-        {
-          id: '1',
-          previewStatus: PreviewStatus.READY,
-          previewUrl: 'http://example.com/preview.jpg',
-        },
-      ],
-    })
+    mock.mockResolvedValue([
+      {
+        id: '1',
+        previewStatus: PreviewStatus.READY,
+        previewUrl: 'http://example.com/preview.jpg',
+      },
+    ])
 
     const queryClient = new QueryClient()
     queryClient.setQueryData(['files'], {

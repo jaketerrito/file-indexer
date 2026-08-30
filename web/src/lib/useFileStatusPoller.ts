@@ -42,7 +42,7 @@ export function useFileStatusPoller(pages: HasFiles[] | undefined, queryKey: unk
       try {
         const res = await getFilePreviewStatuses({ data: { ids: pendingIds } })
         const byId = new Map<string, { previewStatus: number; previewUrl: string | null }>()
-        for (const s of res.statuses) {
+        for (const s of res) {
           byId.set(s.id, { previewStatus: s.previewStatus, previewUrl: s.previewUrl })
         }
 
