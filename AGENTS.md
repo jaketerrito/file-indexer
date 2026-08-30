@@ -39,3 +39,39 @@ interfaces listed in `.mockery.yaml`, and commit the output.
 - **Crawler skips derived objects.** Preview images are written back under
   the `INDEX_PREFIX` key prefix; the crawler ignores that prefix so derived
   objects never become `files` rows.
+
+## Dev environment (kind + Tilt)
+
+- Shared kind cluster across all checkouts; isolation is per-namespace
+  (`wt-<slug>`). Tilt does NOT create the namespace — `kubectl create ns`
+  first or builds fail with `namespaces "X" not found`. Guard with the
+  `k8s_namespace()` Tiltfile builtin, not `k8s_context()` (all checkouts
+  share one context). Make cluster setup additive (existence-check before
+  `ctlptl apply`) so re-runs don't destroy other checkouts' state.
+- Never `kubectl apply` the upstream Gateway API standard-install CRDs when
+  using cloud-provider-kind: its `safe-upgrades` ValidatingAdmissionPolicy
+  rejects the provider's embedded CRDs and crash-loops it. Let the provider
+  install its own.
+- `*.localhost` resolves to `::1` first under systemd-resolved; docker-proxy
+  IPv6 listeners accept-then-reset and Chrome does not fall back. Bind
+  forwarders (e.g. the kind-gateway-proxy socat container) to `127.0.0.1`.
+- justfile recipes: a literal `{{` (e.g. `docker ps --format '{{.Names}}'`)
+  must be escaped as `{{"{{"}}` or `just` fails with "Unknown start of token".
+- Tiltfile syntax check without Tilt: `python3 -c "compile(open('Tiltfile').read(), 'Tiltfile', 'exec')"`.
+- No passwordless sudo is available in the dev environment — host-level fixes
+  (`/etc/hosts`, killing root-owned docker-proxy processes) are not viable;
+  keep dev-env solutions rootless/user-space.
+
+## Implementation gotchas
+
+- `storage.Walk` lists the entire bucket, not a prefix — filter client-side
+  with `strings.HasPrefix`.
+- The crawler package lives at `internal/service/crawler/`, not
+  `internal/crawler/`; grep scoped to the wrong path returns false negatives.
+- Long-running dev processes (e.g. `search-local` via `hub`) survive across
+  sessions and serve stale code — check process age (`ps -o etime`) before
+  trusting observed behavior; restart before debugging "phantom" bugs.
+- Server functions may return flattened DTOs rather than protobuf wrapper
+  shapes — check the impl before assuming a response shape in web hooks.
+- `useInfiniteQuery` + `refetchInterval` refetches every loaded page; poll a
+  batch-status endpoint for pending IDs and patch the query cache instead.
