@@ -38,7 +38,9 @@ SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) i
 - [Node.js](https://nodejs.org) >= 24 (current LTS; npm ships with it; used for the web frontend)
 
 ### Components
-- kind cluster provisioned with ctlptl
+- shared kind cluster + gateway + loopback proxy, provisioned by tract
+  (`tract cluster-up`, run automatically by `tract up`; build/install from
+  ~/Code/tract)
 - tilt
   - Manages development resources in k8s cluster
   - Automatically generates code
@@ -76,7 +78,7 @@ several worktrees at once without paying for a control plane each.
 `just up` in any checkout ensures the shared cluster exists, creates that
 checkout's namespace, and starts Tilt against it. `just down` stops Tilt and
 deletes only that namespace — the shared cluster and every other worktree
-keep running. `just cluster-down` destroys the shared cluster and therefore
+keep running. `tract cluster-down` destroys the shared cluster and therefore
 **every** checkout's stack.
 
 If two checkouts hash to the same index, start one with

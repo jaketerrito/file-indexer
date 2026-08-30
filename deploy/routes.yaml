@@ -1,0 +1,50 @@
+# Per-checkout routes into the shared gateway (owned by `tract cluster-up`).
+# `$checkout` is replaced with this checkout's namespace by `tract render` in
+# the Tiltfile's kustomize pipe — an unrendered manifest is invalid on apply,
+# never silently misrouted. Cross-namespace parentRef needs no ReferenceGrant
+# (grants are for cross-namespace backendRefs); the Gateway's
+# `allowedRoutes: from: All` admits these.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: web
+spec:
+  parentRefs:
+    - name: shared-gateway
+      namespace: gateway-system
+  hostnames:
+    - $checkout.web.localhost
+  rules:
+    - backendRefs:
+        - name: web
+          port: 3000
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: s3
+spec:
+  parentRefs:
+    - name: shared-gateway
+      namespace: gateway-system
+  hostnames:
+    - $checkout.s3.localhost
+  rules:
+    - backendRefs:
+        - name: local-s3
+          port: 9000
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: s3-console
+spec:
+  parentRefs:
+    - name: shared-gateway
+      namespace: gateway-system
+  hostnames:
+    - $checkout.s3-console.localhost
+  rules:
+    - backendRefs:
+        - name: local-s3
+          port: 9001

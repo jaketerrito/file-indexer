@@ -13,6 +13,7 @@ resources:
   - crawler.yaml
   - web.yaml
   - preview-gc.yaml
+  - s3-secret.yaml
 
 configMapGenerator:
   - name: index-config
@@ -34,10 +35,10 @@ secretGenerator:
       - DB_USER=postgres
       - DB_NAME=postgres
       - DB_PASSWORD=mysecretpassword
-  # s3-secret is NOT generated here: S3_PUBLIC_ENDPOINT must match the
-  # checkout's forwarded MinIO port, which differs per worktree and kustomize
-  # has no env substitution. The Tiltfile generates it instead (same pattern
-  # as the seed-data ConfigMap).
+  # s3-secret is NOT generated here: S3_PUBLIC_ENDPOINT must match this
+  # checkout's gateway host:port, which differs per worktree and kustomize
+  # has no env substitution. It's a static manifest (s3-secret.yaml) whose
+  # placeholders `tract render` substitutes in the Tiltfile's kustomize pipe.
 
 generatorOptions:
   disableNameSuffixHash: true
