@@ -23,6 +23,12 @@ const (
 	maxPageSize     = 200
 )
 
+// previewIndexType is the queue identifier the preview indexer registers
+// under (cmd/index-preview/main.go); duplicated as a literal for the same
+// reason hasDotDotSegment is: services share queue names by convention,
+// not imports.
+const previewIndexType = "preview"
+
 // FileIndex is the database surface the search service depends on: one list
 // query per (sort field, direction), all keyset-paginated on (value, id),
 // plus ListChildDirectories for directory browsing.
@@ -34,6 +40,54 @@ type FileIndex interface {
 	ListFilesBySizeAsc(ctx context.Context, arg db.ListFilesBySizeAscParams) ([]db.FileInfo, error)
 	ListFilesBySizeDesc(ctx context.Context, arg db.ListFilesBySizeDescParams) ([]db.FileInfo, error)
 	ListChildDirectories(ctx context.Context, arg db.ListChildDirectoriesParams) ([]string, error)
+	GetIndexQueueStatuses(ctx context.Context, arg db.GetIndexQueueStatusesParams) ([]db.GetIndexQueueStatusesRow, error)
+}
+
+func previewStatus(f db.FileInfo, qStatus string, qQueued bool) pb.PreviewStatus {
+	if f.PreviewKey.Valid {
+		return pb.PreviewStatus_PREVIEW_STATUS_READY
+	}
+	if qQueued {
+		switch qStatus {
+		case "pending":
+			return pb.PreviewStatus_PREVIEW_STATUS_PENDING
+		case "claimed":
+			return pb.PreviewStatus_PREVIEW_STATUS_PROCESSING
+		case "error":
+			return pb.PreviewStatus_PREVIEW_STATUS_FAILED
+		}
+		return pb.PreviewStatus_PREVIEW_STATUS_NONE
+	}
+	if !f.ContentType.Valid || strings.HasPrefix(f.ContentType.String, "image/") {
+		return pb.PreviewStatus_PREVIEW_STATUS_PENDING
+	}
+	return pb.PreviewStatus_PREVIEW_STATUS_NONE
+}
+
+func (s *SearchServer) attachPreviewStatuses(ctx context.Context, files []db.FileInfo, infos []*pb.FileInfo) error {
+	if len(files) == 0 {
+		return nil
+	}
+	ids := make([]int64, len(files))
+	for i, f := range files {
+		ids[i] = f.ID
+	}
+	rows, err := s.queries.GetIndexQueueStatuses(ctx, db.GetIndexQueueStatusesParams{
+		IndexType: previewIndexType,
+		FileIds:   ids,
+	})
+	if err != nil {
+		return err
+	}
+	queued := make(map[int64]string, len(rows))
+	for _, r := range rows {
+		queued[r.FileID] = r.Status
+	}
+	for i, f := range files {
+		st, ok := queued[f.ID]
+		infos[i].PreviewStatus = previewStatus(f, st, ok)
+	}
+	return nil
 }
 
 type SearchServer struct {
@@ -92,6 +146,9 @@ func (s *SearchServer) ListFiles(ctx context.Context, req *pb.ListFilesRequest) 
 	infos := make([]*pb.FileInfo, 0, len(files))
 	for _, f := range files {
 		infos = append(infos, dbFileToProto(f))
+	}
+	if err := s.attachPreviewStatuses(ctx, files, infos); err != nil {
+		return nil, err
 	}
 	return &pb.ListFilesResponse{Files: infos, NextPageToken: nextPageToken}, nil
 }
@@ -276,6 +333,9 @@ func (s *SearchServer) ListDirectory(ctx context.Context, req *pb.ListDirectoryR
 	infos := make([]*pb.FileInfo, 0, len(files))
 	for _, f := range files {
 		infos = append(infos, dbFileToProto(f))
+	}
+	if err := s.attachPreviewStatuses(ctx, files, infos); err != nil {
+		return nil, err
 	}
 	return &pb.ListDirectoryResponse{Directories: dirs, Files: infos, NextPageToken: nextToken}, nil
 }

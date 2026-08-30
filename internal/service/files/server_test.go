@@ -277,6 +277,75 @@ func TestDbFileToProtoNullFields(t *testing.T) {
 	}
 }
 
+func TestGetFilePreviewStatuses(t *testing.T) {
+	imgReady := db.FileInfo{
+		ID: 1, Key: "ready.jpg",
+		ContentType:  pgtype.Text{String: "image/jpeg", Valid: true},
+		PreviewKey:   pgtype.Text{String: ".index/previews/1", Valid: true},
+		PreviewWidth: pgtype.Int4{Int32: 100, Valid: true},
+	}
+	imgPending := db.FileInfo{
+		ID: 2, Key: "pending.jpg",
+		ContentType: pgtype.Text{String: "image/jpeg", Valid: true},
+	}
+	txtNone := db.FileInfo{
+		ID: 3, Key: "none.txt",
+		ContentType: pgtype.Text{String: "text/plain", Valid: true},
+	}
+	imgFailed := db.FileInfo{
+		ID: 4, Key: "failed.jpg",
+		ContentType: pgtype.Text{String: "image/jpeg", Valid: true},
+	}
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFilesByIDs(mock.Anything, []int64{1, 2, 3, 4}).Return([]db.FileInfo{imgReady, imgPending, txtNone, imgFailed}, nil)
+	queries.EXPECT().GetIndexQueueStatuses(mock.Anything, db.GetIndexQueueStatusesParams{
+		IndexType: "preview",
+		FileIds:   []int64{1, 2, 3, 4},
+	}).Return([]db.GetIndexQueueStatusesRow{
+		{FileID: 2, Status: "pending"},
+		{FileID: 4, Status: "error"},
+	}, nil)
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().GetInlineURL(mock.Anything, ".index/previews/1").Return("https://preview/1", nil)
+
+	srv := FilesServer{queries: queries, storage: storage}
+	resp, err := srv.GetFilePreviewStatuses(context.Background(), &pb.GetFilePreviewStatusesRequest{Ids: []int64{1, 2, 3, 4}})
+	if err != nil {
+		t.Fatalf("GetFilePreviewStatuses: %v", err)
+	}
+	if len(resp.Statuses) != 4 {
+		t.Fatalf("got %d statuses, want 4", len(resp.Statuses))
+	}
+	want := map[int64]pb.PreviewStatus{
+		1: pb.PreviewStatus_PREVIEW_STATUS_READY,
+		2: pb.PreviewStatus_PREVIEW_STATUS_PENDING,
+		3: pb.PreviewStatus_PREVIEW_STATUS_NONE,
+		4: pb.PreviewStatus_PREVIEW_STATUS_FAILED,
+	}
+	for _, s := range resp.Statuses {
+		if want[s.Id] != s.PreviewStatus {
+			t.Errorf("id %d: got %v, want %v", s.Id, s.PreviewStatus, want[s.Id])
+		}
+	}
+	// READY item should carry its presigned URL.
+	if resp.Statuses[0].PreviewUrl != "https://preview/1" {
+		t.Errorf("ready url = %q, want https://preview/1", resp.Statuses[0].PreviewUrl)
+	}
+}
+
+func TestGetFilePreviewStatusesEmpty(t *testing.T) {
+	srv := FilesServer{}
+	resp, err := srv.GetFilePreviewStatuses(context.Background(), &pb.GetFilePreviewStatusesRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Statuses) != 0 {
+		t.Errorf("got %d statuses, want 0", len(resp.Statuses))
+	}
+}
+
 func TestGetDownloadURL(t *testing.T) {
 	files := []db.FileInfo{
 		{ID: 1, Key: "obj-1"},

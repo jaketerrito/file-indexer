@@ -101,3 +101,14 @@ SET status = CASE WHEN sqlc.arg(exhausted)::bool THEN 'error' ELSE 'pending' END
     updated_at = now()
 WHERE index_type = sqlc.arg(index_type)::text
   AND file_id = sqlc.arg(file_id);
+
+-- name: GetIndexQueueStatuses :many
+-- Read-side batch lookup of queue state for a page of files, used by the
+-- search service to surface per-file indexing progress. Returns at most one
+-- row per requested file (the PK is (index_type, file_id)); files with no
+-- row yet are simply absent from the result, which the caller must
+-- distinguish from any real status.
+SELECT file_id, status
+FROM index_queue
+WHERE index_type = sqlc.arg(index_type)::text
+  AND file_id = ANY(sqlc.arg(file_ids)::bigint[]);

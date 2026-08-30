@@ -2,8 +2,8 @@
 // @generated from file service/v1/files.proto (package service.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
 import { file_google_protobuf_timestamp } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +12,70 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file service/v1/files.proto.
  */
 export const file_service_v1_files: GenFile = /*@__PURE__*/
-  fileDesc("ChZzZXJ2aWNlL3YxL2ZpbGVzLnByb3RvEgpzZXJ2aWNlLnYxIiQKFUdldERvd25sb2FkVVJMUmVxdWVzdBILCgNpZHMYASADKAMiKgoPRG93bmxvYWRVUkxTcGVjEgoKAmlkGAEgASgDEgsKA3VybBgCIAEoCSJMChZHZXREb3dubG9hZFVSTFJlc3BvbnNlEjIKDWRvd25sb2FkX3VybHMYASADKAsyGy5zZXJ2aWNlLnYxLkRvd25sb2FkVVJMU3BlYyIjChRHZXRQcmV2aWV3VVJMUmVxdWVzdBILCgNpZHMYASADKAMiKQoOUHJldmlld1VSTFNwZWMSCgoCaWQYASABKAMSCwoDdXJsGAIgASgJIkkKFUdldFByZXZpZXdVUkxSZXNwb25zZRIwCgxwcmV2aWV3X3VybHMYASADKAsyGi5zZXJ2aWNlLnYxLlByZXZpZXdVUkxTcGVjIiAKEkdldEZpbGVJbmZvUmVxdWVzdBIKCgJpZBgBIAEoAyKZAgoIRmlsZUluZm8SCgoCaWQYASABKAMSCwoDa2V5GAIgASgJEhQKDGNvbnRlbnRfdHlwZRgDIAEoCRISCgpzaXplX2J5dGVzGAQgASgDEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC3ByZXZpZXdfa2V5GAcgASgJEhUKDXByZXZpZXdfd2lkdGgYCCABKAUSFgoOcHJldmlld19oZWlnaHQYCSABKAUSJgoEZXhpZhgKIAEoCzIYLnNlcnZpY2UudjEuRXhpZk1ldGFkYXRhIpQLCgxFeGlmTWV0YWRhdGESFwoKaW1hZ2VfdHlwZRgBIAEoCUgAiAEBEhgKC2NhbWVyYV9tYWtlGAIgASgJSAGIAQESGQoMY2FtZXJhX21vZGVsGAMgASgJSAKIAQESGgoNY2FtZXJhX3NlcmlhbBgEIAEoCUgDiAEBEhYKCWxlbnNfbWFrZRgFIAEoCUgEiAEBEhcKCmxlbnNfbW9kZWwYBiABKAlIBYgBARIsCgh0YWtlbl9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoDaXNvGAggASgFSAaIAQESFQoIZl9udW1iZXIYCSABKAJIB4gBARIaCg1leHBvc3VyZV90aW1lGAogASgCSAiIAQESGQoMZm9jYWxfbGVuZ3RoGAsgASgCSAmIAQESHgoRZm9jYWxfbGVuZ3RoXzM1bW0YDCABKAJICogBARIdChBleHBvc3VyZV9wcm9ncmFtGA0gASgFSAuIAQESGgoNbWV0ZXJpbmdfbW9kZRgOIAEoBUgMiAEBEhIKBWZsYXNoGA8gASgFSA2IAQESGAoLb3JpZW50YXRpb24YECABKAVIDogBARIYCgtpbWFnZV93aWR0aBgRIAEoBUgPiAEBEhkKDGltYWdlX2hlaWdodBgSIAEoBUgQiAEBEhkKDGdwc19sYXRpdHVkZRgTIAEoAUgRiAEBEhoKDWdwc19sb25naXR1ZGUYFCABKAFIEogBARIZCgxncHNfYWx0aXR1ZGUYFSABKAJIE4gBARIqCgZncHNfYXQYFiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKCHNvZnR3YXJlGBcgASgJSBSIAQESEwoGYXJ0aXN0GBggASgJSBWIAQESFgoJY29weXJpZ2h0GBkgASgJSBaIAQESHgoRaW1hZ2VfZGVzY3JpcHRpb24YGiABKAlIF4gBARIWCgl4bXBfdGl0bGUYGyABKAlIGIgBARIcCg94bXBfZGVzY3JpcHRpb24YHCABKAlIGYgBARIYCgt4bXBfY3JlYXRvchgdIAEoCUgaiAEBEhYKCXhtcF9sYWJlbBgeIAEoCUgbiAEBEhcKCnhtcF9yYXRpbmcYHyABKAVIHIgBARIUCgx4bXBfa2V5d29yZHMYICADKAkSMwoPeG1wX2NyZWF0ZV9kYXRlGCEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghoYXNfZXhpZhgiIAEoCBIPCgdoYXNfeG1wGCMgASgIQg0KC19pbWFnZV90eXBlQg4KDF9jYW1lcmFfbWFrZUIPCg1fY2FtZXJhX21vZGVsQhAKDl9jYW1lcmFfc2VyaWFsQgwKCl9sZW5zX21ha2VCDQoLX2xlbnNfbW9kZWxCBgoEX2lzb0ILCglfZl9udW1iZXJCEAoOX2V4cG9zdXJlX3RpbWVCDwoNX2ZvY2FsX2xlbmd0aEIUChJfZm9jYWxfbGVuZ3RoXzM1bW1CEwoRX2V4cG9zdXJlX3Byb2dyYW1CEAoOX21ldGVyaW5nX21vZGVCCAoGX2ZsYXNoQg4KDF9vcmllbnRhdGlvbkIOCgxfaW1hZ2Vfd2lkdGhCDwoNX2ltYWdlX2hlaWdodEIPCg1fZ3BzX2xhdGl0dWRlQhAKDl9ncHNfbG9uZ2l0dWRlQg8KDV9ncHNfYWx0aXR1ZGVCCwoJX3NvZnR3YXJlQgkKB19hcnRpc3RCDAoKX2NvcHlyaWdodEIUChJfaW1hZ2VfZGVzY3JpcHRpb25CDAoKX3htcF90aXRsZUISChBfeG1wX2Rlc2NyaXB0aW9uQg4KDF94bXBfY3JlYXRvckIMCgpfeG1wX2xhYmVsQg0KC194bXBfcmF0aW5nIjkKE0dldEZpbGVJbmZvUmVzcG9uc2USIgoEZmlsZRgBIAEoCzIULnNlcnZpY2UudjEuRmlsZUluZm8iHwoRRGVsZXRlRmlsZVJlcXVlc3QSCgoCaWQYASABKAMiFAoSRGVsZXRlRmlsZVJlc3BvbnNlIiIKE0dldFVwbG9hZFVSTFJlcXVlc3QSCwoDa2V5GAEgASgJIiMKFEdldFVwbG9hZFVSTFJlc3BvbnNlEgsKA3VybBgBIAEoCSIiChNDb21taXRVcGxvYWRSZXF1ZXN0EgsKA2tleRgBIAEoCSI6ChRDb21taXRVcGxvYWRSZXNwb25zZRIiCgRmaWxlGAEgASgLMhQuc2VydmljZS52MS5GaWxlSW5mbyIoChhHZXREaXJlY3RvcnlTdGF0c1JlcXVlc3QSDAoEcGF0aBgBIAEoCSJEChlHZXREaXJlY3RvcnlTdGF0c1Jlc3BvbnNlEhIKCmZpbGVfY291bnQYASABKAMSEwoLdG90YWxfYnl0ZXMYAiABKAMiJgoWRGVsZXRlRGlyZWN0b3J5UmVxdWVzdBIMCgRwYXRoGAEgASgJIjAKF0RlbGV0ZURpcmVjdG9yeVJlc3BvbnNlEhUKDWRlbGV0ZWRfY291bnQYASABKAMyvgUKDEZpbGVzU2VydmljZRJXCg5HZXREb3dubG9hZFVSTBIhLnNlcnZpY2UudjEuR2V0RG93bmxvYWRVUkxSZXF1ZXN0GiIuc2VydmljZS52MS5HZXREb3dubG9hZFVSTFJlc3BvbnNlElQKDUdldFByZXZpZXdVUkwSIC5zZXJ2aWNlLnYxLkdldFByZXZpZXdVUkxSZXF1ZXN0GiEuc2VydmljZS52MS5HZXRQcmV2aWV3VVJMUmVzcG9uc2USTgoLR2V0RmlsZUluZm8SHi5zZXJ2aWNlLnYxLkdldEZpbGVJbmZvUmVxdWVzdBofLnNlcnZpY2UudjEuR2V0RmlsZUluZm9SZXNwb25zZRJLCgpEZWxldGVGaWxlEh0uc2VydmljZS52MS5EZWxldGVGaWxlUmVxdWVzdBoeLnNlcnZpY2UudjEuRGVsZXRlRmlsZVJlc3BvbnNlElEKDEdldFVwbG9hZFVSTBIfLnNlcnZpY2UudjEuR2V0VXBsb2FkVVJMUmVxdWVzdBogLnNlcnZpY2UudjEuR2V0VXBsb2FkVVJMUmVzcG9uc2USUQoMQ29tbWl0VXBsb2FkEh8uc2VydmljZS52MS5Db21taXRVcGxvYWRSZXF1ZXN0GiAuc2VydmljZS52MS5Db21taXRVcGxvYWRSZXNwb25zZRJgChFHZXREaXJlY3RvcnlTdGF0cxIkLnNlcnZpY2UudjEuR2V0RGlyZWN0b3J5U3RhdHNSZXF1ZXN0GiUuc2VydmljZS52MS5HZXREaXJlY3RvcnlTdGF0c1Jlc3BvbnNlEloKD0RlbGV0ZURpcmVjdG9yeRIiLnNlcnZpY2UudjEuRGVsZXRlRGlyZWN0b3J5UmVxdWVzdBojLnNlcnZpY2UudjEuRGVsZXRlRGlyZWN0b3J5UmVzcG9uc2VCKFomZmlsZS1pbmRleGVyL2ludGVybmFsL3BiL3NlcnZpY2UvdjE7cGJiBnByb3RvMw", [file_google_protobuf_timestamp]);
+  fileDesc("ChZzZXJ2aWNlL3YxL2ZpbGVzLnByb3RvEgpzZXJ2aWNlLnYxIiwKHUdldEZpbGVQcmV2aWV3U3RhdHVzZXNSZXF1ZXN0EgsKA2lkcxgBIAMoAyJnChFGaWxlUHJldmlld1N0YXR1cxIKCgJpZBgBIAEoAxIxCg5wcmV2aWV3X3N0YXR1cxgCIAEoDjIZLnNlcnZpY2UudjEuUHJldmlld1N0YXR1cxITCgtwcmV2aWV3X3VybBgDIAEoCSJRCh5HZXRGaWxlUHJldmlld1N0YXR1c2VzUmVzcG9uc2USLwoIc3RhdHVzZXMYASADKAsyHS5zZXJ2aWNlLnYxLkZpbGVQcmV2aWV3U3RhdHVzIiQKFUdldERvd25sb2FkVVJMUmVxdWVzdBILCgNpZHMYASADKAMiKgoPRG93bmxvYWRVUkxTcGVjEgoKAmlkGAEgASgDEgsKA3VybBgCIAEoCSJMChZHZXREb3dubG9hZFVSTFJlc3BvbnNlEjIKDWRvd25sb2FkX3VybHMYASADKAsyGy5zZXJ2aWNlLnYxLkRvd25sb2FkVVJMU3BlYyIjChRHZXRQcmV2aWV3VVJMUmVxdWVzdBILCgNpZHMYASADKAMiKQoOUHJldmlld1VSTFNwZWMSCgoCaWQYASABKAMSCwoDdXJsGAIgASgJIkkKFUdldFByZXZpZXdVUkxSZXNwb25zZRIwCgxwcmV2aWV3X3VybHMYASADKAsyGi5zZXJ2aWNlLnYxLlByZXZpZXdVUkxTcGVjIiAKEkdldEZpbGVJbmZvUmVxdWVzdBIKCgJpZBgBIAEoAyLMAgoIRmlsZUluZm8SCgoCaWQYASABKAMSCwoDa2V5GAIgASgJEhQKDGNvbnRlbnRfdHlwZRgDIAEoCRISCgpzaXplX2J5dGVzGAQgASgDEi4KCmNyZWF0ZWRfYXQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEi4KCnVwZGF0ZWRfYXQYBiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhMKC3ByZXZpZXdfa2V5GAcgASgJEhUKDXByZXZpZXdfd2lkdGgYCCABKAUSFgoOcHJldmlld19oZWlnaHQYCSABKAUSJgoEZXhpZhgKIAEoCzIYLnNlcnZpY2UudjEuRXhpZk1ldGFkYXRhEjEKDnByZXZpZXdfc3RhdHVzGAsgASgOMhkuc2VydmljZS52MS5QcmV2aWV3U3RhdHVzIpQLCgxFeGlmTWV0YWRhdGESFwoKaW1hZ2VfdHlwZRgBIAEoCUgAiAEBEhgKC2NhbWVyYV9tYWtlGAIgASgJSAGIAQESGQoMY2FtZXJhX21vZGVsGAMgASgJSAKIAQESGgoNY2FtZXJhX3NlcmlhbBgEIAEoCUgDiAEBEhYKCWxlbnNfbWFrZRgFIAEoCUgEiAEBEhcKCmxlbnNfbW9kZWwYBiABKAlIBYgBARIsCgh0YWtlbl9hdBgHIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEAoDaXNvGAggASgFSAaIAQESFQoIZl9udW1iZXIYCSABKAJIB4gBARIaCg1leHBvc3VyZV90aW1lGAogASgCSAiIAQESGQoMZm9jYWxfbGVuZ3RoGAsgASgCSAmIAQESHgoRZm9jYWxfbGVuZ3RoXzM1bW0YDCABKAJICogBARIdChBleHBvc3VyZV9wcm9ncmFtGA0gASgFSAuIAQESGgoNbWV0ZXJpbmdfbW9kZRgOIAEoBUgMiAEBEhIKBWZsYXNoGA8gASgFSA2IAQESGAoLb3JpZW50YXRpb24YECABKAVIDogBARIYCgtpbWFnZV93aWR0aBgRIAEoBUgPiAEBEhkKDGltYWdlX2hlaWdodBgSIAEoBUgQiAEBEhkKDGdwc19sYXRpdHVkZRgTIAEoAUgRiAEBEhoKDWdwc19sb25naXR1ZGUYFCABKAFIEogBARIZCgxncHNfYWx0aXR1ZGUYFSABKAJIE4gBARIqCgZncHNfYXQYFiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhUKCHNvZnR3YXJlGBcgASgJSBSIAQESEwoGYXJ0aXN0GBggASgJSBWIAQESFgoJY29weXJpZ2h0GBkgASgJSBaIAQESHgoRaW1hZ2VfZGVzY3JpcHRpb24YGiABKAlIF4gBARIWCgl4bXBfdGl0bGUYGyABKAlIGIgBARIcCg94bXBfZGVzY3JpcHRpb24YHCABKAlIGYgBARIYCgt4bXBfY3JlYXRvchgdIAEoCUgaiAEBEhYKCXhtcF9sYWJlbBgeIAEoCUgbiAEBEhcKCnhtcF9yYXRpbmcYHyABKAVIHIgBARIUCgx4bXBfa2V5d29yZHMYICADKAkSMwoPeG1wX2NyZWF0ZV9kYXRlGCEgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCghoYXNfZXhpZhgiIAEoCBIPCgdoYXNfeG1wGCMgASgIQg0KC19pbWFnZV90eXBlQg4KDF9jYW1lcmFfbWFrZUIPCg1fY2FtZXJhX21vZGVsQhAKDl9jYW1lcmFfc2VyaWFsQgwKCl9sZW5zX21ha2VCDQoLX2xlbnNfbW9kZWxCBgoEX2lzb0ILCglfZl9udW1iZXJCEAoOX2V4cG9zdXJlX3RpbWVCDwoNX2ZvY2FsX2xlbmd0aEIUChJfZm9jYWxfbGVuZ3RoXzM1bW1CEwoRX2V4cG9zdXJlX3Byb2dyYW1CEAoOX21ldGVyaW5nX21vZGVCCAoGX2ZsYXNoQg4KDF9vcmllbnRhdGlvbkIOCgxfaW1hZ2Vfd2lkdGhCDwoNX2ltYWdlX2hlaWdodEIPCg1fZ3BzX2xhdGl0dWRlQhAKDl9ncHNfbG9uZ2l0dWRlQg8KDV9ncHNfYWx0aXR1ZGVCCwoJX3NvZnR3YXJlQgkKB19hcnRpc3RCDAoKX2NvcHlyaWdodEIUChJfaW1hZ2VfZGVzY3JpcHRpb25CDAoKX3htcF90aXRsZUISChBfeG1wX2Rlc2NyaXB0aW9uQg4KDF94bXBfY3JlYXRvckIMCgpfeG1wX2xhYmVsQg0KC194bXBfcmF0aW5nIjkKE0dldEZpbGVJbmZvUmVzcG9uc2USIgoEZmlsZRgBIAEoCzIULnNlcnZpY2UudjEuRmlsZUluZm8iHwoRRGVsZXRlRmlsZVJlcXVlc3QSCgoCaWQYASABKAMiFAoSRGVsZXRlRmlsZVJlc3BvbnNlIiIKE0dldFVwbG9hZFVSTFJlcXVlc3QSCwoDa2V5GAEgASgJIiMKFEdldFVwbG9hZFVSTFJlc3BvbnNlEgsKA3VybBgBIAEoCSIiChNDb21taXRVcGxvYWRSZXF1ZXN0EgsKA2tleRgBIAEoCSI6ChRDb21taXRVcGxvYWRSZXNwb25zZRIiCgRmaWxlGAEgASgLMhQuc2VydmljZS52MS5GaWxlSW5mbyIoChhHZXREaXJlY3RvcnlTdGF0c1JlcXVlc3QSDAoEcGF0aBgBIAEoCSJEChlHZXREaXJlY3RvcnlTdGF0c1Jlc3BvbnNlEhIKCmZpbGVfY291bnQYASABKAMSEwoLdG90YWxfYnl0ZXMYAiABKAMiJgoWRGVsZXRlRGlyZWN0b3J5UmVxdWVzdBIMCgRwYXRoGAEgASgJIjAKF0RlbGV0ZURpcmVjdG9yeVJlc3BvbnNlEhUKDWRlbGV0ZWRfY291bnQYASABKAMquAEKDVByZXZpZXdTdGF0dXMSHgoaUFJFVklFV19TVEFUVVNfVU5TUEVDSUZJRUQQABIXChNQUkVWSUVXX1NUQVRVU19OT05FEAESGgoWUFJFVklFV19TVEFUVVNfUEVORElORxACEh0KGVBSRVZJRVdfU1RBVFVTX1BST0NFU1NJTkcQAxIYChRQUkVWSUVXX1NUQVRVU19SRUFEWRAEEhkKFVBSRVZJRVdfU1RBVFVTX0ZBSUxFRBAFMq8GCgxGaWxlc1NlcnZpY2USVwoOR2V0RG93bmxvYWRVUkwSIS5zZXJ2aWNlLnYxLkdldERvd25sb2FkVVJMUmVxdWVzdBoiLnNlcnZpY2UudjEuR2V0RG93bmxvYWRVUkxSZXNwb25zZRJUCg1HZXRQcmV2aWV3VVJMEiAuc2VydmljZS52MS5HZXRQcmV2aWV3VVJMUmVxdWVzdBohLnNlcnZpY2UudjEuR2V0UHJldmlld1VSTFJlc3BvbnNlEk4KC0dldEZpbGVJbmZvEh4uc2VydmljZS52MS5HZXRGaWxlSW5mb1JlcXVlc3QaHy5zZXJ2aWNlLnYxLkdldEZpbGVJbmZvUmVzcG9uc2USSwoKRGVsZXRlRmlsZRIdLnNlcnZpY2UudjEuRGVsZXRlRmlsZVJlcXVlc3QaHi5zZXJ2aWNlLnYxLkRlbGV0ZUZpbGVSZXNwb25zZRJRCgxHZXRVcGxvYWRVUkwSHy5zZXJ2aWNlLnYxLkdldFVwbG9hZFVSTFJlcXVlc3QaIC5zZXJ2aWNlLnYxLkdldFVwbG9hZFVSTFJlc3BvbnNlElEKDENvbW1pdFVwbG9hZBIfLnNlcnZpY2UudjEuQ29tbWl0VXBsb2FkUmVxdWVzdBogLnNlcnZpY2UudjEuQ29tbWl0VXBsb2FkUmVzcG9uc2USYAoRR2V0RGlyZWN0b3J5U3RhdHMSJC5zZXJ2aWNlLnYxLkdldERpcmVjdG9yeVN0YXRzUmVxdWVzdBolLnNlcnZpY2UudjEuR2V0RGlyZWN0b3J5U3RhdHNSZXNwb25zZRJaCg9EZWxldGVEaXJlY3RvcnkSIi5zZXJ2aWNlLnYxLkRlbGV0ZURpcmVjdG9yeVJlcXVlc3QaIy5zZXJ2aWNlLnYxLkRlbGV0ZURpcmVjdG9yeVJlc3BvbnNlEm8KFkdldEZpbGVQcmV2aWV3U3RhdHVzZXMSKS5zZXJ2aWNlLnYxLkdldEZpbGVQcmV2aWV3U3RhdHVzZXNSZXF1ZXN0Giouc2VydmljZS52MS5HZXRGaWxlUHJldmlld1N0YXR1c2VzUmVzcG9uc2VCKFomZmlsZS1pbmRleGVyL2ludGVybmFsL3BiL3NlcnZpY2UvdjE7cGJiBnByb3RvMw", [file_google_protobuf_timestamp]);
+
+/**
+ * @generated from message service.v1.GetFilePreviewStatusesRequest
+ */
+export type GetFilePreviewStatusesRequest = Message<"service.v1.GetFilePreviewStatusesRequest"> & {
+  /**
+   * @generated from field: repeated int64 ids = 1;
+   */
+  ids: bigint[];
+};
+
+/**
+ * Describes the message service.v1.GetFilePreviewStatusesRequest.
+ * Use `create(GetFilePreviewStatusesRequestSchema)` to create a new message.
+ */
+export const GetFilePreviewStatusesRequestSchema: GenMessage<GetFilePreviewStatusesRequest> = /*@__PURE__*/
+  messageDesc(file_service_v1_files, 0);
+
+/**
+ * @generated from message service.v1.FilePreviewStatus
+ */
+export type FilePreviewStatus = Message<"service.v1.FilePreviewStatus"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: service.v1.PreviewStatus preview_status = 2;
+   */
+  previewStatus: PreviewStatus;
+
+  /**
+   * Presigned preview URL when status is READY; empty otherwise.
+   *
+   * @generated from field: string preview_url = 3;
+   */
+  previewUrl: string;
+};
+
+/**
+ * Describes the message service.v1.FilePreviewStatus.
+ * Use `create(FilePreviewStatusSchema)` to create a new message.
+ */
+export const FilePreviewStatusSchema: GenMessage<FilePreviewStatus> = /*@__PURE__*/
+  messageDesc(file_service_v1_files, 1);
+
+/**
+ * @generated from message service.v1.GetFilePreviewStatusesResponse
+ */
+export type GetFilePreviewStatusesResponse = Message<"service.v1.GetFilePreviewStatusesResponse"> & {
+  /**
+   * @generated from field: repeated service.v1.FilePreviewStatus statuses = 1;
+   */
+  statuses: FilePreviewStatus[];
+};
+
+/**
+ * Describes the message service.v1.GetFilePreviewStatusesResponse.
+ * Use `create(GetFilePreviewStatusesResponseSchema)` to create a new message.
+ */
+export const GetFilePreviewStatusesResponseSchema: GenMessage<GetFilePreviewStatusesResponse> = /*@__PURE__*/
+  messageDesc(file_service_v1_files, 2);
 
 /**
  * @generated from message service.v1.GetDownloadURLRequest
@@ -29,7 +92,7 @@ export type GetDownloadURLRequest = Message<"service.v1.GetDownloadURLRequest"> 
  * Use `create(GetDownloadURLRequestSchema)` to create a new message.
  */
 export const GetDownloadURLRequestSchema: GenMessage<GetDownloadURLRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 0);
+  messageDesc(file_service_v1_files, 3);
 
 /**
  * @generated from message service.v1.DownloadURLSpec
@@ -51,7 +114,7 @@ export type DownloadURLSpec = Message<"service.v1.DownloadURLSpec"> & {
  * Use `create(DownloadURLSpecSchema)` to create a new message.
  */
 export const DownloadURLSpecSchema: GenMessage<DownloadURLSpec> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 1);
+  messageDesc(file_service_v1_files, 4);
 
 /**
  * @generated from message service.v1.GetDownloadURLResponse
@@ -68,7 +131,7 @@ export type GetDownloadURLResponse = Message<"service.v1.GetDownloadURLResponse"
  * Use `create(GetDownloadURLResponseSchema)` to create a new message.
  */
 export const GetDownloadURLResponseSchema: GenMessage<GetDownloadURLResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 2);
+  messageDesc(file_service_v1_files, 5);
 
 /**
  * @generated from message service.v1.GetPreviewURLRequest
@@ -85,7 +148,7 @@ export type GetPreviewURLRequest = Message<"service.v1.GetPreviewURLRequest"> & 
  * Use `create(GetPreviewURLRequestSchema)` to create a new message.
  */
 export const GetPreviewURLRequestSchema: GenMessage<GetPreviewURLRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 3);
+  messageDesc(file_service_v1_files, 6);
 
 /**
  * @generated from message service.v1.PreviewURLSpec
@@ -107,7 +170,7 @@ export type PreviewURLSpec = Message<"service.v1.PreviewURLSpec"> & {
  * Use `create(PreviewURLSpecSchema)` to create a new message.
  */
 export const PreviewURLSpecSchema: GenMessage<PreviewURLSpec> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 4);
+  messageDesc(file_service_v1_files, 7);
 
 /**
  * @generated from message service.v1.GetPreviewURLResponse
@@ -127,7 +190,7 @@ export type GetPreviewURLResponse = Message<"service.v1.GetPreviewURLResponse"> 
  * Use `create(GetPreviewURLResponseSchema)` to create a new message.
  */
 export const GetPreviewURLResponseSchema: GenMessage<GetPreviewURLResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 5);
+  messageDesc(file_service_v1_files, 8);
 
 /**
  * @generated from message service.v1.GetFileInfoRequest
@@ -144,7 +207,7 @@ export type GetFileInfoRequest = Message<"service.v1.GetFileInfoRequest"> & {
  * Use `create(GetFileInfoRequestSchema)` to create a new message.
  */
 export const GetFileInfoRequestSchema: GenMessage<GetFileInfoRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 6);
+  messageDesc(file_service_v1_files, 9);
 
 /**
  * @generated from message service.v1.FileInfo
@@ -209,6 +272,16 @@ export type FileInfo = Message<"service.v1.FileInfo"> & {
    * @generated from field: service.v1.ExifMetadata exif = 10;
    */
   exif?: ExifMetadata | undefined;
+
+  /**
+   * Where this file stands in the preview index pipeline, so clients can
+   * distinguish "no preview is coming" from "not yet indexed" — both surface
+   * as an empty preview_key. Computed from the index queue by SearchService
+   * list RPCs; UNSPECIFIED from RPCs that do not compute it.
+   *
+   * @generated from field: service.v1.PreviewStatus preview_status = 11;
+   */
+  previewStatus: PreviewStatus;
 };
 
 /**
@@ -216,7 +289,7 @@ export type FileInfo = Message<"service.v1.FileInfo"> & {
  * Use `create(FileInfoSchema)` to create a new message.
  */
 export const FileInfoSchema: GenMessage<FileInfo> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 7);
+  messageDesc(file_service_v1_files, 10);
 
 /**
  * EXIF and XMP metadata extracted from an image or camera-RAW file. Mirrors
@@ -429,7 +502,7 @@ export type ExifMetadata = Message<"service.v1.ExifMetadata"> & {
  * Use `create(ExifMetadataSchema)` to create a new message.
  */
 export const ExifMetadataSchema: GenMessage<ExifMetadata> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 8);
+  messageDesc(file_service_v1_files, 11);
 
 /**
  * @generated from message service.v1.GetFileInfoResponse
@@ -446,7 +519,7 @@ export type GetFileInfoResponse = Message<"service.v1.GetFileInfoResponse"> & {
  * Use `create(GetFileInfoResponseSchema)` to create a new message.
  */
 export const GetFileInfoResponseSchema: GenMessage<GetFileInfoResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 9);
+  messageDesc(file_service_v1_files, 12);
 
 /**
  * @generated from message service.v1.DeleteFileRequest
@@ -463,7 +536,7 @@ export type DeleteFileRequest = Message<"service.v1.DeleteFileRequest"> & {
  * Use `create(DeleteFileRequestSchema)` to create a new message.
  */
 export const DeleteFileRequestSchema: GenMessage<DeleteFileRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 10);
+  messageDesc(file_service_v1_files, 13);
 
 /**
  * @generated from message service.v1.DeleteFileResponse
@@ -476,7 +549,7 @@ export type DeleteFileResponse = Message<"service.v1.DeleteFileResponse"> & {
  * Use `create(DeleteFileResponseSchema)` to create a new message.
  */
 export const DeleteFileResponseSchema: GenMessage<DeleteFileResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 11);
+  messageDesc(file_service_v1_files, 14);
 
 /**
  * @generated from message service.v1.GetUploadURLRequest
@@ -497,7 +570,7 @@ export type GetUploadURLRequest = Message<"service.v1.GetUploadURLRequest"> & {
  * Use `create(GetUploadURLRequestSchema)` to create a new message.
  */
 export const GetUploadURLRequestSchema: GenMessage<GetUploadURLRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 12);
+  messageDesc(file_service_v1_files, 15);
 
 /**
  * @generated from message service.v1.GetUploadURLResponse
@@ -514,7 +587,7 @@ export type GetUploadURLResponse = Message<"service.v1.GetUploadURLResponse"> & 
  * Use `create(GetUploadURLResponseSchema)` to create a new message.
  */
 export const GetUploadURLResponseSchema: GenMessage<GetUploadURLResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 13);
+  messageDesc(file_service_v1_files, 16);
 
 /**
  * @generated from message service.v1.CommitUploadRequest
@@ -533,7 +606,7 @@ export type CommitUploadRequest = Message<"service.v1.CommitUploadRequest"> & {
  * Use `create(CommitUploadRequestSchema)` to create a new message.
  */
 export const CommitUploadRequestSchema: GenMessage<CommitUploadRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 14);
+  messageDesc(file_service_v1_files, 17);
 
 /**
  * @generated from message service.v1.CommitUploadResponse
@@ -554,7 +627,7 @@ export type CommitUploadResponse = Message<"service.v1.CommitUploadResponse"> & 
  * Use `create(CommitUploadResponseSchema)` to create a new message.
  */
 export const CommitUploadResponseSchema: GenMessage<CommitUploadResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 15);
+  messageDesc(file_service_v1_files, 18);
 
 /**
  * @generated from message service.v1.GetDirectoryStatsRequest
@@ -574,7 +647,7 @@ export type GetDirectoryStatsRequest = Message<"service.v1.GetDirectoryStatsRequ
  * Use `create(GetDirectoryStatsRequestSchema)` to create a new message.
  */
 export const GetDirectoryStatsRequestSchema: GenMessage<GetDirectoryStatsRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 16);
+  messageDesc(file_service_v1_files, 19);
 
 /**
  * @generated from message service.v1.GetDirectoryStatsResponse
@@ -596,7 +669,7 @@ export type GetDirectoryStatsResponse = Message<"service.v1.GetDirectoryStatsRes
  * Use `create(GetDirectoryStatsResponseSchema)` to create a new message.
  */
 export const GetDirectoryStatsResponseSchema: GenMessage<GetDirectoryStatsResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 17);
+  messageDesc(file_service_v1_files, 20);
 
 /**
  * @generated from message service.v1.DeleteDirectoryRequest
@@ -617,7 +690,7 @@ export type DeleteDirectoryRequest = Message<"service.v1.DeleteDirectoryRequest"
  * Use `create(DeleteDirectoryRequestSchema)` to create a new message.
  */
 export const DeleteDirectoryRequestSchema: GenMessage<DeleteDirectoryRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 18);
+  messageDesc(file_service_v1_files, 21);
 
 /**
  * @generated from message service.v1.DeleteDirectoryResponse
@@ -640,7 +713,67 @@ export type DeleteDirectoryResponse = Message<"service.v1.DeleteDirectoryRespons
  * Use `create(DeleteDirectoryResponseSchema)` to create a new message.
  */
 export const DeleteDirectoryResponseSchema: GenMessage<DeleteDirectoryResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 19);
+  messageDesc(file_service_v1_files, 22);
+
+/**
+ * PreviewStatus describes a file's position in the preview index pipeline.
+ *
+ * @generated from enum service.v1.PreviewStatus
+ */
+export enum PreviewStatus {
+  /**
+   * The RPC did not compute a status.
+   *
+   * @generated from enum value: PREVIEW_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * No preview exists and none is coming: the file is not an image, or the
+   * preview indexer processed it and produced nothing (e.g. unsupported or
+   * oversized source).
+   *
+   * @generated from enum value: PREVIEW_STATUS_NONE = 1;
+   */
+  NONE = 1,
+
+  /**
+   * Indexing is in flight: the job is queued, or the file is so new that
+   * queue seeding has not enqueued it yet and (without a stat result) its
+   * content type is not yet known.
+   *
+   * @generated from enum value: PREVIEW_STATUS_PENDING = 2;
+   */
+  PENDING = 2,
+
+  /**
+   * An indexer holds the job right now.
+   *
+   * @generated from enum value: PREVIEW_STATUS_PROCESSING = 3;
+   */
+  PROCESSING = 3,
+
+  /**
+   * preview_key is set; the preview is ready to serve.
+   *
+   * @generated from enum value: PREVIEW_STATUS_READY = 4;
+   */
+  READY = 4,
+
+  /**
+   * Indexing attempts are exhausted; the job is parked as error until
+   * manually reset.
+   *
+   * @generated from enum value: PREVIEW_STATUS_FAILED = 5;
+   */
+  FAILED = 5,
+}
+
+/**
+ * Describes the enum service.v1.PreviewStatus.
+ */
+export const PreviewStatusSchema: GenEnum<PreviewStatus> = /*@__PURE__*/
+  enumDesc(file_service_v1_files, 0);
 
 /**
  * @generated from service service.v1.FilesService
@@ -709,6 +842,14 @@ export const FilesService: GenService<{
     methodKind: "unary";
     input: typeof DeleteDirectoryRequestSchema;
     output: typeof DeleteDirectoryResponseSchema;
+  },
+  /**
+   * @generated from rpc service.v1.FilesService.GetFilePreviewStatuses
+   */
+  getFilePreviewStatuses: {
+    methodKind: "unary";
+    input: typeof GetFilePreviewStatusesRequestSchema;
+    output: typeof GetFilePreviewStatusesResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_service_v1_files, 0);
