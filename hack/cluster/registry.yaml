@@ -1,0 +1,11 @@
+# Local dev/CI image registry, managed declaratively by ctlptl
+# (https://github.com/tilt-dev/ctlptl). Applied by hack/cluster-up.sh.
+#
+# The registry is shared across all checkouts, along with the ONE kind
+# cluster ("kind-kind") that pulls from it: every checkout pushes images
+# through the same registry and deploys into its own namespace. Tilt
+# auto-detects the registry via the cluster's LocalRegistryHosting config,
+# so no registry settings are needed in the Tiltfile.
+apiVersion: ctlptl.dev/v1alpha1
+kind: Registry
+name: ctlptl-registry

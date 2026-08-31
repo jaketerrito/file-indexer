@@ -4,11 +4,11 @@ if not str(local('command -v npm || true', quiet=True, echo_off=True)).strip():
     fail('npm not found on PATH; install Node >= 24 (https://nodejs.org) and restart tilt')
 
 # Per-checkout dev environment: all checkouts share one kind cluster (see
-# `tract cluster-up`). Local addressing is per-checkout HOSTNAME —
-# `<namespace>.<service>.localhost:$GATEWAY_PORT` — routed by the shared
-# cloud-provider-kind gateway; `tract env` (sourced by the just recipes)
-# exports K8S_NAMESPACE and friends. There are no per-checkout host ports
-# except the Tilt UI.
+# `just cluster-up`). Local addressing is per-checkout HOSTNAME —
+# `<namespace>.<service>.localhost:18080` — routed by the shared
+# cloud-provider-kind gateway; `hack/dev-env.sh` (sourced by the just
+# recipes) exports K8S_NAMESPACE and friends. There are no per-checkout
+# host ports except the Tilt UI.
 
 local_resource('generate',
    cmd='just generate',
@@ -34,8 +34,8 @@ local_resource('test-integration',
 
 # Guard against accidentally deploying to a non-dev cluster — or into another
 # checkout's namespace. All checkouts share one kind cluster created by
-# `tract cluster-up`, which also provides the image
-# registry Tilt auto-detects. Since the context is shared, the namespace is
+# `just cluster-up`, which also provides the
+# image registry Tilt auto-detects. Since the context is shared, the namespace is
 # what isolates checkouts: K8S_NAMESPACE pins the expected one, so a bare
 # `tilt up` here can't deploy into the main checkout's "default" namespace or
 # another worktree's.
@@ -55,14 +55,17 @@ docker_build('crawler', '.', build_args={'BUILD_TARGET': './cmd/crawler'})
 docker_build('preview-gc', '.', build_args={'BUILD_TARGET': './cmd/preview-gc'})
 docker_build('web', 'web')
 
-# tract render substitutes the per-checkout tokens ($checkout = namespace,
-# $gateway_port) in deploy/ manifests — kustomize has no env substitution and
-# the gateway port is only known at runtime. Fails loudly if the gateway is
-# down, so run via `just up`.
-k8s_yaml(local('kubectl kustomize deploy | tract render', quiet=True))
-# routes.yaml carries the same placeholders but stays OUT of the
-# kustomization so `just lint-k8s` (kubeconform, no tract) never sees them.
-k8s_yaml(local('tract render < deploy/routes.yaml', quiet=True))
+# deploy/ manifests carry the $NAMESPACE token for per-checkout hostnames —
+# kustomize has no env substitution, and k8s_namespace() is the launch-time
+# --namespace value, so a bare `tilt up --namespace X` renders correctly
+# with no tooling beyond tilt itself. An unrendered $NAMESPACE hostname is
+# invalid per Gateway API hostname rules, so a missed replace fails at
+# apply time, never silently misroutes.
+ns = k8s_namespace()
+k8s_yaml(blob(str(local('kubectl kustomize deploy', quiet=True)).replace('$NAMESPACE', ns)))
+# routes.yaml carries the same token but stays OUT of the kustomization so
+# `just lint-k8s` (kubeconform, no Gateway API schemas) never sees it.
+k8s_yaml(blob(str(read_file('deploy/routes.yaml')).replace('$NAMESPACE', ns)))
 
 # seed-data (minio.yaml's seed sidecar, see deploy/seed.md) is generated here
 # rather than via kustomize's configMapGenerator: that only accepts explicit

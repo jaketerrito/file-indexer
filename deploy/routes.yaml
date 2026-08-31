@@ -1,6 +1,6 @@
-# Per-checkout routes into the shared gateway (owned by `tract cluster-up`).
-# `$checkout` is replaced with this checkout's namespace by `tract render` in
-# the Tiltfile's kustomize pipe — an unrendered manifest is invalid on apply,
+# Per-checkout routes into the shared gateway (created by `just cluster-up`).
+# `$NAMESPACE` is replaced with this checkout's namespace by the
+# Tiltfile (k8s_namespace()) — an unrendered manifest is invalid on apply,
 # never silently misrouted. Cross-namespace parentRef needs no ReferenceGrant
 # (grants are for cross-namespace backendRefs); the Gateway's
 # `allowedRoutes: from: All` admits these.
@@ -13,7 +13,7 @@ spec:
     - name: shared-gateway
       namespace: gateway-system
   hostnames:
-    - $checkout.web.localhost
+    - $NAMESPACE.web.localhost
   rules:
     - backendRefs:
         - name: web
@@ -28,7 +28,7 @@ spec:
     - name: shared-gateway
       namespace: gateway-system
   hostnames:
-    - $checkout.s3.localhost
+    - $NAMESPACE.s3.localhost
   rules:
     - backendRefs:
         - name: local-s3
@@ -43,7 +43,7 @@ spec:
     - name: shared-gateway
       namespace: gateway-system
   hostnames:
-    - $checkout.s3-console.localhost
+    - $NAMESPACE.s3-console.localhost
   rules:
     - backendRefs:
         - name: local-s3

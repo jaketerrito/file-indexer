@@ -1,0 +1,8 @@
+# The ONE shared kind cluster every checkout deploys into (isolation is
+# per-namespace). Applied by hack/cluster-up.sh; the ctlptl Cluster object
+# name IS the kubectl context name.
+apiVersion: ctlptl.dev/v1alpha1
+kind: Cluster
+product: kind
+name: kind-kind
+registry: ctlptl-registry

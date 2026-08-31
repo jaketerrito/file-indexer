@@ -19,10 +19,10 @@ lint-go:
     go tool golangci-lint run ./...
 
 # Validate Kubernetes manifests with kubeconform (builds kustomize output
-# first). deploy/routes.yaml is NOT in the kustomization: its `$checkout`
-# placeholders can never validate against the HTTPRoute hostname schema —
-# it's rendered by `tract render` in the Tiltfile instead (same exemption
-# the Tiltfile-blob routes always had).
+# first). deploy/routes.yaml is NOT in the kustomization: its `$NAMESPACE`
+# placeholder hostnames can never validate against the HTTPRoute hostname
+# schema — the Tiltfile substitutes it with k8s_namespace() at deploy time
+# (same exemption the Tiltfile-blob routes always had).
 lint-k8s:
     go tool kustomize build deploy | go tool kubeconform -strict -summary
 
@@ -55,22 +55,58 @@ fmt-web:
     npm --prefix web ci
     npm --prefix web run fmt
 
-# Verify the shared cluster, ensure this checkout's namespace, then start
-# Tilt in the background (tract derives the per-checkout env; the shared cluster is prebuilt — see the tract README).
-up:
-    tract up --detach
+# Create the shared dev cluster (one-time per machine; safe to re-run).
+# Prereqs: docker, kubectl, ctlptl, kind.
+cluster-up:
+    hack/cluster-up.sh
 
-# Stop Tilt and delete this checkout's namespace (shared cluster survives)
+# Destroy the SHARED cluster and every checkout's stack with it
+cluster-down:
+    hack/cluster-down.sh
+
+# Ensure this checkout's namespace, then start Tilt in the background.
+# hack/dev-env.sh derives the per-checkout namespace and Tilt port from the
+# checkout path; the shared cluster must already exist (`just cluster-up`).
+up:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    eval "$(hack/dev-env.sh)"
+    if pgrep -f "tilt up.*--port $TILT_PORT" >/dev/null; then
+        echo "tilt already running on port $TILT_PORT (this checkout's); stop it with \`just down\`" >&2
+        exit 1
+    fi
+    kubectl --context "$K8S_CONTEXT" create namespace "$K8S_NAMESPACE" \
+        --dry-run=client -o yaml | kubectl --context "$K8S_CONTEXT" apply -f -
+    setsid tilt up --context "$K8S_CONTEXT" --namespace "$K8S_NAMESPACE" --port "$TILT_PORT" </dev/null >/dev/null 2>&1 &
+    echo "tilt UI: http://localhost:$TILT_PORT"
+    echo "namespace: $K8S_NAMESPACE"
+    echo "routes: http://$K8S_NAMESPACE.<label>.localhost:18080 (labels: web, s3, s3-console)"
+
+# Stop this checkout's Tilt and delete its namespace (shared cluster survives)
 down:
-    tract down
+    #!/usr/bin/env bash
+    set -euo pipefail
+    eval "$(hack/dev-env.sh)"
+    pkill -f "tilt up.*--port $TILT_PORT" || true
+    tilt down --context "$K8S_CONTEXT" --namespace "$K8S_NAMESPACE" || true
+    if [[ "$K8S_NAMESPACE" == default ]]; then
+        echo "leaving the 'default' namespace in place; tilt down already removed this checkout's resources"
+    else
+        kubectl --context "$K8S_CONTEXT" delete namespace "$K8S_NAMESPACE" --ignore-not-found
+    fi
 
 # Deploy everything with auto_init=True (all services, postgres, MinIO,
 # secrets, the lint local resource) and run the full test suite + coverage
 # gate via the test-integration Tilt resource. Verifies real rollouts of every
 # service, not just manifest validity. This is what CI runs; reproduce locally
-# with `just ci` (the shared cluster must already exist).
+# with `just cluster-up && just ci`.
 ci:
-    tract tilt ci
+    #!/usr/bin/env bash
+    set -euo pipefail
+    eval "$(hack/dev-env.sh)"
+    kubectl --context "$K8S_CONTEXT" create namespace "$K8S_NAMESPACE" \
+        --dry-run=client -o yaml | kubectl --context "$K8S_CONTEXT" apply -f -
+    tilt ci --context "$K8S_CONTEXT" --namespace "$K8S_NAMESPACE" --port "$TILT_PORT"
 
 # Run unit tests with race detector and write a coverage profile. Integration
 # tests are excluded (build-tag gated); coverage thresholds are only checked by
@@ -90,7 +126,7 @@ test-verbose:
 test-integration:
     #!/usr/bin/env bash
     set -euo pipefail
-    eval "$(tract env)"
+    eval "$(hack/dev-env.sh)"
     pf_pids=()
     trap 'kill "${pf_pids[@]}" 2>/dev/null || true' EXIT
     if [[ -z "${DB_HOST:-}" || -z "${S3_ENDPOINT:-}" ]]; then
@@ -121,5 +157,5 @@ test-web:
 psql:
     #!/usr/bin/env bash
     set -euo pipefail
-    eval "$(tract env)"
+    eval "$(hack/dev-env.sh)"
     kubectl --context "$K8S_CONTEXT" -n "$K8S_NAMESPACE" exec -it deploy/postgres -- psql -U postgres -d postgres

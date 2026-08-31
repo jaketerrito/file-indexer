@@ -38,7 +38,7 @@ jobs:
   # .testcoverage.yml). This is the expensive, high-fidelity check: only
   # triggers on changes to deploy manifests, the Tiltfile, or Dockerfiles,
   # not on every Go/web change (see test.yml / test-integration.yml for
-  # those). Reproduce locally with `just ci` (requires an existing shared cluster).
+  # those). Reproduce locally with `just cluster-up && just ci`.
   integration:
     name: integration
     runs-on: ubuntu-latest

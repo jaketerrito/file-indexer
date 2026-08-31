@@ -32,41 +32,40 @@ interfaces listed in `.mockery.yaml`, and commit the output.
 - **One shared kind cluster** (`kind-kind`) and one shared registry serve
   every checkout. Isolation is per-namespace, not per-cluster, so a laptop
   can host several worktrees at once.
-- `tract` (~/Code/tract) owns the dev environment: `tract env` is the
-  single source of truth for the context, this checkout's namespace
-  (`wt-<slug>-<hash>`; the main checkout gets `default`), the Tilt port,
-  and the gateway port. It derives a stable `WORKTREE_INDEX` from the
-  worktree path.
+- The cluster is created once per machine by `just cluster-up`
+  (`hack/cluster-up.sh` + `hack/cluster/` manifests; teardown:
+  `just cluster-down`). `hack/dev-env.sh` is the single source of truth
+  for the context, this checkout's namespace (`wt-<slug>-<hash>`; the main
+  checkout gets `default`), and the Tilt port, derived from a stable
+  `WORKTREE_INDEX` hashed from the checkout path. Recipes and scripts
+  consume it via `eval "$(hack/dev-env.sh)"`.
 - Local addressing is per-checkout HOSTNAME, not port: a shared
-  cloud-provider-kind gateway (provisioned once per machine outside tract — reference setup in the tract repo README) routes
-  `<namespace>.<web|s3|s3-console>.localhost:$GATEWAY_PORT` to each
-  checkout's services. GATEWAY_PORT is the ephemeral host port of the
-  `kind-gateway-proxy` loopback forwarder; `tract env` re-discovers it on
-  every run, and `tract endpoint <label>` prints one host:port. The Tilt
-  UI (`10350+N`) is the only per-checkout host port — override a collision
-  with `WORKTREE_INDEX=<n>`.
-- Per-checkout routes and endpoints are static manifests rendered by
-  `tract render` in the Tiltfile's kustomize pipe: `deploy/routes.yaml`
-  (HTTPRoutes) and `deploy/s3-secret.yaml` carry `$checkout` /
-  `$gateway_port` placeholders. routes.yaml stays OUT of the
-  kustomization — kubeconform can't validate placeholder hostnames (same
-  exemption the Tiltfile-blob routes always had) — so the Tiltfile renders
-  it in a second pipe.
+  cloud-provider-kind gateway (`just cluster-up`) routes
+  `<namespace>.<web|s3|s3-console>.localhost:18080` to each checkout's
+  services. 18080 is the FIXED loopback port of the `kind-gateway-proxy`
+  forwarder, published IPv4-only on purpose (see hack/cluster-up.sh). The
+  Tilt UI (`10350+N`) is the only per-checkout host port — override a
+  collision with `WORKTREE_INDEX=<n>`.
+- Per-checkout routes and endpoints are static manifests carrying a `$NAMESPACE` placeholder —
+  `deploy/routes.yaml` (HTTPRoutes) and `deploy/s3-secret.yaml` — which
+  the Tiltfile substitutes with `k8s_namespace()` after the kustomize
+  build: no external render tool, so a bare `tilt up --namespace X`
+  deploys correctly too. routes.yaml stays OUT of the kustomization —
+  kubeconform can't validate placeholder hostnames (same exemption the
+  Tiltfile-blob routes always had).
 - Raw TCP can't be hostname-routed: `just psql` uses `kubectl exec`, and
   `just test-integration` uses explicit DB_HOST/S3_ENDPOINT (CI) or
   ephemeral kubectl port-forwards (local).
-- tract never creates or destroys the shared cluster — it interacts with
-  the existing one; per-checkout setup is strictly additive (namespace +
-  rendered routes).
-- `just up` = `tract up --detach`; `just down` = `tract down` (stop tilt +
-  delete this checkout's namespace). Destroying the shared cluster is a manual operator step (see the
-  tract README); `just down` only affects this checkout.
-- tract always passes `--context` and `--namespace` to tilt, and the
+- `just up` creates this checkout's namespace and starts a background
+  tilt; `just down` stops it and deletes the namespace. Both are strictly
+  per-checkout — `just cluster-down` is the only command that touches the
+  SHARED cluster (and every checkout's stack with it).
+- The just recipes always pass `--context` and `--namespace` to tilt, and the
   Tiltfile hard-fails when `k8s_namespace()` isn't this checkout's — the
   context alone can't distinguish checkouts now that it's shared.
 - `deploy/` manifests deliberately contain no namespace at all; Tilt's
   `--namespace` retargets them. Tilt does NOT create the namespace, which
-  is why `tract up` and `tract tilt` ensure it (idempotent kubectl apply)
+  is why `just up` and `just ci` create it (idempotent kubectl apply)
   before invoking tilt.
 - Many stacks on one node exhaust the default inotify ceiling (symptom:
   `too many open files` from fsnotify). Raise

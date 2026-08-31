@@ -1,0 +1,27 @@
+# Cluster-scoped shared dev infra, applied once by hack/cluster-up.sh —
+# NOT by Tilt. Unlike deploy/ (applied per-checkout into each namespace, and
+# kubeconform-checked by `just lint-k8s`), these objects are shared by every
+# checkout and must survive `tilt down`.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gateway-system
+---
+# One Gateway for all checkouts on the shared kind cluster, served by the
+# cloud-provider-kind controller (container started by hack/cluster-up.sh).
+# Each checkout registers HTTPRoutes from its own namespace (deploy/routes.yaml);
+# `allowedRoutes: from: All` admits them.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: shared-gateway
+  namespace: gateway-system
+spec:
+  gatewayClassName: cloud-provider-kind
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces:
+          from: All
