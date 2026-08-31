@@ -38,7 +38,7 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   and the gateway port. It derives a stable `WORKTREE_INDEX` from the
   worktree path.
 - Local addressing is per-checkout HOSTNAME, not port: a shared
-  cloud-provider-kind gateway (owned by `tract cluster-up`) routes
+  cloud-provider-kind gateway (provisioned once per machine outside tract — reference setup in the tract repo README) routes
   `<namespace>.<web|s3|s3-console>.localhost:$GATEWAY_PORT` to each
   checkout's services. GATEWAY_PORT is the ephemeral host port of the
   `kind-gateway-proxy` loopback forwarder; `tract env` re-discovers it on
@@ -55,12 +55,12 @@ interfaces listed in `.mockery.yaml`, and commit the output.
 - Raw TCP can't be hostname-routed: `just psql` uses `kubectl exec`, and
   `just test-integration` uses explicit DB_HOST/S3_ENDPOINT (CI) or
   ephemeral kubectl port-forwards (local).
-- `tract cluster-up` is strictly additive — it never re-applies an
-  existing cluster or registry, because doing so would disturb other
-  checkouts' running stacks.
+- tract never creates or destroys the shared cluster — it interacts with
+  the existing one; per-checkout setup is strictly additive (namespace +
+  rendered routes).
 - `just up` = `tract up --detach`; `just down` = `tract down` (stop tilt +
-  delete this checkout's namespace). `tract cluster-down` destroys the
-  SHARED cluster and every checkout's stack.
+  delete this checkout's namespace). Destroying the shared cluster is a manual operator step (see the
+  tract README); `just down` only affects this checkout.
 - tract always passes `--context` and `--namespace` to tilt, and the
   Tiltfile hard-fails when `k8s_namespace()` isn't this checkout's — the
   context alone can't distinguish checkouts now that it's shared.

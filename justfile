@@ -55,8 +55,8 @@ fmt-web:
     npm --prefix web ci
     npm --prefix web run fmt
 
-# Ensure the shared cluster + this checkout's namespace, then start Tilt in
-# the background (tract owns cluster bootstrap and the per-checkout env).
+# Verify the shared cluster, ensure this checkout's namespace, then start
+# Tilt in the background (tract derives the per-checkout env; the shared cluster is prebuilt — see the tract README).
 up:
     tract up --detach
 
@@ -68,7 +68,7 @@ down:
 # secrets, the lint local resource) and run the full test suite + coverage
 # gate via the test-integration Tilt resource. Verifies real rollouts of every
 # service, not just manifest validity. This is what CI runs; reproduce locally
-# with `tract cluster-up && just ci`.
+# with `just ci` (the shared cluster must already exist).
 ci:
     tract tilt ci
 

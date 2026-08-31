@@ -38,9 +38,8 @@ SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) i
 - [Node.js](https://nodejs.org) >= 24 (current LTS; npm ships with it; used for the web frontend)
 
 ### Components
-- shared kind cluster + gateway + loopback proxy, provisioned by tract
-  (`tract cluster-up`, run automatically by `tract up`; build/install from
-  ~/Code/tract)
+- shared kind cluster + gateway + loopback proxy, provisioned once per machine via the reference setup in
+  the tract README (~/Code/tract); tract requires it but never manages it
 - tilt
   - Manages development resources in k8s cluster
   - Automatically generates code
@@ -75,11 +74,11 @@ several worktrees at once without paying for a control plane each.
 | MinIO API / console | `9000 + 2N` / `9001 + 2N` |
 | gRPC files / search | `50052 + 2N` / `50053 + 2N` |
 
-`just up` in any checkout ensures the shared cluster exists, creates that
+`just up` in any checkout verifies the shared cluster is reachable, creates that
 checkout's namespace, and starts Tilt against it. `just down` stops Tilt and
 deletes only that namespace — the shared cluster and every other worktree
-keep running. `tract cluster-down` destroys the shared cluster and therefore
-**every** checkout's stack.
+keep running. Destroying the shared cluster (and therefore **every** checkout's stack) is
+a manual operator step documented in the tract README.
 
 If two checkouts hash to the same index, start one with
 `WORKTREE_INDEX=<n> just up`. The Tiltfile refuses to run if the target
