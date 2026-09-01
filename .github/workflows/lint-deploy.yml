@@ -40,6 +40,6 @@ jobs:
         with:
           cache-key-prefix: lint-deploy-k8s
       - name: Build kustomize manifests
-        run: go tool kustomize build deploy > manifests.yaml
+        run: go tool kustomize build deploy/base > manifests.yaml
       - name: Validate manifests
         run: go tool kubeconform -strict -summary manifests.yaml

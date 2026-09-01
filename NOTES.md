@@ -334,3 +334,55 @@
     required checks, filtering reserved for the genuinely expensive jobs; (2) Renovate's
     `platformAutomerge` should flip true once required checks exist — currently false because
     native GitHub automerge would otherwise merge without waiting on any check.
+
+9/1/26
+- per-checkout namespaces on the one shared kind cluster, reachable at
+  http://<svc>.<checkout-dir>.localhost (port 80) via a shared cloud-provider-kind Gateway
+  (cluster/gateway.yaml) — replaces the fixed host port-forwards (web 3000, postgres 5432, MinIO
+  9000/9001, gRPC 50052/50053) that made concurrent worktrees impossible. The justfile `ns`
+  variable (sanitized checkout dir name) is the single namespace derivation point; `just tilt-up`
+  passes it via `tilt up --namespace` and the Tiltfile reads it back with k8s_namespace() and
+  creates it via namespace_create. Objects stay namespace-free in git (same model as
+  `kubectl apply -n`); S3_PUBLIC_ENDPOINT comes from the local
+  overlay (deploy/overlays/local/files-public-endpoint.yaml patch — downward-API $ expansion of
+  metadata.namespace; it MUST be explicit env entries, since kubelet never expands $(VAR) arriving
+  via envFrom/secrets), keeping base files.yaml generic (unset = presign against the in-cluster
+  endpoint, per internal/config). The gateway HTTPRoutes are generated in the Tiltfile itself — their hostnames carry the
+  checkout namespace, which Gateway API cannot parameterize natively, so no committed manifest
+  is token-substituted at all.
+- the loopback forwarder (kind-gateway-proxy socat container, created by `just cluster-up`)
+  publishes 127.0.0.1:80 ONLY, never dual-stack: *.localhost resolves to ::1 first under
+  systemd-resolved, and an accept-then-reset listener on ::1 (docker-proxy in front of the
+  IPv4-only envoy) makes Chrome NOT fall back to IPv4, whereas a refused ::1 connection does.
+  So ::1:80 must refuse, not reset.
+- teardown gotcha: cloud-provider-kind's gateway data planes are plain docker containers
+  (kindccm-gw-*) on the kind network; they survive `ctlptl delete` and poison a recreated gateway
+  with a stale xDS address (symptom: envoy 404s while HTTPRoutes show Accepted). `just
+  cluster-down` force-removes them alongside the cloud-provider-kind/kind-gateway-proxy
+  containers.
+- `just down` semantics changed: it stops only this checkout's Tilt and deletes only this
+  checkout's namespace (a still-running `tilt up` would re-apply what `tilt down` deletes, so
+  tilt-down first pkills the session matched by its unique per-checkout UI port). `just
+  cluster-down` is the explicit destroy-everything command.
+- follow-up reorg (same PR): all shared-cluster bootstrap lives in top-level `cluster/` —
+  ctlptl.yaml, gateway.yaml, and up.sh/down.sh extracted from the justfile (recipes are thin
+  wrappers, so just --list stays self-documenting). The seed dataset AND its MinIO seed
+  sidecar moved from deploy/base into deploy/overlays/local (seed/, seed.md, seed-sidecar.yaml
+  strategic-merge patch): seeding is dev-only, so base MinIO is now seed-free and base no
+  longer references the Tiltfile-generated seed-data ConfigMap at all. And the gateway
+  HTTPRoutes moved from a $NAMESPACE-token routes.yaml substituted by the Tiltfile to being
+  generated inline in the Tiltfile (plain Starlark % formatting over a (name, service, port)
+  table): the routes are Tilt-scoped by nature (*.localhost, applied only by Tilt), so the
+  token-file "exception" had no applyability upside and just carried a failure mode. Same
+  instinct for S3_PUBLIC_ENDPOINT: moved from base files.yaml into the overlay as a patch —
+  the browser-facing presign endpoint is an environment concern, and config treats it as
+  optional (empty = sign against the internal endpoint), so base needs nothing. Then the rest
+  of the local environment followed: postgres.yaml, minio.yaml, and BOTH generators for
+  db-secret/s3-secret moved from base into overlays/local — the secrets' values point AT the
+  local infra (DB_HOST=postgres, S3_ENDPOINT=local-s3:9000), so they're as env-specific as the
+  infra itself. Base is now just the app: it consumes db-secret/s3-secret via envFrom but
+  doesn't define them; every environment supplies its own (prod would point at real S3/DB).
+  migrate and index-config stay in base (needed in every environment). Overlay needs its own
+  generatorOptions.disableNameSuffixHash or the secrets get hash suffixes and every envFrom
+  breaks. Each of these moves was verified by diffing `kustomize build` before/after:
+  byte-identical output, zero rollouts.

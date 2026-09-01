@@ -1,0 +1,25 @@
+# Presigned URLs must be reachable from the developer's browser, so the local
+# overlay points S3_PUBLIC_ENDPOINT at this checkout's gateway hostname (see
+# the HTTPRoutes generated in the Tiltfile). $(K8S_NAMESPACE) is expanded by
+# kubelet from the fieldRef above (explicit env entries expand in declared
+# order) — this MUST arrive as env entries: kubelet only expands $(VAR) in
+# plain env values, never in envFrom/secret values, so a secretGenerator
+# literal would be injected unexpanded. Base files.yaml stays generic: with no
+# S3_PUBLIC_ENDPOINT, presigning falls back to the in-cluster endpoint (see
+# internal/config's PublicEndpoint).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: files
+spec:
+  template:
+    spec:
+      containers:
+        - name: files
+          env:
+            - name: K8S_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: S3_PUBLIC_ENDPOINT
+              value: s3.$(K8S_NAMESPACE).localhost
