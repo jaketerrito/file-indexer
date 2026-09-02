@@ -47,19 +47,25 @@ SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) i
 ### Getting started
 Run `just` to see all available commands.
 
-`just up` — Launches local kind cluster and usese Tilt to provision resources, runs DB migrations, builds and deploys the app containers (index-stat, index-preview, files), and keeps them live-reloading on code changes. Code generation (sqlc, protobuf) runs automatically. Opens the Tilt web UI at http://localhost:10350.
+`just up` — creates (once per machine) the shared local kind cluster, then uses Tilt to provision this checkout's resources into its own namespace (named after the checkout directory), runs DB migrations, builds and deploys the app containers (index-stat, index-preview, files), and keeps them live-reloading on code changes. Code generation (sqlc, protobuf) runs automatically. Prints this checkout's Tilt web UI URL (a stable per-checkout port).
+
+Every checkout of this repo shares the one cluster and can run at the same time: services are reached via the shared gateway at `http://<svc>.<checkout-dir>.localhost` — the app at `http://web.<checkout-dir>.localhost`, the MinIO console at `http://s3-console.<checkout-dir>.localhost`. `just down` tears down only this checkout's namespace; `just cluster-down` destroys the SHARED cluster and every checkout's stack with it.
 
 The MinIO bucket comes pre-seeded with a small sample dataset (see
-`deploy/seed/`) — a few EXIF-bearing photos and text files. The crawler is
+`deploy/overlays/local/seed/`) — a few EXIF-bearing photos and text files. The crawler is
 manual-trigger in Tilt (click it in the web UI) since it's not something you
 want running on every code change; trigger it once to index the seed data.
 
 ### Testing
 `just test` runs unit tests only
 
-Run the full suite (unit + integration, requires the Tilt dev environment) and
-check coverage thresholds from `.testcoverage.yml`:
+Run the full suite (unit + integration) and check coverage thresholds from
+`.testcoverage.yml`:
 `just test-integration`
+
+Services come from explicit `DB_HOST`/`S3_ENDPOINT` env (what CI sets) or, when
+unset, from this checkout's namespace — postgres via an ephemeral kubectl
+port-forward, MinIO via the shared gateway (requires `just up`).
 
 Integration tests fail hard if postgres/MinIO are unreachable; they never skip.
 

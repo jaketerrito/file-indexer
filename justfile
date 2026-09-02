@@ -2,6 +2,17 @@
 help:
     @just --list
 
+# This checkout's Kubernetes namespace: its (sanitized) directory name. Every
+# checkout of this repo deploys into its own namespace on the shared kind
+# cluster; services are at http://<svc>.<ns>.localhost via the shared gateway.
+ns := `basename "$(git rev-parse --show-toplevel)" | tr 'A-Z' 'a-z' | sed -E -e 's/[^a-z0-9-]/-/g' -e 's/-+/-/g' -e 's/^-|-$//g' | cut -c1-63`
+
+# Stable per-checkout Tilt UI port (10351-10450): tilt has no auto-increment, so
+# concurrent checkouts would collide on the default 10350. Hashes the same
+# derivation as `ns`, inlined: just does NOT interpolate {{ns}} inside a
+# backtick expression (it would hash the literal string, a constant).
+tilt_port := `basename "$(git rev-parse --show-toplevel)" | tr 'A-Z' 'a-z' | sed -E -e 's/[^a-z0-9-]/-/g' -e 's/-+/-/g' -e 's/^-|-$//g' | cut -c1-63 | cksum | cut -d' ' -f1 | awk '{ print 10351 + $1 % 100 }'`
+
 # Regenerate all generated code (sqlc, protobuf, web TS clients). The web
 # codegen requires npm: protoc-gen-es comes from web/node_modules. Run this
 # after touching migrations, sqlc queries, .proto files, or interfaces listed
@@ -20,7 +31,7 @@ lint-go:
 
 # Validate Kubernetes manifests with kubeconform (builds kustomize output first)
 lint-k8s:
-    go tool kustomize build deploy | go tool kubeconform -strict -summary
+    go tool kustomize build deploy/base | go tool kubeconform -strict -summary
 
 # Lint protobuf files with buf
 lint-proto:
@@ -51,29 +62,38 @@ fmt-web:
     npm --prefix web ci
     npm --prefix web run fmt
 
-# Create (or update) the local kind cluster and image registry via ctlptl
+# Create the shared dev cluster (one-time per machine, safe to re-run). Prereqs:
+# docker, kubectl, ctlptl.
 cluster-up:
-    ctlptl apply -f ctlptl.yaml
+    cluster/up.sh
+    @echo "cluster ready; this checkout's URLs: http://<svc>.{{ns}}.localhost (svc: web, s3, s3-console)"
 
-# Delete the local kind cluster and image registry
+# Destroy the SHARED cluster and every checkout's stack with it.
 cluster-down:
-    ctlptl delete -f ctlptl.yaml
+    cluster/down.sh
 
-# Start Tilt dev environment (background)
+# Start this checkout's Tilt dev environment (background), deploying into the
+# checkout's own namespace (created by the Tiltfile on first load).
 tilt-up:
-    tilt up > /dev/null 2>&1 &
-    xdg-open http://localhost:10350 2>/dev/null
+    tilt up --namespace {{ns}} --port {{tilt_port}} > /dev/null 2>&1 &
+    @echo "tilt UI: http://localhost:{{tilt_port}}"
+    @echo "web: http://web.{{ns}}.localhost (also: s3.{{ns}}.localhost, s3-console.{{ns}}.localhost)"
 
-# Tear down Tilt dev environment
+# Stop this checkout's Tilt and delete its namespace (the shared cluster and
+# other checkouts survive). The pkill targets only this checkout's Tilt process
+# (matched by its namespace, not the UI port — cksum%100 ports can collide
+# across checkouts): a still-running session would re-apply everything
+# `tilt down` deletes.
 tilt-down:
-    tilt down
-    pkill tilt 2>/dev/null; true
+    pkill -f "[t]ilt up --namespace {{ns}} --port" || true # [t] bracket: don't match this recipe's own shell
+    tilt down --namespace {{ns}} --delete-namespaces
 
-# Create cluster and start Tilt
+# Create the shared cluster (if needed) and start this checkout's Tilt
 up: cluster-up tilt-up
 
-# Delete cluster and stop Tilt
-down: tilt-down cluster-down
+# Stop this checkout's Tilt and delete its namespace (`just cluster-down`
+# destroys the SHARED cluster and every checkout's stack)
+down: tilt-down
 
 # Deploy everything with auto_init=True (all services, postgres, MinIO,
 # secrets, the lint local resource) and run the full test suite + coverage
@@ -81,7 +101,7 @@ down: tilt-down cluster-down
 # service, not just manifest validity. This is what CI runs; reproduce locally
 # with `just cluster-up && just ci`.
 ci:
-    tilt ci
+    tilt ci --namespace {{ns}} --port {{tilt_port}}
 
 # Run unit tests with race detector and write a coverage profile. Integration
 # tests are excluded (build-tag gated); coverage thresholds are only checked by
@@ -93,13 +113,29 @@ test:
 test-verbose:
     go test -race -v ./...
 
-# Run the full test suite (unit + integration) against the local Tilt services
-# (postgres on localhost:5432, MinIO on localhost:9000), then check coverage
-# thresholds from .testcoverage.yml. Requires `just up` (or equivalent
-# port-forwards). Integration tests fail hard if the services are unreachable.
+# Run the full test suite (unit + integration), then check coverage thresholds
+# from .testcoverage.yml. Integration tests fail hard if services are unreachable.
 test-integration:
-    DB_HOST=localhost DB_PORT=5432 DB_USER=postgres DB_PASSWORD=mysecretpassword DB_NAME=postgres \
-    S3_ENDPOINT=localhost:9000 S3_ACCESS_ID=user S3_SECRET=password S3_BUCKET=test S3_REGION=us-east-1 \
+    #!/usr/bin/env bash
+    # Services come from explicit DB_HOST/S3_ENDPOINT env (CI, against
+    # runner-local containers) or, when unset, from this checkout's namespace:
+    # postgres via an ephemeral kubectl port-forward, S3 via the shared gateway
+    # (requires `just up`).
+    set -euo pipefail
+    ns="{{ns}}"
+    pf_pid=""
+    trap '[[ -z "$pf_pid" ]] || kill "$pf_pid" 2>/dev/null || true' EXIT
+    if [[ -z "${DB_HOST:-}" ]]; then
+        log="$(mktemp)"
+        kubectl --context kind-kind -n "$ns" port-forward svc/postgres ":5432" > "$log" 2>&1 &
+        pf_pid=$!
+        for _ in $(seq 1 50); do grep -q "Forwarding from" "$log" 2>/dev/null && break; sleep 0.2; done
+        DB_PORT="$(grep -m1 -oE '127\.0\.0\.1:[0-9]+' "$log" | cut -d: -f2 || true)"
+        [[ -n "$DB_PORT" ]] || { echo "port-forward to svc/postgres failed:" >&2; cat "$log" >&2; exit 1; }
+        DB_HOST=127.0.0.1
+    fi
+    DB_HOST="$DB_HOST" DB_PORT="${DB_PORT:-5432}" DB_USER=postgres DB_PASSWORD=mysecretpassword DB_NAME=postgres \
+    S3_ENDPOINT="${S3_ENDPOINT:-s3.$ns.localhost}" S3_ACCESS_ID=user S3_SECRET=password S3_BUCKET=test S3_REGION=us-east-1 \
     go test -tags=integration -race -count=1 ./... -coverprofile=coverage.out -covermode=atomic -coverpkg=./...
     go tool go-test-coverage --config=.testcoverage.yml
 
@@ -108,6 +144,6 @@ test-web:
     npm --prefix web ci
     npm --prefix web run test:coverage
 
-# Connect to the project postgres database
+# Open a psql shell in this checkout's postgres pod
 psql:
-    psql -h localhost -U postgres -d postgres
+    kubectl --context kind-kind -n {{ns}} exec -it deploy/postgres -- psql -U postgres -d postgres
