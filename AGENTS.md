@@ -18,6 +18,9 @@ full, self-documented command list.
 
 Run `just generate` after touching migrations, queries, `.proto` files, or
 interfaces listed in `.mockery.yaml`, and commit the output.
+ Run it as a whole, never the generators individually — mockery and sqlc
+ compile against buf's Go output and fail with undefined `pb` types if run
+ before `buf generate`.
 
 ## Test conventions
 
@@ -60,10 +63,16 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   generated in the Tiltfile — their hostnames carry the checkout namespace,
   which Gateway API cannot parameterize natively — so no manifest is
   token-substituted; everything committed is namespace-free.
+- New workload manifests under `deploy/base` must set `resources.requests`
+  (memory + CPU; the indexer jobs use 128Mi/100m) — enforced in review on the
+  preview-gc PR. Older manifests (crawler, migrate, the app Deployments)
+  predate the convention.
 - Never `kubectl apply` the upstream Gateway API standard-install CRDs when
   using cloud-provider-kind: its `safe-upgrades` ValidatingAdmissionPolicy
   rejects the provider's embedded CRDs and crash-loops it. Let the provider
-  install its own.
+  install its own. On a fresh cluster, poll for the provider's CRDs to
+  exist before applying any Gateway API resources — apply races the
+  provider's CRD installation.
 - `*.localhost` resolves to `::1` first under systemd-resolved; docker-proxy
   IPv6 listeners accept-then-reset and Chrome does not fall back. Bind
   forwarders (e.g. the kind-gateway-proxy socat container) to `127.0.0.1`.
@@ -75,6 +84,10 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   `pkill -f` in a recipe matches the recipe's own `sh -c` cmdline (SIGTERM
   suicide) unless the pattern is bracketed: `[t]ilt ...`.
 - Tiltfile syntax check without Tilt: `python3 -c "compile(open('Tiltfile').read(), 'Tiltfile', 'exec')"`.
+- Tiltfile: `local()`/`read_file()` return Blobs, not strings (no `.replace`,
+  and a plain string passed to `k8s_yaml` is treated as a file PATH).
+  Substitute into rendered YAML via
+  `k8s_yaml(blob(str(local(...)).replace('$TOKEN', value)))`.
 - No passwordless sudo is available in the dev environment — host-level fixes
   (`/etc/hosts`, killing root-owned docker-proxy processes) are not viable;
   keep dev-env solutions rootless/user-space.
@@ -96,3 +109,10 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   shapes — check the impl before assuming a response shape in web hooks.
 - `useInfiniteQuery` + `refetchInterval` refetches every loaded page; poll a
   batch-status endpoint for pending IDs and patch the query cache instead.
+- `file_infos` metadata columns (`content_type`, `size_bytes`,
+  `last_modified`) come from `index_stat_result` via the view and are NULL
+  until stat indexing completes — gates/filters on them must tolerate NULL
+  (e.g. the preview candidate gate cannot run before stat indexing).
+- Call TanStack Start server functions via imported references only — their
+  IDs derive from file path/export name, so hand-constructed URLs break with
+  "Invalid server function ID" after renames.
