@@ -1,8 +1,10 @@
 # Seed data
 
 Local-dev-only sample objects, uploaded into the MinIO bucket by the `seed`
-sidecar in `minio.yaml`. The `seed-data` ConfigMap is generated straight from
-this directory in the Tiltfile (`kubectl create configmap --from-file`) —
+sidecar (`seed-sidecar.yaml`, patched into the base MinIO Deployment by this
+overlay — seeding is dev-only, so base MinIO stays seed-free). The `seed-data`
+ConfigMap is generated straight from this directory in the Tiltfile
+(`kubectl create configmap --from-file`) —
 not via kustomize's `configMapGenerator`, which can't take a directory or
 glob. **Every file dropped into `seed/` automatically becomes a bucket
 object**, keyed by filename, uploaded at the bucket root — there's no list

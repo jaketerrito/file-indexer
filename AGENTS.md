@@ -42,12 +42,24 @@ interfaces listed in `.mockery.yaml`, and commit the output.
 
 ## Dev environment (kind + Tilt)
 
-- Shared kind cluster across all checkouts; isolation is per-namespace
-  (`wt-<slug>`). Tilt does NOT create the namespace — `kubectl create ns`
-  first or builds fail with `namespaces "X" not found`. Guard with the
-  `k8s_namespace()` Tiltfile builtin, not `k8s_context()` (all checkouts
-  share one context). Make cluster setup additive (existence-check before
-  `ctlptl apply`) so re-runs don't destroy other checkouts' state.
+- Shared kind cluster across all checkouts; isolation is per-namespace, one
+  per checkout, named after the sanitized checkout directory. The justfile
+  `ns` variable is the single derivation point: `just tilt-up` runs
+  `tilt up --namespace {{ns}}`, and the Tiltfile reads it back via the
+  `k8s_namespace()` builtin (not `k8s_context()` — all checkouts share one
+  context) and creates the namespace itself via `namespace_create`.
+- Services are at `http://<svc>.<ns>.localhost` (port 80) via the shared
+  cloud-provider-kind gateway. No fixed Tilt port-forwards — they collide
+  across checkouts; use `kubectl port-forward` for ad-hoc debugging.
+- Cluster-scoped shared objects belong in `cluster/gateway.yaml` (applied once
+  by `just cluster-up`), never in Tilt: a `tilt down` in one checkout must
+  not delete shared objects. `just cluster-down` destroys the SHARED cluster
+  and every checkout's stack with it. Cluster setup is additive
+  (existence-check before each step) so re-runs are safe.
+- `just lint-k8s` validates `deploy/base` only. The gateway HTTPRoutes are
+  generated in the Tiltfile — their hostnames carry the checkout namespace,
+  which Gateway API cannot parameterize natively — so no manifest is
+  token-substituted; everything committed is namespace-free.
 - Never `kubectl apply` the upstream Gateway API standard-install CRDs when
   using cloud-provider-kind: its `safe-upgrades` ValidatingAdmissionPolicy
   rejects the provider's embedded CRDs and crash-loops it. Let the provider
@@ -57,6 +69,11 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   forwarders (e.g. the kind-gateway-proxy socat container) to `127.0.0.1`.
 - justfile recipes: a literal `{{` (e.g. `docker ps --format '{{.Names}}'`)
   must be escaped as `{{"{{"}}` or `just` fails with "Unknown start of token".
+  Conversely, `{{var}}` is NOT interpolated inside a backtick expression —
+  the shell receives the literal characters (hashing it yields a constant);
+  inline the pipeline instead (see how `tilt_port` re-derives `ns`). And
+  `pkill -f` in a recipe matches the recipe's own `sh -c` cmdline (SIGTERM
+  suicide) unless the pattern is bracketed: `[t]ilt ...`.
 - Tiltfile syntax check without Tilt: `python3 -c "compile(open('Tiltfile').read(), 'Tiltfile', 'exec')"`.
 - No passwordless sudo is available in the dev environment — host-level fixes
   (`/etc/hosts`, killing root-owned docker-proxy processes) are not viable;
@@ -71,6 +88,10 @@ interfaces listed in `.mockery.yaml`, and commit the output.
 - Long-running dev processes (e.g. `search-local` via `hub`) survive across
   sessions and serve stale code — check process age (`ps -o etime`) before
   trusting observed behavior; restart before debugging "phantom" bugs.
+- A running tilt session can wedge its file watcher on rapid multi-file moves
+  (e.g. `git mv` + immediate kustomization edits): the (Tiltfile) resource
+  shows a stale `kustomize` error while manual builds pass. Restart the
+  session (pkill + `just tilt-up`); do bulk file moves with tilt stopped.
 - Server functions may return flattened DTOs rather than protobuf wrapper
   shapes — check the impl before assuming a response shape in web hooks.
 - `useInfiniteQuery` + `refetchInterval` refetches every loaded page; poll a

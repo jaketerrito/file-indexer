@@ -5,7 +5,7 @@ on:
     paths:
       - "deploy/**"
       - "Tiltfile"
-      - "ctlptl.yaml"
+      - "cluster/**"
       - "justfile"
       - "Dockerfile"
       - "web/Dockerfile"
@@ -16,7 +16,7 @@ on:
     paths:
       - "deploy/**"
       - "Tiltfile"
-      - "ctlptl.yaml"
+      - "cluster/**"
       - "justfile"
       - "Dockerfile"
       - "web/Dockerfile"
@@ -32,7 +32,7 @@ permissions:
 
 jobs:
   # Provisions the same kind cluster + postgres/MinIO as local dev
-  # (ctlptl.yaml + deploy/ manifests) and runs `tilt ci`, which rolls out
+  # (cluster/ + deploy/base manifests) and runs `tilt ci`, which rolls out
   # every service from real built images and re-runs the test-integration
   # Tilt resource (unit + integration tests + coverage thresholds from
   # .testcoverage.yml). This is the expensive, high-fidelity check: only
