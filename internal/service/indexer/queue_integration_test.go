@@ -222,8 +222,9 @@ func TestPGQueueEndToEndPreviewSkipped(t *testing.T) {
 
 // TestPGQueueEndToEndExif exercises the exif index type's StoreFunc
 // (StoreExifResult / UpsertIndexExifResult) end-to-end. Unlike stat/preview,
-// exif result columns are not joined into file_infos (see NOTES.md), so this
-// reads index_exif_result directly instead of going through GetFile.
+// exif result columns are not joined into file_infos (exif is read via
+// FilesService.GetFileInfo instead), so this reads index_exif_result directly
+// instead of going through GetFile.
 func TestPGQueueEndToEndExif(t *testing.T) {
 	pool := testPool(t)
 	ctx := context.Background()

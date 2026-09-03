@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS index_exif_result (
     -- Range-checked (NULL passes either way) as a defensive backstop:
     -- MakerNote/GPS-adjacent decoding is not always reliable (see the
     -- sanitize() comment on the known Sony field-garbling issue in
-    -- NOTES.md), and a garbage coordinate is otherwise silently accepted.
+    -- internal/service/indexer/exif.go), and a garbage coordinate is
+    -- otherwise silently accepted.
     gps_latitude  DOUBLE PRECISION CHECK (gps_latitude BETWEEN -90 AND 90),
     gps_longitude DOUBLE PRECISION CHECK (gps_longitude BETWEEN -180 AND 180),
     gps_altitude  REAL,
@@ -66,8 +67,8 @@ CREATE TABLE IF NOT EXISTS index_exif_result (
 
     -- Free-text attribution fields, sanitized (non-printable bytes
     -- stripped, length-capped) before storage: MakerNote decoding is not
-    -- always reliable (see NOTES.md) and this column accepts whatever the
-    -- camera firmware wrote.
+    -- always reliable (see internal/service/indexer/exif.go) and this
+    -- column accepts whatever the camera firmware wrote.
     software          TEXT,
     artist            TEXT,
     copyright         TEXT,

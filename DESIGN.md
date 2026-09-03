@@ -46,7 +46,6 @@ postgres would probably be fine for simple lookups
 
 Large file uploads: streaming itself has no size limit (chunked, constant memory); the real problem is interrupted long uploads
 - mitigate with write-to-temp-key + commit-on-complete for atomicity
-- later optimization: presigned s3 multipart upload for true per-part resumability
 
 Should be able to handle out of band access/manipulation of s3 directly (not through api): crawler reconciles by listing s3, diffing against the DB, and emitting references for unindexed/changed/removed files
 
@@ -70,16 +69,3 @@ Indexer can be parameterized to generate different sets of metadata
 - filesystem as source of truth
 - filesystem interactions need to be reliable (no lost data when changing a file)
 - idempotent indexing
-
-# Plan
-1. crawler script for filesystem -- DONE
-1. standalone api for indexing --DONE
-1. build database -- DONE
-1. standalone api with crud and search -- DONE (upload: presigned-PUT GetUploadURL + CommitUpload, see NOTES.md 8/16/26)
-1. metadata gen functions -- DONE
-1. web client that relies on the api -- DONE
-1. directory browsing (materialized `directories` table, derived from key
-   structure — no CreateDirectory, no empty directories) -- DONE, see
-   NOTES.md 8/23/26
-1. Integrate indexing triggered via the api (using event queue)
-1. kubernetes deployment

@@ -522,9 +522,10 @@ func applyXMP(result *ExifResult, x xmp.XMP) {
 // runes (not bytes — a rune can be up to 4 bytes in UTF-8, so this bounds a
 // column to at most 4*maxSanitizedFieldLen bytes, not exactly that many).
 // MakerNote decoding is not always reliable (imagemeta's own known issue
-// list includes a reverse-offset bug affecting some Sony fields — see
-// NOTES.md), so a generous but finite cap guards against a misparsed field
-// dumping unbounded or binary-looking data into a text column.
+// list includes a reverse-offset bug affecting some Sony fields — tracked
+// as a known limitation in TODO.md), so a generous but finite cap guards
+// against a misparsed field dumping unbounded or binary-looking data into a
+// text column.
 const maxSanitizedFieldLen = 512
 
 // maxKeywordCount caps the number of XMP dc:subject entries stored per file.
