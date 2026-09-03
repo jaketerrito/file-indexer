@@ -12,8 +12,9 @@ import (
 // (COLLATE "C"), not the database's default locale-aware collation. This
 // matters for two independent reasons (see migrations/001_initial.sql):
 // agreement with S3's ListObjectsV2 listing order, and correctness of the
-// directory-browsing loose index scan's skip trick (ListChildPrefixes),
-// which assumes '/' (0x2F) sorts immediately before '0' (0x30).
+// directories queries' subtree-emptiness byte range (key > path AND
+// key < skip-past(path) — see queries/directories.sql), which assumes
+// '/' (0x2F) sorts immediately before '0' (0x30).
 //
 // A locale-aware collation (e.g. en_US.UTF-8) typically sorts punctuation
 // and case differently from raw bytes — "Z" before "a" here would fail under

@@ -19,7 +19,7 @@ function Row({ label, value }: { label: string; value: string | number | null | 
   )
 }
 
-/** Exported for reuse by the delete-folder confirmation (Browser.tsx). */
+/** Exported for reuse by the delete-folder confirmation (DirectoryList.tsx). */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   const units = ['KB', 'MB', 'GB', 'TB']
