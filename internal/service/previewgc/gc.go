@@ -59,10 +59,7 @@ func New(store ObjectStore, previews PreviewStore, indexPrefix string) *GC {
 
 // Run lists claimed preview keys, walks the bucket, and deletes every object
 // under the previews/ prefix that is unclaimed and older than minAge. A
-// database or listing failure aborts before anything is deleted, and a run
-// that finds orphans while the table is empty refuses to delete at all —
-// that combination means a miswired table or prefix, not a bucket full of
-// orphans.
+// database or listing failure aborts before anything is deleted.
 func (g *GC) Run(ctx context.Context) error {
 	keys, err := g.previews.ListIndexPreviewKeys(ctx)
 	if err != nil {

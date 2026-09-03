@@ -98,7 +98,7 @@ export function DirectoryList({ path, sort, order, onNavigate }: DirectoryListPr
   if (isPending) return <p>Loading…</p>
   if (isError) return <p role="alert">Failed to load directory: {String(error)}</p>
 
-  const directories = data.pages[0]?.directories ?? []
+  const directories = data.pages.flatMap((p) => p.directories)
   const files = data.pages.flatMap((p) => p.files)
   // Direct children only (ListDirectory's direct_only filter guarantees
   // this), so the basename is everything after the current path. Directory

@@ -14,7 +14,7 @@ import { SORT_FIELDS, SORT_ORDERS, type SortFieldInput, type SortOrderInput } fr
 // browsing is exactly this transition: it seeds prefix from the current path
 // and drops out of browse mode (see Browser.tsx).
 //
-// path defaults to undefined (not ""), not "", specifically so the default,
+// path defaults to undefined, not "", specifically so the default,
 // filter-free view is search mode ("/") rather than browse mode at the root
 // — matching the pre-existing UX above e.g. `stripSearchParams` cleanly
 // drops it from the URL.

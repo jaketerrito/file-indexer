@@ -25,7 +25,7 @@ interface BrowserProps {
  * Directories are virtual: there is no CreateDirectory call. "New folder"
  * just navigates to a path nothing lives under yet; DirectoryList shows it
  * as empty and ready to upload into, and it only becomes real (reachable by
- * ListChildPrefixes) once a key actually lands there.
+ * ListChildDirectories) once a key actually lands there.
  */
 export function Browser({ filters, onFiltersChange }: BrowserProps) {
   const queryClient = useQueryClient()
