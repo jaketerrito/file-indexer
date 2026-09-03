@@ -219,7 +219,7 @@ func (s *FilesServer) DeleteFile(ctx context.Context, req *pb.DeleteFileRequest)
 	}
 	// Best effort: an orphaned preview blob wastes a few kilobytes, but
 	// failing to remove it must not block deleting the file itself. A GC job
-	// reconciles leftovers (see NOTES.md).
+	// reconciles leftovers (see cmd/preview-gc and internal/service/previewgc).
 	if file.PreviewKey.Valid && file.PreviewKey.String != "" {
 		if err := s.storage.Delete(ctx, file.PreviewKey.String); err != nil {
 			slog.Warn("delete preview object", "key", file.PreviewKey.String, "error", err)

@@ -8,7 +8,7 @@
 -- case); a crawl that lists the whole bucket without error therefore
 -- refreshes seen_at for everything still in S3. Rows whose seen_at predates
 -- the start of the most recent complete crawl are gone from S3 out of band
--- (see DeleteUnseenFiles in queries/files.sql and NOTES.md) and are swept.
+-- (see DeleteUnseenFiles in queries/files.sql) and are swept.
 ALTER TABLE files ADD COLUMN seen_at TIMESTAMPTZ NOT NULL DEFAULT now();
 
 -- +goose Down

@@ -14,7 +14,7 @@ interface BrowserProps {
 }
 
 /**
- * Top-level switch between the two ways of finding a file (see NOTES.md):
+ * Top-level switch between the two ways of finding a file:
  * search (flat, recursive, filterable — FileList, unchanged from before
  * directory browsing existed) and browse (breadcrumb navigation over
  * directories derived purely from key structure — DirectoryList). Choosing a
