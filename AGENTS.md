@@ -2,10 +2,9 @@
 
 Go backend + React/TS frontend for a searchable S3 file index.
 
-See DESIGN.md for architecture rationale (its "Plan" section is historical
-— all items done, not a to-do list), NOTES.md for later decisions not yet
-folded into DESIGN.md, README.md for human quickstart. Run `just` for the
-full, self-documented command list.
+See DESIGN.md for architecture rationale, TODO.md for open work items,
+NOTES.md for later decisions not yet folded into DESIGN.md, README.md for
+human quickstart. Run `just` for the full, self-documented command list.
 
 ## Codegen — never hand-edit
 
