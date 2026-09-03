@@ -90,7 +90,7 @@ type FilesServer struct {
 	indexPrefix string
 }
 
-// New constructs an IndexerServer with its dependencies already built by the
+// New constructs a FilesServer with its dependencies already built by the
 // caller (composition root). It does no I/O; call Serve to start listening.
 // indexPrefix is the key prefix under which index types write derived
 // objects (see config.IndexPrefix); uploads targeting it are rejected so a

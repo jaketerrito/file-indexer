@@ -28,9 +28,23 @@ type Store struct {
 
 // NewStore constructs a Store bound to pool. Queries methods promoted from
 // the embedded *Queries run directly against the pool, same as New(pool);
-// only the three WithDirectories methods below open their own transaction.
+// only the four WithDirectories methods below open their own transaction.
 func NewStore(pool *pgxpool.Pool) *Store {
 	return &Store{Queries: New(pool), pool: pool}
+}
+
+// withTx runs fn against tx-bound Queries in one transaction, committing on
+// success; the deferred Rollback is a no-op once Commit has succeeded.
+func (s *Store) withTx(ctx context.Context, fn func(q *Queries) error) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if err := fn(New(tx)); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 // UpsertFilesWithDirectories runs UpsertFiles and UpsertDirectoriesForKeys
@@ -41,42 +55,30 @@ func NewStore(pool *pgxpool.Pool) *Store {
 // directories necessarily already exist) a cheap no-op, and computing the
 // true insert-only subset isn't worth complicating UpsertFiles' query for.
 func (s *Store) UpsertFilesWithDirectories(ctx context.Context, arg UpsertFilesParams) (int64, error) {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = tx.Rollback(ctx) }() // no-op once Commit has succeeded
-
-	txQueries := New(tx)
-	n, err := txQueries.UpsertFiles(ctx, arg)
-	if err != nil {
-		return 0, err
-	}
-	if err := txQueries.UpsertDirectoriesForKeys(ctx, arg.Keys); err != nil {
-		return 0, err
-	}
-	return n, tx.Commit(ctx)
+	var n int64
+	err := s.withTx(ctx, func(q *Queries) error {
+		var err error
+		if n, err = q.UpsertFiles(ctx, arg); err != nil {
+			return err
+		}
+		return q.UpsertDirectoriesForKeys(ctx, arg.Keys)
+	})
+	return n, err
 }
 
 // DeleteFileWithDirectories runs DeleteFile and PruneDirectoriesForKeys in
 // one transaction. Prune runs after the delete, in the same transaction, so
 // its subtree-emptiness check observes post-delete state.
 func (s *Store) DeleteFileWithDirectories(ctx context.Context, id int64) (File, error) {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return File{}, err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	txQueries := New(tx)
-	f, err := txQueries.DeleteFile(ctx, id)
-	if err != nil {
-		return File{}, err
-	}
-	if err := txQueries.PruneDirectoriesForKeys(ctx, []string{f.Key}); err != nil {
-		return File{}, err
-	}
-	return f, tx.Commit(ctx)
+	var f File
+	err := s.withTx(ctx, func(q *Queries) error {
+		var err error
+		if f, err = q.DeleteFile(ctx, id); err != nil {
+			return err
+		}
+		return q.PruneDirectoriesForKeys(ctx, []string{f.Key})
+	})
+	return f, err
 }
 
 // DeleteFilesByIDsWithDirectories runs DeleteFilesByIDs and
@@ -89,21 +91,15 @@ func (s *Store) DeleteFileWithDirectories(ctx context.Context, id int64) (File, 
 // files+directories gone and the rest untouched, and retrying with the
 // same path continues where it left off.
 func (s *Store) DeleteFilesByIDsWithDirectories(ctx context.Context, ids []int64, keys []string) (int64, error) {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	txQueries := New(tx)
-	n, err := txQueries.DeleteFilesByIDs(ctx, ids)
-	if err != nil {
-		return 0, err
-	}
-	if err := txQueries.PruneDirectoriesForKeys(ctx, keys); err != nil {
-		return 0, err
-	}
-	return n, tx.Commit(ctx)
+	var n int64
+	err := s.withTx(ctx, func(q *Queries) error {
+		var err error
+		if n, err = q.DeleteFilesByIDs(ctx, ids); err != nil {
+			return err
+		}
+		return q.PruneDirectoriesForKeys(ctx, keys)
+	})
+	return n, err
 }
 
 // DeleteUnseenFilesWithDirectories runs DeleteUnseenFiles and
@@ -130,19 +126,13 @@ func (s *Store) DeleteFilesByIDsWithDirectories(ctx context.Context, ids []int64
 // already measured cheap at 2000+ candidates (see PruneOrphanDirectories'
 // doc comment in queries/directories.sql).
 func (s *Store) DeleteUnseenFilesWithDirectories(ctx context.Context, cutoff time.Time) (int64, error) {
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-
-	txQueries := New(tx)
-	n, err := txQueries.DeleteUnseenFiles(ctx, pgtype.Timestamptz{Time: cutoff, Valid: true})
-	if err != nil {
-		return 0, err
-	}
-	if err := txQueries.PruneOrphanDirectories(ctx); err != nil {
-		return 0, err
-	}
-	return n, tx.Commit(ctx)
+	var n int64
+	err := s.withTx(ctx, func(q *Queries) error {
+		var err error
+		if n, err = q.DeleteUnseenFiles(ctx, pgtype.Timestamptz{Time: cutoff, Valid: true}); err != nil {
+			return err
+		}
+		return q.PruneOrphanDirectories(ctx)
+	})
+	return n, err
 }
