@@ -244,5 +244,3 @@ func TestDeleteUnseenFilesWithDirectoriesPrunesDirectories(t *testing.T) {
 		t.Errorf("children after sweep = %v, want none (sub/ orphaned by the swept file)", children)
 	}
 }
-
-
