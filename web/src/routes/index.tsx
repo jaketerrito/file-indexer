@@ -16,9 +16,11 @@ function Home() {
   const navigate = Route.useNavigate()
 
   function handleFiltersChange(next: FileFilters) {
-    // replace: filter tweaks (especially debounced typing) shouldn't pile up
-    // in the browser history.
-    void navigate({ search: next, replace: true })
+    // Folder navigation (any path change, including entering/leaving browse
+    // mode) pushes a history entry so browser Back/Forward moves between
+    // folders. In-place filter tweaks (debounced typing, sort/order) replace
+    // — they shouldn't pile up in the browser history.
+    void navigate({ search: next, replace: next.path === filters.path })
   }
 
   return (
