@@ -7,6 +7,7 @@
 package pb
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -129,6 +130,7 @@ func (SortOrder) EnumDescriptor() ([]byte, []int) {
 type ListFilesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Maximum number of files to return. Defaults to 50, clamped to 200.
+	// Negative values are rejected (buf.validate).
 	PageSize int32 `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	// A page token, received from a previous ListFiles call's next_page_token.
 	// Provide this to retrieve the subsequent page.
@@ -289,6 +291,7 @@ type ListDirectoryRequest struct {
 	Path string `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
 	// Maximum number of entries (directories + files combined) to return.
 	// Defaults to 50, clamped to 200, same as ListFiles.
+	// Negative values are rejected (buf.validate).
 	PageSize  int32  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
 	PageToken string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Sort applies to the files portion only; directories are always
@@ -431,29 +434,29 @@ var File_service_v1_search_proto protoreflect.FileDescriptor
 const file_service_v1_search_proto_rawDesc = "" +
 	"\n" +
 	"\x17service/v1/search.proto\x12\n" +
-	"service.v1\x1a\x16service/v1/files.proto\"\xf5\x01\n" +
-	"\x10ListFilesRequest\x12\x1b\n" +
-	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"service.v1\x1a\x1bbuf/validate/validate.proto\x1a\x16service/v1/files.proto\"\x92\x02\n" +
+	"\x10ListFilesRequest\x12$\n" +
+	"\tpage_size\x18\x01 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
 	"page_token\x18\x02 \x01(\tR\tpageToken\x12\x16\n" +
 	"\x06prefix\x18\x03 \x01(\tR\x06prefix\x12!\n" +
-	"\fcontent_type\x18\x04 \x01(\tR\vcontentType\x124\n" +
+	"\fcontent_type\x18\x04 \x01(\tR\vcontentType\x12>\n" +
 	"\n" +
-	"sort_field\x18\x05 \x01(\x0e2\x15.service.v1.SortFieldR\tsortField\x124\n" +
+	"sort_field\x18\x05 \x01(\x0e2\x15.service.v1.SortFieldB\b\xbaH\x05\x82\x01\x02\x10\x01R\tsortField\x12>\n" +
 	"\n" +
-	"sort_order\x18\x06 \x01(\x0e2\x15.service.v1.SortOrderR\tsortOrder\"g\n" +
+	"sort_order\x18\x06 \x01(\x0e2\x15.service.v1.SortOrderB\b\xbaH\x05\x82\x01\x02\x10\x01R\tsortOrder\"g\n" +
 	"\x11ListFilesResponse\x12*\n" +
 	"\x05files\x18\x01 \x03(\v2\x14.service.v1.FileInfoR\x05files\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xd2\x01\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xef\x01\n" +
 	"\x14ListDirectoryRequest\x12\x12\n" +
-	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1b\n" +
-	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12$\n" +
+	"\tpage_size\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tR\tpageToken\x124\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\x12>\n" +
 	"\n" +
-	"sort_field\x18\x04 \x01(\x0e2\x15.service.v1.SortFieldR\tsortField\x124\n" +
+	"sort_field\x18\x04 \x01(\x0e2\x15.service.v1.SortFieldB\b\xbaH\x05\x82\x01\x02\x10\x01R\tsortField\x12>\n" +
 	"\n" +
-	"sort_order\x18\x05 \x01(\x0e2\x15.service.v1.SortOrderR\tsortOrder\"\x8d\x01\n" +
+	"sort_order\x18\x05 \x01(\x0e2\x15.service.v1.SortOrderB\b\xbaH\x05\x82\x01\x02\x10\x01R\tsortOrder\"\x8d\x01\n" +
 	"\x15ListDirectoryResponse\x12 \n" +
 	"\vdirectories\x18\x01 \x03(\tR\vdirectories\x12*\n" +
 	"\x05files\x18\x02 \x03(\v2\x14.service.v1.FileInfoR\x05files\x12&\n" +
