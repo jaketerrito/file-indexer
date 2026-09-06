@@ -155,3 +155,7 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   generated-file marker filter, which fails open when the shared analysis
   cache references deleted worktrees. CI lint-go uses `only-new-issues`, so
   local `just lint` is stricter than PR checks.
+- The CI `unit` job runs `tsc --noEmit` on web; nothing local does (`just
+  lint` = biome only, vite build strips types unchecked). Run
+  `npm --prefix web run typecheck` before pushing web changes — biome-clean
+  code can still fail CI on types.
