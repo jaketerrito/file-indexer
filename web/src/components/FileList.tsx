@@ -3,15 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
 import type { FileFilters } from '../lib/fileFilters'
 import { useFileStatusPoller } from '../lib/useFileStatusPoller'
-import {
-  deleteFile,
-  getDownloadUrl,
-  getFileMetadata,
-  listContentTypes,
-  listFiles,
-} from '../server/files'
+import { deleteFile, getDownloadUrl, listContentTypes, listFiles } from '../server/files'
 import { DeleteFileConfirmation } from './DeleteFileConfirmation'
-import { FileMetadataModal } from './FileMetadataModal'
 
 const PAGE_SIZE = 50
 const PREFIX_DEBOUNCE_MS = 300
@@ -25,9 +18,11 @@ function categoryLabel(category: string): string {
 interface FileListProps {
   filters: FileFilters
   onFiltersChange: (filters: FileFilters) => void
+  /** Opens a file's standalone page (what the metadata modal used to show). */
+  onOpenFile: (id: string) => void
 }
 
-export function FileList({ filters, onFiltersChange }: FileListProps) {
+export function FileList({ filters, onFiltersChange, onOpenFile }: FileListProps) {
   const queryClient = useQueryClient()
 
   const { data, error, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
@@ -109,8 +104,6 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
     const { url } = await getDownloadUrl({ data: { id } })
     window.open(url, '_blank', 'noopener')
   }
-
-  const [metadataId, setMetadataId] = useState<string | null>(null)
 
   // File pending delete confirmation, or null when none. The Delete button
   // only selects; the dialog's Confirm delete actually runs the mutation.
@@ -215,7 +208,7 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
                     <button type="button" onClick={() => void handleDownload(file.id)}>
                       Download
                     </button>{' '}
-                    <button type="button" onClick={() => setMetadataId(file.id)}>
+                    <button type="button" onClick={() => onOpenFile(file.id)}>
                       Metadata
                     </button>{' '}
                     <button
@@ -242,11 +235,6 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
           onCancel={() => setFileToDelete(null)}
         />
       ) : null}
-      <FileMetadataModal
-        fileId={metadataId}
-        onClose={() => setMetadataId(null)}
-        getFileMetadata={getFileMetadata}
-      />
     </div>
   )
 }

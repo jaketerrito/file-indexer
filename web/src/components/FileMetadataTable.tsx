@@ -1,12 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
 import type { ExifMetadataDto, FileMetadataDto } from '../server/impl'
-
-interface FileMetadataModalProps {
-  /** File id to show metadata for, or null when the modal is closed. */
-  fileId: string | null
-  onClose: () => void
-  getFileMetadata: (input: { data: { id: string } }) => Promise<FileMetadataDto>
-}
 
 /** One label/value row; omitted entirely when value is null/undefined/empty. */
 function Row({ label, value }: { label: string; value: string | number | null | undefined }) {
@@ -114,66 +106,27 @@ function ExifSection({ exif }: { exif: ExifMetadataDto }) {
   )
 }
 
-export function FileMetadataModal({ fileId, onClose, getFileMetadata }: FileMetadataModalProps) {
-  const { data, isPending, isError, error } = useQuery({
-    queryKey: ['file-metadata', fileId],
-    queryFn: () => getFileMetadata({ data: { id: fileId as string } }),
-    enabled: fileId !== null,
-  })
+interface FileMetadataTableProps {
+  file: FileMetadataDto
+}
 
-  if (fileId === null) return null
-
+/**
+ * Metadata display for the standalone file page (routes/file.$id.tsx): the
+ * base stat columns plus EXIF/XMP sections when present. Also the home of
+ * formatBytes, reused by the delete-folder confirmation.
+ */
+export function FileMetadataTable({ file }: FileMetadataTableProps) {
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="File metadata"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Escape') onClose()
-      }}
-    >
-      <div
-        style={{
-          background: 'white',
-          padding: '1rem',
-          maxHeight: '80vh',
-          overflow: 'auto',
-          minWidth: '24rem',
-        }}
-      >
-        <button type="button" onClick={onClose}>
-          Close
-        </button>
-        {isPending ? (
-          <p>Loading…</p>
-        ) : isError ? (
-          <p role="alert">Failed to load metadata: {String(error)}</p>
-        ) : (
-          <>
-            <h2>{data.key}</h2>
-            <table>
-              <tbody>
-                <Row label="Content type" value={data.contentType} />
-                <Row label="Size" value={formatBytes(data.sizeBytes)} />
-                <Row label="Created" value={data.createdAt} />
-                <Row label="Updated" value={data.updatedAt} />
-              </tbody>
-            </table>
-            {data.exif ? <ExifSection exif={data.exif} /> : null}
-          </>
-        )}
-      </div>
-    </div>
+    <>
+      <table>
+        <tbody>
+          <Row label="Content type" value={file.contentType} />
+          <Row label="Size" value={formatBytes(file.sizeBytes)} />
+          <Row label="Created" value={file.createdAt} />
+          <Row label="Updated" value={file.updatedAt} />
+        </tbody>
+      </table>
+      {file.exif ? <ExifSection exif={file.exif} /> : null}
+    </>
   )
 }

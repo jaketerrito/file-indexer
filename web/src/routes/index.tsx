@@ -1,6 +1,12 @@
 import { createFileRoute, stripSearchParams } from '@tanstack/react-router'
 import { Browser } from '../components/Browser'
-import { DEFAULT_FILTERS, type FileFilters, normalizeFilters } from '../lib/fileFilters'
+import { FolderTree } from '../components/FolderTree'
+import {
+  DEFAULT_FILTERS,
+  type FileFilters,
+  normalizeFilters,
+  toBrowsePath,
+} from '../lib/fileFilters'
 
 export const Route = createFileRoute('/')({
   validateSearch: normalizeFilters,
@@ -22,9 +28,30 @@ function Home() {
   }
 
   return (
-    <main>
+    <main style={{ padding: '0 1rem' }}>
       <h1>Files</h1>
-      <Browser filters={filters} onFiltersChange={handleFiltersChange} />
+      <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'flex-start' }}>
+        <aside
+          style={{
+            flex: '0 0 14rem',
+            borderRight: '1px solid #ddd',
+            paddingRight: '1rem',
+          }}
+        >
+          <h2 style={{ fontSize: '1rem' }}>Folders</h2>
+          <FolderTree
+            currentPath={filters.path}
+            onNavigate={(path) => handleFiltersChange(toBrowsePath(filters, path))}
+          />
+        </aside>
+        <section style={{ flex: 1, minWidth: 0 }}>
+          <Browser
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            onOpenFile={(id) => void navigate({ to: '/file/$id', params: { id } })}
+          />
+        </section>
+      </div>
     </main>
   )
 }

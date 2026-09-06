@@ -11,7 +11,6 @@ vi.mock('../server/files', () => ({
   deleteDirectory: vi.fn(),
   deleteFile: vi.fn(),
   getDownloadUrl: vi.fn(),
-  getFileMetadata: vi.fn(),
 }))
 
 import {
@@ -19,7 +18,6 @@ import {
   deleteFile,
   getDirectoryStats,
   getDownloadUrl,
-  getFileMetadata,
   listDirectory,
 } from '../server/files'
 
@@ -28,7 +26,6 @@ const getDirectoryStatsMock = vi.mocked(getDirectoryStats)
 const deleteDirectoryMock = vi.mocked(deleteDirectory)
 const deleteFileMock = vi.mocked(deleteFile)
 const getDownloadUrlMock = vi.mocked(getDownloadUrl)
-const getFileMetadataMock = vi.mocked(getFileMetadata)
 
 function page(
   directories: string[],
@@ -82,12 +79,19 @@ function renderDirectoryList(path = 'docs/') {
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   const onNavigate = vi.fn()
+  const onOpenFile = vi.fn()
   render(
     <QueryClientProvider client={queryClient}>
-      <DirectoryList path={path} sort="key" order="asc" onNavigate={onNavigate} />
+      <DirectoryList
+        path={path}
+        sort="key"
+        order="asc"
+        onNavigate={onNavigate}
+        onOpenFile={onOpenFile}
+      />
     </QueryClientProvider>,
   )
-  return { onNavigate }
+  return { onNavigate, onOpenFile }
 }
 
 beforeEach(() => {
@@ -207,23 +211,13 @@ describe('DirectoryList', () => {
     })
   })
 
-  it('opens the metadata modal', async () => {
+  it('routes the Metadata button to the file page via onOpenFile', async () => {
     listDirectoryMock.mockResolvedValue(page([], [{ id: '1', key: 'docs/a.txt' }]))
-    getFileMetadataMock.mockResolvedValue({
-      id: '1',
-      key: 'docs/a.txt',
-      contentType: 'text/plain',
-      sizeBytes: 2048,
-      createdAt: null,
-      updatedAt: null,
-      exif: null,
-    })
-
-    renderDirectoryList()
+    const { onOpenFile } = renderDirectoryList()
     await screen.findByText('a.txt')
     fireEvent.click(screen.getByRole('button', { name: 'Metadata' }))
 
-    expect(await screen.findByRole('dialog')).toBeDefined()
+    expect(onOpenFile).toHaveBeenCalledWith('1')
   })
 
   it('shows a placeholder for pending image previews', async () => {
