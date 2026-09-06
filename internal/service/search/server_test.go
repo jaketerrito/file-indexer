@@ -87,15 +87,6 @@ func TestListFilesPageSizeClamped(t *testing.T) {
 	}
 }
 
-func TestListFilesNegativePageSize(t *testing.T) {
-	srv := SearchServer{queries: NewMockFileIndex(t)}
-
-	_, err := srv.ListFiles(context.Background(), &pb.ListFilesRequest{PageSize: -1})
-	if status.Code(err) != codes.InvalidArgument {
-		t.Fatalf("error = %v, want InvalidArgument", err)
-	}
-}
-
 func TestListFilesPrefixEscaped(t *testing.T) {
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
@@ -725,6 +716,48 @@ func TestServe(t *testing.T) {
 	}
 	if len(resp.GetFiles()) != 1 || resp.GetFiles()[0].GetKey() != "obj-key" {
 		t.Errorf("ListFiles = %+v, want single file obj-key", resp.GetFiles())
+	}
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("Serve exited unexpectedly: %v", err)
+	default:
+	}
+}
+
+func TestServeValidation(t *testing.T) {
+	// No EXPECT calls: validation must reject before the handler runs.
+	queries := NewMockFileIndex(t)
+
+	addr := freeAddr(t)
+	srv := New(addr, queries)
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- srv.Serve() }()
+
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("grpc.NewClient: %v", err)
+	}
+	defer func() {
+		if err := conn.Close(); err != nil {
+			t.Errorf("close conn: %v", err)
+		}
+	}()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client := pb.NewSearchServiceClient(conn)
+
+	_, err = client.ListFiles(ctx, &pb.ListFilesRequest{PageSize: -1}, grpc.WaitForReady(true))
+	if status.Code(err) != codes.InvalidArgument {
+		t.Errorf("ListFiles(PageSize:-1) code = %v, want InvalidArgument", status.Code(err))
+	}
+
+	_, err = client.ListFiles(ctx, &pb.ListFilesRequest{SortField: 99}, grpc.WaitForReady(true))
+	if status.Code(err) != codes.InvalidArgument {
+		t.Errorf("ListFiles(SortField:99) code = %v, want InvalidArgument", status.Code(err))
 	}
 
 	select {

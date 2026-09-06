@@ -4,6 +4,7 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import { file_buf_validate_validate } from "../../buf/validate/validate_pb";
 import type { FileInfo } from "./files_pb";
 import { file_service_v1_files } from "./files_pb";
 import type { Message } from "@bufbuild/protobuf";
@@ -12,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file service/v1/search.proto.
  */
 export const file_service_v1_search: GenFile = /*@__PURE__*/
-  fileDesc("ChdzZXJ2aWNlL3YxL3NlYXJjaC5wcm90bxIKc2VydmljZS52MSK1AQoQTGlzdEZpbGVzUmVxdWVzdBIRCglwYWdlX3NpemUYASABKAUSEgoKcGFnZV90b2tlbhgCIAEoCRIOCgZwcmVmaXgYAyABKAkSFAoMY29udGVudF90eXBlGAQgASgJEikKCnNvcnRfZmllbGQYBSABKA4yFS5zZXJ2aWNlLnYxLlNvcnRGaWVsZBIpCgpzb3J0X29yZGVyGAYgASgOMhUuc2VydmljZS52MS5Tb3J0T3JkZXIiUQoRTGlzdEZpbGVzUmVzcG9uc2USIwoFZmlsZXMYASADKAsyFC5zZXJ2aWNlLnYxLkZpbGVJbmZvEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSKhAQoUTGlzdERpcmVjdG9yeVJlcXVlc3QSDAoEcGF0aBgBIAEoCRIRCglwYWdlX3NpemUYAiABKAUSEgoKcGFnZV90b2tlbhgDIAEoCRIpCgpzb3J0X2ZpZWxkGAQgASgOMhUuc2VydmljZS52MS5Tb3J0RmllbGQSKQoKc29ydF9vcmRlchgFIAEoDjIVLnNlcnZpY2UudjEuU29ydE9yZGVyImoKFUxpc3REaXJlY3RvcnlSZXNwb25zZRITCgtkaXJlY3RvcmllcxgBIAMoCRIjCgVmaWxlcxgCIAMoCzIULnNlcnZpY2UudjEuRmlsZUluZm8SFwoPbmV4dF9wYWdlX3Rva2VuGAMgASgJKm4KCVNvcnRGaWVsZBIaChZTT1JUX0ZJRUxEX1VOU1BFQ0lGSUVEEAASEgoOU09SVF9GSUVMRF9LRVkQARIcChhTT1JUX0ZJRUxEX0xBU1RfTU9ESUZJRUQQAhITCg9TT1JUX0ZJRUxEX1NJWkUQAypQCglTb3J0T3JkZXISGgoWU09SVF9PUkRFUl9VTlNQRUNJRklFRBAAEhIKDlNPUlRfT1JERVJfQVNDEAESEwoPU09SVF9PUkRFUl9ERVNDEAIyrwEKDVNlYXJjaFNlcnZpY2USSAoJTGlzdEZpbGVzEhwuc2VydmljZS52MS5MaXN0RmlsZXNSZXF1ZXN0Gh0uc2VydmljZS52MS5MaXN0RmlsZXNSZXNwb25zZRJUCg1MaXN0RGlyZWN0b3J5EiAuc2VydmljZS52MS5MaXN0RGlyZWN0b3J5UmVxdWVzdBohLnNlcnZpY2UudjEuTGlzdERpcmVjdG9yeVJlc3BvbnNlQihaJmZpbGUtaW5kZXhlci9pbnRlcm5hbC9wYi9zZXJ2aWNlL3YxO3BiYgZwcm90bzM", [file_service_v1_files]);
+  fileDesc("ChdzZXJ2aWNlL3YxL3NlYXJjaC5wcm90bxIKc2VydmljZS52MSLSAQoQTGlzdEZpbGVzUmVxdWVzdBIaCglwYWdlX3NpemUYASABKAVCB7pIBBoCKAASEgoKcGFnZV90b2tlbhgCIAEoCRIOCgZwcmVmaXgYAyABKAkSFAoMY29udGVudF90eXBlGAQgASgJEjMKCnNvcnRfZmllbGQYBSABKA4yFS5zZXJ2aWNlLnYxLlNvcnRGaWVsZEIIukgFggECEAESMwoKc29ydF9vcmRlchgGIAEoDjIVLnNlcnZpY2UudjEuU29ydE9yZGVyQgi6SAWCAQIQASJRChFMaXN0RmlsZXNSZXNwb25zZRIjCgVmaWxlcxgBIAMoCzIULnNlcnZpY2UudjEuRmlsZUluZm8SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIr4BChRMaXN0RGlyZWN0b3J5UmVxdWVzdBIMCgRwYXRoGAEgASgJEhoKCXBhZ2Vfc2l6ZRgCIAEoBUIHukgEGgIoABISCgpwYWdlX3Rva2VuGAMgASgJEjMKCnNvcnRfZmllbGQYBCABKA4yFS5zZXJ2aWNlLnYxLlNvcnRGaWVsZEIIukgFggECEAESMwoKc29ydF9vcmRlchgFIAEoDjIVLnNlcnZpY2UudjEuU29ydE9yZGVyQgi6SAWCAQIQASJqChVMaXN0RGlyZWN0b3J5UmVzcG9uc2USEwoLZGlyZWN0b3JpZXMYASADKAkSIwoFZmlsZXMYAiADKAsyFC5zZXJ2aWNlLnYxLkZpbGVJbmZvEhcKD25leHRfcGFnZV90b2tlbhgDIAEoCSpuCglTb3J0RmllbGQSGgoWU09SVF9GSUVMRF9VTlNQRUNJRklFRBAAEhIKDlNPUlRfRklFTERfS0VZEAESHAoYU09SVF9GSUVMRF9MQVNUX01PRElGSUVEEAISEwoPU09SVF9GSUVMRF9TSVpFEAMqUAoJU29ydE9yZGVyEhoKFlNPUlRfT1JERVJfVU5TUEVDSUZJRUQQABISCg5TT1JUX09SREVSX0FTQxABEhMKD1NPUlRfT1JERVJfREVTQxACMq8BCg1TZWFyY2hTZXJ2aWNlEkgKCUxpc3RGaWxlcxIcLnNlcnZpY2UudjEuTGlzdEZpbGVzUmVxdWVzdBodLnNlcnZpY2UudjEuTGlzdEZpbGVzUmVzcG9uc2USVAoNTGlzdERpcmVjdG9yeRIgLnNlcnZpY2UudjEuTGlzdERpcmVjdG9yeVJlcXVlc3QaIS5zZXJ2aWNlLnYxLkxpc3REaXJlY3RvcnlSZXNwb25zZUIoWiZmaWxlLWluZGV4ZXIvaW50ZXJuYWwvcGIvc2VydmljZS92MTtwYmIGcHJvdG8z", [file_buf_validate_validate, file_service_v1_files]);
 
 /**
  * @generated from message service.v1.ListFilesRequest
@@ -20,6 +21,7 @@ export const file_service_v1_search: GenFile = /*@__PURE__*/
 export type ListFilesRequest = Message<"service.v1.ListFilesRequest"> & {
   /**
    * Maximum number of files to return. Defaults to 50, clamped to 200.
+   * Negative values are rejected (buf.validate).
    *
    * @generated from field: int32 page_size = 1;
    */
@@ -119,6 +121,7 @@ export type ListDirectoryRequest = Message<"service.v1.ListDirectoryRequest"> & 
   /**
    * Maximum number of entries (directories + files combined) to return.
    * Defaults to 50, clamped to 200, same as ListFiles.
+   * Negative values are rejected (buf.validate).
    *
    * @generated from field: int32 page_size = 2;
    */

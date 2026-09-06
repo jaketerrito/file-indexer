@@ -8,6 +8,7 @@ import (
 	"file-indexer/internal/db"
 	cursorv1 "file-indexer/internal/pb/cursor/v1"
 	pb "file-indexer/internal/pb/service/v1"
+	"file-indexer/internal/validate"
 	"log/slog"
 	"net"
 	"strings"
@@ -106,15 +107,8 @@ func New(addr string, queries FileIndex) *SearchServer {
 }
 
 func (s *SearchServer) ListFiles(ctx context.Context, req *pb.ListFilesRequest) (*pb.ListFilesResponse, error) {
-	sortField, sortOrder, err := normalizeSort(req.GetSortField(), req.GetSortOrder())
-	if err != nil {
-		return nil, err
-	}
-
-	limit, err := normalizePageSize(req.GetPageSize())
-	if err != nil {
-		return nil, err
-	}
+	sortField, sortOrder := normalizeSort(req.GetSortField(), req.GetSortOrder())
+	limit := normalizePageSize(req.GetPageSize())
 
 	var cur *cursor
 	if req.GetPageToken() != "" {
@@ -166,6 +160,10 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 	// ListDirectory: a page that exhausts directories without touching any
 	// files still emits a FILES-phase token to resume into, with LastId 0).
 	hasCursor := cur != nil && cur.GetLastId() != 0
+
+	if sortOrder != pb.SortOrder_SORT_ORDER_ASC && sortOrder != pb.SortOrder_SORT_ORDER_DESC {
+		return nil, status.Errorf(codes.InvalidArgument, "unsupported sort_order %v", sortOrder)
+	}
 
 	switch sortField {
 	case pb.SortField_SORT_FIELD_KEY:
@@ -238,7 +236,8 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 			PageLimit:          int32(limit),
 		})
 	default:
-		// normalizeSort only lets known fields through.
+		// Unreachable via gRPC: the protovalidate interceptor enforces
+		// defined_only on sort_field. Kept as defense for direct calls.
 		return nil, status.Errorf(codes.InvalidArgument, "unsupported sort_field %v", sortField)
 	}
 }
@@ -253,14 +252,8 @@ func (s *SearchServer) ListDirectory(ctx context.Context, req *pb.ListDirectoryR
 	if err != nil {
 		return nil, err
 	}
-	sortField, sortOrder, err := normalizeSort(req.GetSortField(), req.GetSortOrder())
-	if err != nil {
-		return nil, err
-	}
-	limit, err := normalizePageSize(req.GetPageSize())
-	if err != nil {
-		return nil, err
-	}
+	sortField, sortOrder := normalizeSort(req.GetSortField(), req.GetSortOrder())
+	limit := normalizePageSize(req.GetPageSize())
 
 	var cur *cursor
 	phase := cursorv1.ListPhase_LIST_PHASE_DIRECTORIES
@@ -377,42 +370,38 @@ func (s *SearchServer) Serve() error {
 	if err != nil {
 		return err
 	}
-	grpcServer := grpc.NewServer()
+	interceptor, err := validate.UnaryInterceptor()
+	if err != nil {
+		return err
+	}
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptor))
 	pb.RegisterSearchServiceServer(grpcServer, s)
 	slog.Info("listening", "addr", s.addr)
 	return grpcServer.Serve(lis)
 }
 
-// normalizeSort applies defaults (key ascending) and rejects enum values this
-// server does not know about.
-func normalizeSort(field pb.SortField, order pb.SortOrder) (pb.SortField, pb.SortOrder, error) {
-	switch field {
-	case pb.SortField_SORT_FIELD_UNSPECIFIED:
+// normalizeSort applies defaults (key ascending). Defined-only enum validation
+// now happens in the protovalidate interceptor.
+func normalizeSort(field pb.SortField, order pb.SortOrder) (pb.SortField, pb.SortOrder) {
+	if field == pb.SortField_SORT_FIELD_UNSPECIFIED {
 		field = pb.SortField_SORT_FIELD_KEY
-	case pb.SortField_SORT_FIELD_KEY, pb.SortField_SORT_FIELD_LAST_MODIFIED, pb.SortField_SORT_FIELD_SIZE:
-	default:
-		return 0, 0, status.Errorf(codes.InvalidArgument, "unknown sort_field %d", field)
 	}
-	switch order {
-	case pb.SortOrder_SORT_ORDER_UNSPECIFIED:
+	if order == pb.SortOrder_SORT_ORDER_UNSPECIFIED {
 		order = pb.SortOrder_SORT_ORDER_ASC
-	case pb.SortOrder_SORT_ORDER_ASC, pb.SortOrder_SORT_ORDER_DESC:
-	default:
-		return 0, 0, status.Errorf(codes.InvalidArgument, "unknown sort_order %d", order)
 	}
-	return field, order, nil
+	return field, order
 }
 
-func normalizePageSize(pageSize int32) (int, error) {
+// normalizePageSize applies defaults and clamping. Negative values are rejected
+// by the protovalidate interceptor.
+func normalizePageSize(pageSize int32) int {
 	switch {
-	case pageSize < 0:
-		return 0, status.Error(codes.InvalidArgument, "page_size must not be negative")
 	case pageSize == 0:
-		return defaultPageSize, nil
+		return defaultPageSize
 	case pageSize > maxPageSize:
-		return maxPageSize, nil
+		return maxPageSize
 	default:
-		return int(pageSize), nil
+		return int(pageSize)
 	}
 }
 
