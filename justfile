@@ -95,13 +95,15 @@ up: cluster-up tilt-up
 # destroys the SHARED cluster and every checkout's stack)
 down: tilt-down
 
-# Deploy everything with auto_init=True (all services, postgres, MinIO,
-# secrets, the lint local resource) and run the full test suite + coverage
-# gate via the test-integration Tilt resource. Verifies real rollouts of every
-# service, not just manifest validity. This is what CI runs; reproduce locally
-# with `just cluster-up && just ci`.
+# Deploy everything (all services, postgres, MinIO, secrets) and run the full
+# test suite + coverage gate via the test-integration Tilt resource. Verifies
+# real rollouts of every service, not just manifest validity. The Tiltfile
+# gates the lint/test local resources behind the `--checks` arg so interactive
+# `tilt up` skips them; `tilt ci` never runs manual resources, so the flag is
+# passed explicitly here. This is what CI runs; reproduce locally with
+# `just cluster-up && just ci`.
 ci:
-    tilt ci --namespace {{ns}} --port {{tilt_port}}
+    tilt ci --namespace {{ns}} --port {{tilt_port}} -- --checks
 
 # Run unit tests with race detector and write a coverage profile. Integration
 # tests are excluded (build-tag gated); coverage thresholds are only checked by

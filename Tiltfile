@@ -5,6 +5,13 @@ load('ext://namespace', 'namespace_create')
 if not str(local('command -v npm || true', quiet=True, echo_off=True)).strip():
     fail('npm not found on PATH; install Node >= 24 (https://nodejs.org) and restart tilt')
 
+# Checks (lint/test local resources) are on-demand by default so `tilt up`
+# deploys the app without waiting on them; `just ci` passes --checks to
+# auto-run them (tilt ci skips manual resources).
+config.define_bool('checks', usage='auto-run lint/test local resources (just ci sets this)')
+cfg = config.parse()
+checks_auto = cfg.get('checks', False)
+
 local_resource('generate',
    cmd='just generate',
    deps=['internal/db/queries', 'internal/db/migrations', 'proto'],
@@ -14,17 +21,26 @@ local_resource('generate',
 local_resource('lint',
    cmd='just lint',
    deps=['internal/', 'web/src', 'web/biome.json'],
+   auto_init=checks_auto,
+   trigger_mode=TRIGGER_MODE_AUTO if checks_auto else TRIGGER_MODE_MANUAL,
+   labels=['checks'],
 )
 
 local_resource('test-web',
    cmd='just test-web',
    deps=['web/src', 'web/package.json', 'web/vitest.config.ts'],
+   auto_init=checks_auto,
+   trigger_mode=TRIGGER_MODE_AUTO if checks_auto else TRIGGER_MODE_MANUAL,
+   labels=['checks'],
 )
 
 local_resource('test-integration',
    cmd='just test-integration',
    deps=['internal/', 'cmd/'],
    resource_deps=['postgres', 'local-s3', 'migrate'],
+   auto_init=checks_auto,
+   trigger_mode=TRIGGER_MODE_AUTO if checks_auto else TRIGGER_MODE_MANUAL,
+   labels=['checks'],
 )
 
 # Per-checkout dev environment: all checkouts share one kind cluster (`just
