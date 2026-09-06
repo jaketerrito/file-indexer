@@ -127,7 +127,7 @@ k8s_resource(
     'crawler',
     resource_deps=['postgres', 'migrate', 'local-s3'],
     trigger_mode=TRIGGER_MODE_MANUAL,
-    auto_init=False,
+    auto_init=True,
 )
 k8s_resource(
     'preview-gc',

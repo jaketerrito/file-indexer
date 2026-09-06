@@ -40,8 +40,14 @@ spec:
                 mc cp "$f" "local/$S3_BUCKET/$(basename "$f")"
               done
               echo "seeded bucket '$S3_BUCKET' from /seed"
+              touch /tmp/seeded
               # Keep the sidecar alive so the pod stays Ready.
               tail -f /dev/null
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "test -f /tmp/seeded"]
+            initialDelaySeconds: 2
+            periodSeconds: 2
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

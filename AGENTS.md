@@ -115,6 +115,10 @@ interfaces listed in `.mockery.yaml`, and commit the output.
 - Long-running dev processes (e.g. `search-local` via `hub`) survive across
   sessions and serve stale code — check process age (`ps -o etime`) before
   trusting observed behavior; restart before debugging "phantom" bugs.
+- `just tilt-up` backgrounds tilt (`tilt up ... &`) and exits immediately, so
+  it cannot run under a supervisor (the child is killed on teardown). To
+  supervise tilt, launch `tilt up --namespace <ns> --port <tilt_port>`
+  directly in the foreground.
 - The files/search services serve gRPC (HTTP/2) only — no connect/JSON over
   HTTP/1.1, so curl seeding fails with "Received HTTP/0.9". To seed dev data:
   pipe files into the local-s3 pod (`kubectl exec -i ... -c minio -- sh -c
