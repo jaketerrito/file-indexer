@@ -67,3 +67,4 @@ history is the archive.
   across page loads. If thumbnail bandwidth becomes a problem, swap
   GetPreviewURL for a cacheable BFF route serving bytes with immutable cache
   headers.
+
