@@ -523,7 +523,7 @@ func applyXMP(result *ExifResult, x xmp.XMP) {
 // column to at most 4*maxSanitizedFieldLen bytes, not exactly that many).
 // MakerNote decoding is not always reliable (imagemeta's own known issue
 // list includes a reverse-offset bug affecting some Sony fields — tracked
-// as a known limitation in TODO.md), so a generous but finite cap guards
+// as a known limitation in docs/TODO.md), so a generous but finite cap guards
 // against a misparsed field dumping unbounded or binary-looking data into a
 // text column.
 const maxSanitizedFieldLen = 512
