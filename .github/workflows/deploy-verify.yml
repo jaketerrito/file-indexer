@@ -81,6 +81,18 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: web/package-lock.json
+      # tilt ci builds all service images plus the web image and loads them
+      # into the kind node's containerd, doubling the runner's docker
+      # footprint; ubuntu-latest's preinstalled toolchains (android, dotnet,
+      # ghc, ...) leave too little headroom and image builds fail with
+      # "no space left on device". Reclaim them (none are used here).
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc \
+            /usr/local/share/powershell /usr/share/swift /usr/local/julia* \
+            /opt/hostedtoolcache/CodeQL
+          docker image prune -a -f
+          df -h /
       - name: Create kind cluster
         run: just cluster-up
       - name: Run integration tests via tilt ci
