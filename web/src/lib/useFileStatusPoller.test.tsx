@@ -46,7 +46,15 @@ describe('useFileStatusPoller', () => {
     })
 
     const { unmount } = renderHook(
-      () => useFileStatusPoller(queryClient.getQueryData(['files'])?.pages, ['files']),
+      () =>
+        useFileStatusPoller(
+          queryClient.getQueryData<{
+            pages: Array<{
+              files: Array<{ id: string; previewStatus: number; previewUrl: string | null }>
+            }>
+          }>(['files'])?.pages,
+          ['files'],
+        ),
       {
         wrapper: ({ children }) => (
           <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
