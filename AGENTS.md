@@ -121,3 +121,8 @@ interfaces listed in `.mockery.yaml`, and commit the output.
 - Call TanStack Start server functions via imported references only — their
   IDs derive from file path/export name, so hand-constructed URLs break with
   "Invalid server function ID" after renames.
+- Generated Go code (`internal/pb/`, `mocks_test.go`) is excluded from
+  golangci-lint via `linters.exclusions.paths` in `.golangci.yml` — not the
+  generated-file marker filter, which fails open when the shared analysis
+  cache references deleted worktrees. CI lint-go uses `only-new-issues`, so
+  local `just lint` is stricter than PR checks.
