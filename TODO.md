@@ -53,13 +53,6 @@ history is the archive.
 - **Tilt web dev loop** (7/5/26): no live_update in the Tiltfile — every web
   change triggers a full image rebuild. Iterate with `npm run dev` against
   port-forwards for now; add live_update or a tilt-managed dev server.
-- **If the repo goes public** (8/25/26): branch protection + merge queue
-  become available, which flips two earlier decisions: (1) required status
-  checks can't tolerate path-filtered workflows being skipped, so the cheap
-  lint/unit jobs should drop their path filters and become the required
-  checks, keeping filters only on the expensive jobs; (2) set Renovate
-  platformAutomerge to true once required checks exist (currently false so
-  native automerge never merges ahead of checks).
 
 ## Known limitations (not scheduled)
 

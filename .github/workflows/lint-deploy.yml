@@ -2,13 +2,6 @@ name: lint-deploy
 on:
   pull_request:
     branches: [main]
-    paths:
-      - "**/*.yml"
-      - "**/*.yaml"
-      - "deploy/**"
-      - ".yamlfmt"
-      - ".github/workflows/lint-deploy.yml"
-      - ".github/actions/setup-go-cache/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

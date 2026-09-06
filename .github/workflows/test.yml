@@ -2,20 +2,8 @@ name: test
 on:
   push:
     branches: [main]
-    paths:
-      - "**/*.go"
-      - "go.mod"
-      - "go.sum"
-      - ".github/workflows/test.yml"
-      - ".github/actions/setup-go-cache/**"
   pull_request:
     branches: [main]
-    paths:
-      - "**/*.go"
-      - "go.mod"
-      - "go.sum"
-      - ".github/workflows/test.yml"
-      - ".github/actions/setup-go-cache/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -31,7 +19,7 @@ jobs:
   # verification live in test-integration.yml and deploy-verify.yml
   # respectively, both path-filtered to avoid running on every Go change.
   unit:
-    name: unit
+    name: unit-go
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

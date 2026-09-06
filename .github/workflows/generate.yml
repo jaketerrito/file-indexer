@@ -2,20 +2,6 @@ name: check-generated
 on:
   pull_request:
     branches: [main]
-    paths:
-      - "internal/service/**"
-      - "proto/**"
-      - "internal/db/queries/**"
-      - "internal/db/migrations/**"
-      - "sqlc.yaml"
-      - ".mockery.yaml"
-      - "**/generate.go"
-      - "go.mod"
-      - "go.sum"
-      - "web/package.json"
-      - "web/package-lock.json"
-      - ".github/workflows/generate.yml"
-      - ".github/actions/setup-go-cache/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
