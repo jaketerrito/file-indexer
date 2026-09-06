@@ -121,6 +121,11 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   session (pkill + `just tilt-up`); do bulk file moves with tilt stopped.
 - Server functions may return flattened DTOs rather than protobuf wrapper
   shapes — check the impl before assuming a response shape in web hooks.
+- Dialogs rendered in-flow after a long list land below the fold and look
+  like a dead button. The visible-modal convention is FileMetadataModal's
+  inline-style fixed overlay (position:fixed inset-0, dimmed backdrop,
+  centered white box, backdrop-click + Escape to close); both delete
+  confirmations (DeleteFileConfirmation, DeleteFolderConfirmation) follow it.
 - `useInfiniteQuery` + `refetchInterval` refetches every loaded page; poll a
   batch-status endpoint for pending IDs and patch the query cache instead.
 - `file_infos` metadata columns (`content_type`, `size_bytes`,

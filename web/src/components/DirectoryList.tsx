@@ -11,7 +11,9 @@ import {
   listDirectory,
 } from '../server/files'
 import type { SortFieldInput, SortOrderInput } from '../server/impl'
-import { FileMetadataModal, formatBytes } from './FileMetadataModal'
+import { DeleteFileConfirmation } from './DeleteFileConfirmation'
+import { DeleteFolderConfirmation } from './DeleteFolderConfirmation'
+import { FileMetadataModal } from './FileMetadataModal'
 
 const PAGE_SIZE = 50
 
@@ -54,7 +56,10 @@ export function DirectoryList({ path, sort, order, onNavigate }: DirectoryListPr
 
   const deleteFileMutation = useMutation({
     mutationFn: (id: string) => deleteFile({ data: { id } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['directory', path] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['directory', path] })
+      setFileToDelete(null)
+    },
   })
 
   // Folder pending delete confirmation, or null when none. Stats are fetched
@@ -62,6 +67,10 @@ export function DirectoryList({ path, sort, order, onNavigate }: DirectoryListPr
   // be removed (DeleteDirectory has no dry-run flag by design; this is the
   // client-side substitute).
   const [folderToDelete, setFolderToDelete] = useState<string | null>(null)
+
+  // File pending delete confirmation, or null when none. The Delete button
+  // only selects; the dialog's Confirm delete actually runs the mutation.
+  const [fileToDelete, setFileToDelete] = useState<{ id: string; key: string } | null>(null)
 
   useFileStatusPoller(data?.pages, ['directory', path, sort, order])
   const statsQuery = useQuery({
@@ -164,7 +173,7 @@ export function DirectoryList({ path, sort, order, onNavigate }: DirectoryListPr
               </button>{' '}
               <button
                 type="button"
-                onClick={() => deleteFileMutation.mutate(file.id)}
+                onClick={() => setFileToDelete({ id: file.id, key: basename(file.key) })}
                 disabled={deleteFileMutation.isPending}
               >
                 Delete
@@ -177,36 +186,25 @@ export function DirectoryList({ path, sort, order, onNavigate }: DirectoryListPr
       {isFetchingNextPage ? <p>Loading more…</p> : null}
 
       {folderToDelete !== null ? (
-        <div role="alertdialog" aria-label="Confirm delete folder">
-          <p>
-            Delete <strong>{folderToDelete}</strong>?
-          </p>
-          {statsQuery.isPending ? (
-            <p>Checking contents…</p>
-          ) : statsQuery.isError ? (
-            <p role="alert">Failed to load folder contents: {String(statsQuery.error)}</p>
-          ) : (
-            <p>
-              This deletes {statsQuery.data.fileCount} file
-              {statsQuery.data.fileCount === 1 ? '' : 's'} (
-              {formatBytes(statsQuery.data.totalBytes)}). This cannot be undone, and is not atomic:
-              on a partial failure some files may already be gone while others remain.
-            </p>
-          )}
-          {deleteDirMutation.isError ? (
-            <p role="alert">Delete failed: {String(deleteDirMutation.error)}</p>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => deleteDirMutation.mutate(folderToDelete)}
-            disabled={statsQuery.isPending || deleteDirMutation.isPending}
-          >
-            {deleteDirMutation.isPending ? 'Deleting…' : 'Confirm delete'}
-          </button>{' '}
-          <button type="button" onClick={() => setFolderToDelete(null)}>
-            Cancel
-          </button>
-        </div>
+        <DeleteFolderConfirmation
+          folderPath={folderToDelete}
+          statsPending={statsQuery.isPending}
+          statsError={statsQuery.isError ? statsQuery.error : null}
+          stats={statsQuery.data ?? null}
+          deletePending={deleteDirMutation.isPending}
+          deleteError={deleteDirMutation.isError ? deleteDirMutation.error : null}
+          onConfirm={() => deleteDirMutation.mutate(folderToDelete)}
+          onCancel={() => setFolderToDelete(null)}
+        />
+      ) : null}
+      {fileToDelete !== null ? (
+        <DeleteFileConfirmation
+          fileKey={fileToDelete.key}
+          pending={deleteFileMutation.isPending}
+          error={deleteFileMutation.isError ? deleteFileMutation.error : null}
+          onConfirm={() => deleteFileMutation.mutate(fileToDelete.id)}
+          onCancel={() => setFileToDelete(null)}
+        />
       ) : null}
       <FileMetadataModal
         fileId={metadataId}

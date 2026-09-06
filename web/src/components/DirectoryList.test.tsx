@@ -154,7 +154,7 @@ describe('DirectoryList', () => {
     )
   })
 
-  it('deletes a file and refetches the directory', async () => {
+  it('deletes a file after confirmation and refetches the directory', async () => {
     listDirectoryMock
       .mockResolvedValueOnce(page([], [{ id: '1', key: 'docs/a.txt' }]))
       .mockResolvedValueOnce(page([], []))
@@ -165,10 +165,31 @@ describe('DirectoryList', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
 
+    // The row's Delete button only opens the confirmation dialog.
+    expect(deleteFileMock).not.toHaveBeenCalled()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm delete' }))
+
     await waitFor(() => {
       expect(deleteFileMock).toHaveBeenCalledWith({ data: { id: '1' } })
       expect(listDirectoryMock).toHaveBeenCalledTimes(2)
     })
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+  })
+
+  it('cancels the file delete confirmation without calling deleteFile', async () => {
+    listDirectoryMock.mockResolvedValueOnce(page([], [{ id: '1', key: 'docs/a.txt' }]))
+
+    renderDirectoryList()
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await screen.findByRole('alertdialog')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(deleteFileMock).not.toHaveBeenCalled()
   })
 
   it('opens the presigned URL when Download is clicked', async () => {
