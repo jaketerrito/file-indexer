@@ -151,3 +151,15 @@ WHERE key LIKE sqlc.arg(key_pattern)
   AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(size_bytes, 0), id) < (sqlc.arg(last_size)::bigint, sqlc.arg(last_id)::bigint))
 ORDER BY COALESCE(size_bytes, 0) DESC, id DESC
 LIMIT sqlc.arg(page_limit);
+
+-- name: ListContentTypeCategories :many
+-- Distinct top-level MIME categories in the stat index, each with a trailing
+-- "/" so values plug straight into the content_type_pattern prefix semantics
+-- of the ListFilesBy* queries above. Sourced from index_stat_result (columns
+-- NOT NULL there), not the file_infos view: files not yet stat-indexed have
+-- no content type and contribute nothing. The strpos guard drops a malformed
+-- type with no "/", whose derived category would match nothing.
+SELECT DISTINCT split_part(content_type, '/', 1) || '/' AS category
+FROM index_stat_result
+WHERE strpos(content_type, '/') > 0
+ORDER BY category;

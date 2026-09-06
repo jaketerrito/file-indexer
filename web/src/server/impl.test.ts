@@ -18,6 +18,7 @@ import {
   PreviewURLSpecSchema,
 } from '../gen/service/v1/files_pb'
 import {
+  ListContentTypesResponseSchema,
   ListDirectoryResponseSchema,
   ListFilesResponseSchema,
   type SearchService,
@@ -32,6 +33,7 @@ import {
   getDownloadUrlImpl,
   getFileMetadataImpl,
   getUploadUrlImpl,
+  listContentTypesImpl,
   listDirectoryImpl,
   listFilesImpl,
   toFileDto,
@@ -657,5 +659,28 @@ describe('getFileMetadataImpl', () => {
     } as unknown as Client<typeof FilesService>
 
     await expect(getFileMetadataImpl(client, '42')).rejects.toThrow('no file returned')
+  })
+})
+
+describe('listContentTypesImpl', () => {
+  it('returns the categories from the search service', async () => {
+    const listContentTypes = vi
+      .fn()
+      .mockResolvedValue(
+        create(ListContentTypesResponseSchema, { categories: ['image/', 'text/'] }),
+      )
+    const search = { listContentTypes } as unknown as Client<typeof SearchService>
+
+    const result = await listContentTypesImpl(search)
+
+    expect(result).toEqual({ categories: ['image/', 'text/'] })
+    expect(listContentTypes).toHaveBeenCalledWith({})
+  })
+
+  it('propagates search service errors', async () => {
+    const search = {
+      listContentTypes: vi.fn().mockRejectedValue(new Error('unavailable')),
+    } as unknown as Client<typeof SearchService>
+    await expect(listContentTypesImpl(search)).rejects.toThrow('unavailable')
   })
 })

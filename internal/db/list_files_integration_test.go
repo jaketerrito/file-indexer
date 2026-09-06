@@ -4,6 +4,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -265,4 +266,40 @@ func TestListFilesKeysetPaginationDescBySize(t *testing.T) {
 		t.Fatalf("page 2: %v", err)
 	}
 	assertKeys(t, page2, prefix+"b.png")
+}
+
+func TestListContentTypeCategories(t *testing.T) {
+	conn := testConn(t)
+	q := New(conn)
+	ctx := context.Background()
+	prefix := uniqueKey(t) + "/"
+	base := time.Now().UTC().Truncate(time.Second)
+
+	// Unique top-level types keep assertions on this global query isolated
+	// from other tests' fixtures in the shared test database.
+	catA := fmt.Sprintf("x-it-a%d", time.Now().UnixNano())
+	catB := fmt.Sprintf("x-it-b%d", time.Now().UnixNano())
+	createListFile(t, conn, prefix+"a.one", catA+"/one", 100, base)
+	createListFile(t, conn, prefix+"b.two", catA+"/two", 100, base)
+	createListFile(t, conn, prefix+"c.three", catB+"/three", 100, base)
+	// Inserted but never stat-indexed: contributes no category.
+	insertTestFile(t, conn, prefix+"unindexed.txt")
+
+	categories, err := q.ListContentTypeCategories(ctx)
+	if err != nil {
+		t.Fatalf("ListContentTypeCategories: %v", err)
+	}
+	var got []string
+	for _, c := range categories {
+		cat, ok := c.(string)
+		if !ok {
+			t.Fatalf("category has type %T, want string", c)
+		}
+		if cat == catA+"/" || cat == catB+"/" {
+			got = append(got, cat)
+		}
+	}
+	if len(got) != 2 || got[0] != catA+"/" || got[1] != catB+"/" {
+		t.Errorf("fixture categories = %v, want [%s/ %s/] (all: %v)", got, catA, catB, categories)
+	}
 }

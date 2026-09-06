@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
@@ -11,15 +11,23 @@ import { FileList } from './FileList'
 // plain async functions, and unit tests must not touch the network.
 vi.mock('../server/files', () => ({
   listFiles: vi.fn(),
+  listContentTypes: vi.fn(),
   getDownloadUrl: vi.fn(),
   deleteFile: vi.fn(),
   getFileMetadata: vi.fn(),
   getFilePreviewStatuses: vi.fn(),
 }))
 
-import { deleteFile, getDownloadUrl, getFileMetadata, listFiles } from '../server/files'
+import {
+  deleteFile,
+  getDownloadUrl,
+  getFileMetadata,
+  listContentTypes,
+  listFiles,
+} from '../server/files'
 
 const listFilesMock = vi.mocked(listFiles)
+const listContentTypesMock = vi.mocked(listContentTypes)
 const getDownloadUrlMock = vi.mocked(getDownloadUrl)
 const deleteFileMock = vi.mocked(deleteFile)
 const getFileMetadataMock = vi.mocked(getFileMetadata)
@@ -103,6 +111,10 @@ function renderFileList(initial?: FileFilters) {
 
 beforeEach(() => {
   vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
+  // Default category list; tests override per scenario. The existing
+  // type-filter test fires a change to 'image/', which must be a rendered
+  // <option> for a controlled select to hold the value.
+  listContentTypesMock.mockResolvedValue({ categories: ['image/', 'text/'] })
 })
 
 afterEach(() => {
@@ -196,6 +208,33 @@ describe('FileList', () => {
     await waitFor(() =>
       expect(listFilesMock).toHaveBeenCalledWith(listArgs({ contentType: 'image/' })),
     )
+  })
+
+  it('populates the type dropdown from the backend category list', async () => {
+    listFilesMock.mockResolvedValue(page(['a.png'], 1))
+    listContentTypesMock.mockResolvedValue({ categories: ['image/', 'text/'] })
+
+    renderFileList()
+    await screen.findByText('a.png')
+
+    const select = screen.getByLabelText(/Type/)
+    await waitFor(() =>
+      expect(
+        within(select)
+          .getAllByRole('option')
+          .map((o) => o.textContent),
+      ).toEqual(['All types', 'Image', 'Text']),
+    )
+  })
+
+  it('keeps an active type filter selectable when its category is absent', async () => {
+    listFilesMock.mockResolvedValue(page([], 0))
+    listContentTypesMock.mockResolvedValue({ categories: ['text/'] })
+
+    renderFileList({ ...DEFAULT_FILTERS, type: 'image/' })
+    await screen.findByText('No files match your filters.')
+
+    expect((screen.getByLabelText(/Type/) as HTMLSelectElement).value).toBe('image/')
   })
 
   it('refetches when sort field and order change', async () => {

@@ -99,6 +99,10 @@ interfaces listed in `.mockery.yaml`, and commit the output.
 
 ## Implementation gotchas
 
+- sqlc cannot infer the type of a computed expression (e.g.
+  `split_part(content_type, '/', 1) || '/'`): it emits `[]interface{}`.
+  Mirror the generated signature in consuming interfaces and assert elements
+  (pgx delivers text as string); don't reshape the query to force `[]string`.
 - `storage.Walk` lists the entire bucket, not a prefix — filter client-side
   with `strings.HasPrefix`.
 - The crawler package lives at `internal/service/crawler/`, not

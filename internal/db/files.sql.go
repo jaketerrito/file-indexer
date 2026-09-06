@@ -186,6 +186,39 @@ func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []int64) ([]FileIn
 	return items, nil
 }
 
+const listContentTypeCategories = `-- name: ListContentTypeCategories :many
+SELECT DISTINCT split_part(content_type, '/', 1) || '/' AS category
+FROM index_stat_result
+WHERE strpos(content_type, '/') > 0
+ORDER BY category
+`
+
+// Distinct top-level MIME categories in the stat index, each with a trailing
+// "/" so values plug straight into the content_type_pattern prefix semantics
+// of the ListFilesBy* queries above. Sourced from index_stat_result (columns
+// NOT NULL there), not the file_infos view: files not yet stat-indexed have
+// no content type and contribute nothing. The strpos guard drops a malformed
+// type with no "/", whose derived category would match nothing.
+func (q *Queries) ListContentTypeCategories(ctx context.Context) ([]interface{}, error) {
+	rows, err := q.db.Query(ctx, listContentTypeCategories)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []interface{}
+	for rows.Next() {
+		var category interface{}
+		if err := rows.Scan(&category); err != nil {
+			return nil, err
+		}
+		items = append(items, category)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listFilesByKeyAsc = `-- name: ListFilesByKeyAsc :many
 
 SELECT id, key, created_at, content_type, size_bytes, last_modified, preview_key, preview_width, preview_height FROM file_infos
