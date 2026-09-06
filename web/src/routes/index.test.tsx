@@ -1,5 +1,5 @@
-import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router'
 import type { RegisteredRouter } from '@tanstack/react-router'
+import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FileFilters } from '../lib/fileFilters'
