@@ -8,6 +8,14 @@ linters:
         - all
     errcheck:
       check-type-assertions: true
+  exclusions:
+    # Generated code (buf protobuf, mockery mocks) is never hand-edited; lint
+    # findings there are unactionable. Path exclusions are used instead of the
+    # generated-file marker filter, which fails open when the shared analysis
+    # cache references deleted worktrees.
+    paths:
+      - internal/pb/
+      - mocks_test\.go$
 
 formatters:
   enable:

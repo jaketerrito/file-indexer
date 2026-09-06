@@ -13,11 +13,6 @@ history is the archive.
   enable gRPC reflection and use a port-forward + an external client
   (grpcurl/grpcui), or add a swagger-style generation path for FilesService
   and SearchService.
-- **Full-service search integration tests** (7/3/26): internal/service/search
-  has only mock-based unit tests; the DB list queries have their own
-  integration coverage (internal/db/list_files_integration_test.go). Add
-  //go:build integration tests that exercise SearchService.ListFiles over a
-  real gRPC server: cursor paging, filters, sorting.
 - **protovalidate request validation** (7/3/26): protovalidate is in go.mod
   only as an indirect dependency. Adopt buf validate annotations + a shared
   server interceptor for declarative checks (page_size bounds, enum
