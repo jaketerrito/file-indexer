@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package service.v1;
 
+import "buf/validate/validate.proto";
 import "service/v1/files.proto";
 
 option go_package = "file-indexer/internal/pb/service/v1;pb";
@@ -31,7 +32,8 @@ enum SortOrder {
 
 message ListFilesRequest {
   // Maximum number of files to return. Defaults to 50, clamped to 200.
-  int32 page_size = 1;
+  // Negative values are rejected (buf.validate).
+  int32 page_size = 1 [(buf.validate.field).int32.gte = 0];
   // A page token, received from a previous ListFiles call's next_page_token.
   // Provide this to retrieve the subsequent page.
   //
@@ -44,8 +46,8 @@ message ListFilesRequest {
   // Filter by MIME type: an exact match like "image/png", or a category
   // prefix ending in "/" like "image/" to match all images.
   string content_type = 4;
-  SortField sort_field = 5;
-  SortOrder sort_order = 6;
+  SortField sort_field = 5 [(buf.validate.field).enum.defined_only = true];
+  SortOrder sort_order = 6 [(buf.validate.field).enum.defined_only = true];
 }
 
 message ListFilesResponse {
@@ -69,12 +71,13 @@ message ListDirectoryRequest {
   string path = 1;
   // Maximum number of entries (directories + files combined) to return.
   // Defaults to 50, clamped to 200, same as ListFiles.
-  int32 page_size = 2;
+  // Negative values are rejected (buf.validate).
+  int32 page_size = 2 [(buf.validate.field).int32.gte = 0];
   string page_token = 3;
   // Sort applies to the files portion only; directories are always
   // alphabetical and always precede files on a given page.
-  SortField sort_field = 4;
-  SortOrder sort_order = 5;
+  SortField sort_field = 4 [(buf.validate.field).enum.defined_only = true];
+  SortOrder sort_order = 5 [(buf.validate.field).enum.defined_only = true];
 }
 
 message ListDirectoryResponse {
