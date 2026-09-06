@@ -13,7 +13,6 @@ vi.mock('../server/files', () => ({
   deleteDirectory: vi.fn(),
   deleteFile: vi.fn(),
   getDownloadUrl: vi.fn(),
-  getFileMetadata: vi.fn(),
   getUploadUrl: vi.fn(),
   commitUpload: vi.fn(),
 }))
@@ -43,7 +42,7 @@ function Harness({ initial }: { initial: FileFilters }) {
   return (
     <>
       <div data-testid="filters">{JSON.stringify(filters)}</div>
-      <Browser filters={filters} onFiltersChange={setFilters} />
+      <Browser filters={filters} onFiltersChange={setFilters} onOpenFile={() => {}} />
     </>
   )
 }

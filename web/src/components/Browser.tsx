@@ -11,6 +11,8 @@ import { FileList } from './FileList'
 interface BrowserProps {
   filters: FileFilters
   onFiltersChange: (filters: FileFilters) => void
+  /** Opens a file's standalone page; threaded through to both lists. */
+  onOpenFile: (id: string) => void
 }
 
 /**
@@ -27,7 +29,7 @@ interface BrowserProps {
  * as empty and ready to upload into, and it only becomes real (reachable by
  * ListChildDirectories) once a key actually lands there.
  */
-export function Browser({ filters, onFiltersChange }: BrowserProps) {
+export function Browser({ filters, onFiltersChange, onOpenFile }: BrowserProps) {
   const queryClient = useQueryClient()
   const browsing = isBrowsing(filters)
   const path = filters.path ?? ''
@@ -53,7 +55,11 @@ export function Browser({ filters, onFiltersChange }: BrowserProps) {
         await commitUpload({ data: { key } })
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['directory'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['directory'] })
+      // Uploads create folders the sidebar tree hasn't fetched yet.
+      queryClient.invalidateQueries({ queryKey: ['folder-tree'] })
+    },
   })
 
   function handleUploadChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -86,7 +92,7 @@ export function Browser({ filters, onFiltersChange }: BrowserProps) {
             Browse folders
           </button>
         </p>
-        <FileList filters={filters} onFiltersChange={onFiltersChange} />
+        <FileList filters={filters} onFiltersChange={onFiltersChange} onOpenFile={onOpenFile} />
       </div>
     )
   }
@@ -146,6 +152,7 @@ export function Browser({ filters, onFiltersChange }: BrowserProps) {
         sort={filters.sort}
         order={filters.order}
         onNavigate={handleNavigate}
+        onOpenFile={onOpenFile}
       />
     </div>
   )

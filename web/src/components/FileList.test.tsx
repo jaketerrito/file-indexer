@@ -14,23 +14,15 @@ vi.mock('../server/files', () => ({
   listContentTypes: vi.fn(),
   getDownloadUrl: vi.fn(),
   deleteFile: vi.fn(),
-  getFileMetadata: vi.fn(),
   getFilePreviewStatuses: vi.fn(),
 }))
 
-import {
-  deleteFile,
-  getDownloadUrl,
-  getFileMetadata,
-  listContentTypes,
-  listFiles,
-} from '../server/files'
+import { deleteFile, getDownloadUrl, listContentTypes, listFiles } from '../server/files'
 
 const listFilesMock = vi.mocked(listFiles)
 const listContentTypesMock = vi.mocked(listContentTypes)
 const getDownloadUrlMock = vi.mocked(getDownloadUrl)
 const deleteFileMock = vi.mocked(deleteFile)
-const getFileMetadataMock = vi.mocked(getFileMetadata)
 
 function page(keys: string[], startId: number, nextPageToken = ''): ListFilesResult {
   return {
@@ -93,18 +85,24 @@ function triggerIntersection() {
 
 // Stateful harness standing in for the URL-backed filter state owned by the
 // index route: onFiltersChange feeds back into the filters prop.
-function Harness({ initial = DEFAULT_FILTERS }: { initial?: FileFilters }) {
+function Harness({
+  initial = DEFAULT_FILTERS,
+  onOpenFile,
+}: {
+  initial?: FileFilters
+  onOpenFile: (id: string) => void
+}) {
   const [filters, setFilters] = useState(initial)
-  return <FileList filters={filters} onFiltersChange={setFilters} />
+  return <FileList filters={filters} onFiltersChange={setFilters} onOpenFile={onOpenFile} />
 }
 
-function renderFileList(initial?: FileFilters) {
+function renderFileList(initial?: FileFilters, onOpenFile: (id: string) => void = () => {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   return render(
     <QueryClientProvider client={queryClient}>
-      <Harness initial={initial} />
+      <Harness initial={initial} onOpenFile={onOpenFile} />
     </QueryClientProvider>,
   )
 }
@@ -434,67 +432,16 @@ describe('FileList', () => {
     expect(screen.getByRole('alertdialog')).toBeDefined()
   })
 
-  it('opens the metadata modal with fetched details and closes it', async () => {
+  it('routes the Metadata button to the file page via onOpenFile', async () => {
     listFilesMock.mockResolvedValue(page(['a.txt'], 1))
-    getFileMetadataMock.mockResolvedValue({
-      id: '1',
-      key: 'a.txt',
-      contentType: 'text/plain',
-      sizeBytes: 2048,
-      createdAt: '2026-01-02T03:04:05.000Z',
-      updatedAt: null,
-      exif: null,
-    })
+    const onOpenFile = vi.fn()
 
-    renderFileList()
+    renderFileList(undefined, onOpenFile)
     await screen.findByText('a.txt')
 
     fireEvent.click(screen.getByRole('button', { name: 'Metadata' }))
 
-    expect(await screen.findByRole('dialog')).toBeDefined()
-    expect(getFileMetadataMock).toHaveBeenCalledWith({ data: { id: '1' } })
-    expect(await screen.findByText('text/plain')).toBeDefined()
-    expect(screen.getByText('2.0 KB')).toBeDefined()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    expect(screen.queryByRole('dialog')).toBeNull()
-  })
-
-  it('shows exif metadata in the modal when present', async () => {
-    listFilesMock.mockResolvedValue(page(['photo.jpg'], 1))
-    getFileMetadataMock.mockResolvedValue({
-      id: '1',
-      key: 'photo.jpg',
-      contentType: 'image/jpeg',
-      sizeBytes: 2048,
-      createdAt: null,
-      updatedAt: null,
-      exif: {
-        cameraMake: 'Canon',
-        cameraModel: 'EOS R5',
-        xmpKeywords: [],
-        hasExif: true,
-        hasXmp: false,
-      },
-    })
-
-    renderFileList()
-    await screen.findByText('photo.jpg')
-    fireEvent.click(screen.getByRole('button', { name: 'Metadata' }))
-
-    expect(await screen.findByText('Canon')).toBeDefined()
-    expect(screen.getByText('EOS R5')).toBeDefined()
-  })
-
-  it('shows an error state when metadata fails to load', async () => {
-    listFilesMock.mockResolvedValue(page(['a.txt'], 1))
-    getFileMetadataMock.mockRejectedValue(new Error('boom'))
-
-    renderFileList()
-    await screen.findByText('a.txt')
-    fireEvent.click(screen.getByRole('button', { name: 'Metadata' }))
-
-    expect(await screen.findByRole('alert')).toBeDefined()
+    expect(onOpenFile).toHaveBeenCalledWith('1')
   })
 
   it('has no upload UI — uploading is browse-mode-only (see Browser.tsx)', async () => {

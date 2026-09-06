@@ -1,5 +1,5 @@
 import type { DirectoryStatsDto } from '../server/impl'
-import { formatBytes } from './FileMetadataModal'
+import { formatBytes } from './FileMetadataTable'
 
 interface DeleteFolderConfirmationProps {
   /** Full path of the folder pending deletion. */
@@ -22,9 +22,9 @@ interface DeleteFolderConfirmationProps {
  * Two-step confirm for folder deletion. Shows the folder's contents summary
  * (fetched by the caller once a folder is selected) so the user sees what's
  * about to go — DeleteDirectory has no dry-run flag by design; this is the
- * client-side substitute. Rendered as a centered overlay like
- * FileMetadataModal: an in-flow dialog renders below the fold and the Delete
- * folder button would appear to do nothing.
+ * client-side substitute. Rendered as a centered overlay (see
+ * DeleteFileConfirmation for the pattern): an in-flow dialog renders below
+ * the fold and the Delete folder button would appear to do nothing.
  */
 export function DeleteFolderConfirmation({
   folderPath,

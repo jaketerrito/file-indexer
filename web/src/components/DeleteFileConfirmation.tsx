@@ -12,9 +12,9 @@ interface DeleteFileConfirmationProps {
 /**
  * Two-step confirm for single-file deletion, mirroring the delete-folder
  * dialog in DirectoryList.tsx but without a stats fetch: deleting one file
- * needs no GetDirectoryStats call. Rendered as a centered overlay like
- * FileMetadataModal — appended after the list, an in-flow dialog renders
- * below the fold and the Delete button would appear to do nothing.
+ * needs no GetDirectoryStats call. Rendered as a centered overlay appended
+ * after the list: an in-flow dialog renders below the fold and the Delete
+ * button would appear to do nothing.
  */
 export function DeleteFileConfirmation({
   fileKey,
