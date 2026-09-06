@@ -45,13 +45,13 @@ jobs:
     timeout-minutes: 20
     env:
       # renovate: datasource=github-releases depName=casey/just
-      JUST_VERSION: "1.57.0"
+      JUST_VERSION: "1.58.0"
       # renovate: datasource=github-releases depName=kubernetes-sigs/kind
-      KIND_VERSION: "0.32.0"
+      KIND_VERSION: "0.33.0"
       # renovate: datasource=github-releases depName=tilt-dev/ctlptl
-      CTLPTL_VERSION: "0.9.4"
+      CTLPTL_VERSION: "0.9.5"
       # renovate: datasource=github-releases depName=tilt-dev/tilt
-      TILT_VERSION: "0.37.5"
+      TILT_VERSION: "0.37.7"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-go-cache
