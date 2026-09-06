@@ -244,6 +244,7 @@ describe('FileList', () => {
           previewUrl: 'https://example.com/preview-1',
           previewWidth: 320,
           previewHeight: 160,
+          previewStatus: PreviewStatus.READY,
         },
       ],
       nextPageToken: '',

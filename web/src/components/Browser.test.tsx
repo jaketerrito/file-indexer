@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { PreviewStatus } from '../gen/service/v1/files_pb'
 import { DEFAULT_FILTERS, type FileFilters, normalizeFilters } from '../lib/fileFilters'
 import { Browser } from './Browser'
 
@@ -168,6 +169,7 @@ describe('Browser', () => {
       previewUrl: null,
       previewWidth: null,
       previewHeight: null,
+      previewStatus: PreviewStatus.PENDING,
     })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
 
@@ -193,6 +195,7 @@ describe('Browser', () => {
       previewUrl: null,
       previewWidth: null,
       previewHeight: null,
+      previewStatus: PreviewStatus.PENDING,
     })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
 
