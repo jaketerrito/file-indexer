@@ -11,6 +11,12 @@ metadata:
 spec:
   template:
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: seed
           image: minio/mc:RELEASE.2025-08-13T08-35-41Z
