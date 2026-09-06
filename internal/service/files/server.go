@@ -6,6 +6,7 @@ import (
 	"file-indexer/internal/db"
 	pb "file-indexer/internal/pb/service/v1"
 	"file-indexer/internal/storage"
+	"file-indexer/internal/validate"
 	"log/slog"
 	"net"
 	"strings"
@@ -433,7 +434,11 @@ func (s *FilesServer) Serve() error {
 	if err != nil {
 		return err
 	}
-	grpcServer := grpc.NewServer()
+	interceptor, err := validate.UnaryInterceptor()
+	if err != nil {
+		return err
+	}
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptor))
 	pb.RegisterFilesServiceServer(grpcServer, s)
 	slog.Info("listening", "addr", s.addr)
 	return grpcServer.Serve(lis)

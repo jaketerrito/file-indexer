@@ -20,7 +20,7 @@ tilt_port := `basename "$(git rev-parse --show-toplevel)" | tr 'A-Z' 'a-z' | sed
 generate:
     go generate ./...
     npm --prefix web ci
-    go tool buf generate --template proto/buf.gen.web.yaml proto
+    go tool buf generate --template proto/buf.gen.web.yaml proto --include-imports
 
 # Run all linters (Go + Kubernetes manifests + protobuf + web TS)
 lint: lint-go lint-k8s lint-proto lint-web
