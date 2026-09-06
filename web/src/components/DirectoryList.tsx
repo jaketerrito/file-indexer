@@ -7,13 +7,11 @@ import {
   deleteFile,
   getDirectoryStats,
   getDownloadUrl,
-  getFileMetadata,
   listDirectory,
 } from '../server/files'
 import type { SortFieldInput, SortOrderInput } from '../server/impl'
 import { DeleteFileConfirmation } from './DeleteFileConfirmation'
 import { DeleteFolderConfirmation } from './DeleteFolderConfirmation'
-import { FileMetadataModal } from './FileMetadataModal'
 
 const PAGE_SIZE = 50
 
@@ -23,6 +21,8 @@ interface DirectoryListProps {
   sort: SortFieldInput
   order: SortOrderInput
   onNavigate: (path: string) => void
+  /** Opens a file's standalone page (what the metadata modal used to show). */
+  onOpenFile: (id: string) => void
 }
 
 /**
@@ -33,9 +33,8 @@ interface DirectoryListProps {
  * second click actually runs DeleteDirectory, since it is a non-atomic,
  * unrecoverable bulk operation.
  */
-export function DirectoryList({ path, sort, order, onNavigate }: DirectoryListProps) {
+export function DirectoryList({ path, sort, order, onNavigate, onOpenFile }: DirectoryListProps) {
   const queryClient = useQueryClient()
-  const [metadataId, setMetadataId] = useState<string | null>(null)
 
   const { data, error, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
@@ -58,6 +57,9 @@ export function DirectoryList({ path, sort, order, onNavigate }: DirectoryListPr
     mutationFn: (id: string) => deleteFile({ data: { id } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['directory', path] })
+      // Deleting a folder's last file removes the folder itself (directories
+      // are derived from key structure), so the sidebar tree needs a refetch.
+      queryClient.invalidateQueries({ queryKey: ['folder-tree'] })
       setFileToDelete(null)
     },
   })
@@ -82,6 +84,7 @@ export function DirectoryList({ path, sort, order, onNavigate }: DirectoryListPr
     mutationFn: (p: string) => deleteDirectory({ data: { path: p } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['directory'] })
+      queryClient.invalidateQueries({ queryKey: ['folder-tree'] })
       setFolderToDelete(null)
     },
   })
@@ -168,7 +171,7 @@ export function DirectoryList({ path, sort, order, onNavigate }: DirectoryListPr
               <button type="button" onClick={() => void handleDownload(file.id)}>
                 Download
               </button>{' '}
-              <button type="button" onClick={() => setMetadataId(file.id)}>
+              <button type="button" onClick={() => onOpenFile(file.id)}>
                 Metadata
               </button>{' '}
               <button
@@ -206,11 +209,6 @@ export function DirectoryList({ path, sort, order, onNavigate }: DirectoryListPr
           onCancel={() => setFileToDelete(null)}
         />
       ) : null}
-      <FileMetadataModal
-        fileId={metadataId}
-        onClose={() => setMetadataId(null)}
-        getFileMetadata={getFileMetadata}
-      />
     </div>
   )
 }
