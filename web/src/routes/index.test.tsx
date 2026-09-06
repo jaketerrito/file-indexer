@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FileFilters } from '../lib/fileFilters'
 import { routeTree } from '../routeTree.gen'
+import type { ListDirectoryInput } from '../server/impl'
 
 vi.mock('../server/files', () => ({
   listFiles: vi.fn(),
@@ -52,13 +53,36 @@ function currentFilters(router: RegisteredRouter): FileFilters {
 beforeEach(() => {
   vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
   listFilesMock.mockResolvedValue({ files: [], nextPageToken: '' })
-  listDirectoryMock.mockResolvedValue({ directories: ['docs/'], files: [], nextPageToken: '' })
+  // Path-aware: real ListDirectory children are strictly longer prefixes
+  // than the queried path. Returning 'docs/' for every path would make
+  // FolderTree's ancestor auto-expansion recurse forever (startsWith is
+  // always true) and OOM the test worker. (The serverFn mock types its
+  // options loosely — data is runtime-validated — hence the cast.)
+  listDirectoryMock.mockImplementation((options) => {
+    const { path } = (options as { data?: ListDirectoryInput } | undefined)?.data ?? {}
+    return Promise.resolve(
+      path === ''
+        ? { directories: ['docs/'], files: [], nextPageToken: '' }
+        : { directories: [], files: [], nextPageToken: '' },
+    )
+  })
 })
 
 afterEach(() => {
   vi.unstubAllGlobals()
   vi.clearAllMocks()
 })
+
+// The FolderTree sidebar and the directory listing both render a "docs"
+// button; this finds the listing one (outside the tree's <nav>). Throws
+// while only the tree button has rendered so waitFor retries.
+function docsListButton(): HTMLElement {
+  const button = screen
+    .getAllByRole('button', { name: 'docs' })
+    .find((b) => b.closest('nav') === null)
+  if (!button) throw new Error('docs button in directory listing not found')
+  return button
+}
 
 describe('folder navigation history', () => {
   it('folder navigation pushes; Back/Forward move between folders', async () => {
@@ -67,7 +91,7 @@ describe('folder navigation history', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Browse folders' }))
     await waitFor(() => expect(currentFilters(router).path).toBe(''))
 
-    fireEvent.click(await screen.findByRole('button', { name: 'docs' }))
+    fireEvent.click(await waitFor(() => docsListButton()))
     await waitFor(() => expect(currentFilters(router).path).toBe('docs/'))
 
     router.history.back()
@@ -87,7 +111,7 @@ describe('folder navigation history', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Browse folders' }))
     await waitFor(() => expect(currentFilters(router).path).toBe(''))
-    fireEvent.click(await screen.findByRole('button', { name: 'docs' }))
+    fireEvent.click(await waitFor(() => docsListButton()))
     await waitFor(() => expect(currentFilters(router).path).toBe('docs/'))
 
     fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'size' } })
