@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
 import { listDirectory } from '../server/files'
-import type { FileDto, ListDirectoryResult } from '../server/impl'
+import type { FileDto, ListDirectoryInput, ListDirectoryResult } from '../server/impl'
 import { FolderTree } from './FolderTree'
 
 vi.mock('../server/files', () => ({
@@ -34,7 +34,10 @@ type Page = Pick<ListDirectoryResult, 'directories' | 'files' | 'nextPageToken'>
  * Unlisted paths resolve to an empty listing.
  */
 function mockDirectoryTree(pagesByPath: Record<string, Page[]>) {
-  listDirectoryMock.mockImplementation(({ data }) => {
+  listDirectoryMock.mockImplementation((opts) => {
+    // The serverFn's public call type is a loosely-typed options union; the
+    // tests always invoke it with validated data.
+    const { data } = opts as unknown as { data: ListDirectoryInput }
     const queue = pagesByPath[data.path ?? '']
     const page =
       queue && queue.length > 0 ? queue.shift() : { directories: [], files: [], nextPageToken: '' }
@@ -75,7 +78,9 @@ describe('FolderTree', () => {
     expect(onNavigate).toHaveBeenCalledWith('docs/')
     // Children load lazily: only the root listing was fetched.
     for (const call of listDirectoryMock.mock.calls) {
-      expect(call[0].data.path).toBe('')
+      // Same options-union cast as mockDirectoryTree; every call carries data.
+      const opts = call[0] as unknown as { data: ListDirectoryInput }
+      expect(opts.data.path).toBe('')
     }
   })
 
