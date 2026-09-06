@@ -1,6 +1,7 @@
 # TypeScript codegen for the web frontend (web/). Run from the repo root:
-#   go tool buf generate --template proto/buf.gen.web.yaml proto
-# (part of `just generate`)
+#   go tool buf generate --template proto/buf.gen.web.yaml proto --include-imports
+# (part of `just generate`; --include-imports also generates the
+# protovalidate dep, whose validate_pb.ts the service stubs import)
 #
 # protoc-gen-es comes from web/node_modules, so `npm install` must have run
 # in web/ first. It generates message types and service descriptors consumed

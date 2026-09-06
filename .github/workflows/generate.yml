@@ -30,6 +30,6 @@ jobs:
       - name: Generate web TS clients
         run: |
           npm --prefix web ci
-          go tool buf generate --template proto/buf.gen.web.yaml proto
+          go tool buf generate --template proto/buf.gen.web.yaml proto --include-imports
       - name: Check for uncommitted changes
         run: git diff --exit-code
