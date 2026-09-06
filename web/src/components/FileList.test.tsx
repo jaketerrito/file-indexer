@@ -379,7 +379,7 @@ describe('FileList', () => {
     expect(screen.getByText('Preview failed')).toBeDefined()
   })
 
-  it('deletes a file and refetches the list', async () => {
+  it('deletes a file after confirmation and refetches the list', async () => {
     listFilesMock
       .mockResolvedValueOnce(page(['a.txt', 'b.txt'], 1))
       .mockResolvedValueOnce(page(['b.txt'], 2))
@@ -388,7 +388,12 @@ describe('FileList', () => {
     renderFileList()
     await screen.findByText('a.txt')
 
-    screen.getAllByRole('button', { name: 'Delete' })[0]?.click()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0])
+
+    // The row's Delete button only opens the confirmation dialog.
+    expect(deleteFileMock).not.toHaveBeenCalled()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm delete' }))
 
     await waitFor(() => {
       expect(deleteFileMock).toHaveBeenCalledWith({ data: { id: '1' } })
@@ -396,6 +401,37 @@ describe('FileList', () => {
       expect(listFilesMock).toHaveBeenCalledTimes(2)
     })
     await waitFor(() => expect(screen.queryByText('a.txt')).toBeNull())
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+  })
+
+  it('cancels the file delete confirmation without calling deleteFile', async () => {
+    listFilesMock.mockResolvedValueOnce(page(['a.txt'], 1))
+
+    renderFileList()
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await screen.findByRole('alertdialog')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(deleteFileMock).not.toHaveBeenCalled()
+  })
+
+  it('shows the delete error inside the confirmation dialog', async () => {
+    listFilesMock.mockResolvedValueOnce(page(['a.txt'], 1))
+    deleteFileMock.mockRejectedValue(new Error('boom'))
+
+    renderFileList()
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm delete' }))
+
+    await screen.findByRole('alert')
+    // The dialog stays open on failure so the user can retry or cancel.
+    expect(screen.getByRole('alertdialog')).toBeDefined()
   })
 
   it('opens the metadata modal with fetched details and closes it', async () => {

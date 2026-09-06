@@ -10,6 +10,7 @@ import {
   listContentTypes,
   listFiles,
 } from '../server/files'
+import { DeleteFileConfirmation } from './DeleteFileConfirmation'
 import { FileMetadataModal } from './FileMetadataModal'
 
 const PAGE_SIZE = 50
@@ -68,7 +69,10 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteFile({ data: { id } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['files'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['files'] })
+      setFileToDelete(null)
+    },
   })
 
   // The prefix input is local state, debounced into the URL-backed filters so
@@ -107,6 +111,10 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
   }
 
   const [metadataId, setMetadataId] = useState<string | null>(null)
+
+  // File pending delete confirmation, or null when none. The Delete button
+  // only selects; the dialog's Confirm delete actually runs the mutation.
+  const [fileToDelete, setFileToDelete] = useState<{ id: string; key: string } | null>(null)
 
   useFileStatusPoller(data?.pages, ['files', filters])
 
@@ -212,7 +220,7 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
                     </button>{' '}
                     <button
                       type="button"
-                      onClick={() => deleteMutation.mutate(file.id)}
+                      onClick={() => setFileToDelete({ id: file.id, key: file.key })}
                       disabled={deleteMutation.isPending}
                     >
                       Delete
@@ -225,6 +233,15 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
           {isFetchingNextPage ? <p>Loading more…</p> : null}
         </>
       )}
+      {fileToDelete !== null ? (
+        <DeleteFileConfirmation
+          fileKey={fileToDelete.key}
+          pending={deleteMutation.isPending}
+          error={deleteMutation.isError ? deleteMutation.error : null}
+          onConfirm={() => deleteMutation.mutate(fileToDelete.id)}
+          onCancel={() => setFileToDelete(null)}
+        />
+      ) : null}
       <FileMetadataModal
         fileId={metadataId}
         onClose={() => setMetadataId(null)}
