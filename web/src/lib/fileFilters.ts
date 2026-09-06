@@ -7,12 +7,10 @@ import { SORT_FIELDS, SORT_ORDERS, type SortFieldInput, type SortOrderInput } fr
 // path and prefix are mutually exclusive modes, not independent filters:
 // path present (even "" for root) means browse mode (ListDirectory, folders
 // + direct children); prefix present means search mode (ListFiles, flat
-// recursive results). Setting either clears the other — see setPath/setPrefix
+// recursive results). Setting either clears the other — see toBrowsePath
 // below — because a request can't sensibly carry both (ListDirectory has no
 // prefix param, and folder navigation while a recursive search prefix is
-// still applied would be confusing). Choosing a content_type filter while
-// browsing is exactly this transition: it seeds prefix from the current path
-// and drops out of browse mode (see Browser.tsx).
+// still applied would be confusing).
 //
 // path defaults to undefined, not "", specifically so the default,
 // filter-free view is search mode ("/") rather than browse mode at the root
@@ -60,15 +58,4 @@ export function isBrowsing(filters: FileFilters): boolean {
 /** Filters for navigating to a directory: clears prefix/type, which don't apply in browse mode. */
 export function toBrowsePath(filters: FileFilters, path: string): FileFilters {
   return { ...filters, path, prefix: '', type: '' }
-}
-
-/**
- * Filters for switching into search mode from a browse path: seeds prefix
- * with the current directory so "filter to images in this folder" searches
- * recursively from here, matching the intuitive meaning of applying a
- * content-type filter while browsing (see module doc comment).
- */
-export function toSearchFromPath(filters: FileFilters, contentType: string): FileFilters {
-  const { path, ...rest } = filters
-  return { ...rest, prefix: path ?? '', type: contentType }
 }

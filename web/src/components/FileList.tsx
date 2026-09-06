@@ -7,7 +7,6 @@ import { deleteFile, getDownloadUrl, listContentTypes, listFiles } from '../serv
 import { DeleteFileConfirmation } from './DeleteFileConfirmation'
 
 const PAGE_SIZE = 50
-const PREFIX_DEBOUNCE_MS = 300
 
 /** Human label for a MIME category value: "image/" → "Image". */
 function categoryLabel(category: string): string {
@@ -70,21 +69,6 @@ export function FileList({ filters, onFiltersChange, onOpenFile }: FileListProps
     },
   })
 
-  // The prefix input is local state, debounced into the URL-backed filters so
-  // we don't fire a request (and a history replace) per keystroke.
-  const [prefixInput, setPrefixInput] = useState(filters.prefix)
-  useEffect(() => {
-    setPrefixInput(filters.prefix)
-  }, [filters.prefix])
-  useEffect(() => {
-    if (prefixInput === filters.prefix) return
-    const timer = setTimeout(
-      () => onFiltersChange({ ...filters, prefix: prefixInput }),
-      PREFIX_DEBOUNCE_MS,
-    )
-    return () => clearTimeout(timer)
-  }, [prefixInput, filters, onFiltersChange])
-
   // Infinite scroll: fetch the next page whenever the sentinel below the list
   // becomes visible.
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -116,15 +100,6 @@ export function FileList({ filters, onFiltersChange, onOpenFile }: FileListProps
   return (
     <div>
       <fieldset>
-        <label>
-          Search{' '}
-          <input
-            type="search"
-            placeholder="Filter by key prefix"
-            value={prefixInput}
-            onChange={(e) => setPrefixInput(e.target.value)}
-          />
-        </label>{' '}
         <label>
           Type{' '}
           <select
