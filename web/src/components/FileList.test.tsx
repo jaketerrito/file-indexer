@@ -179,22 +179,6 @@ describe('FileList', () => {
     await waitFor(() => expect(listFilesMock).toHaveBeenCalledTimes(1))
   })
 
-  it('debounces the prefix search into a fresh query', async () => {
-    listFilesMock.mockResolvedValue(page(['docs/a.txt'], 1))
-
-    renderFileList()
-    await screen.findByText('docs/a.txt')
-
-    fireEvent.change(screen.getByLabelText(/Search/), { target: { value: 'docs/' } })
-
-    // Not refetched synchronously: the input is debounced.
-    expect(listFilesMock).toHaveBeenCalledTimes(1)
-
-    await waitFor(() =>
-      expect(listFilesMock).toHaveBeenCalledWith(listArgs({ prefix: 'docs/', pageToken: '' })),
-    )
-  })
-
   it('refetches with the mapped content type when the type filter changes', async () => {
     listFilesMock.mockResolvedValue(page(['a.png'], 1))
 

@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef } from 'react'
-import { type FileFilters, isBrowsing, toBrowsePath, toSearchFromPath } from '../lib/fileFilters'
+import { type FileFilters, isBrowsing, toBrowsePath } from '../lib/fileFilters'
 import { normalizeUploadPath } from '../lib/uploadPath'
 import { visuallyHiddenStyle } from '../lib/visuallyHidden'
 import { commitUpload, getUploadUrl } from '../server/files'
@@ -19,10 +19,10 @@ interface BrowserProps {
  * Top-level switch between the two ways of finding a file:
  * search (flat, recursive, filterable — FileList, unchanged from before
  * directory browsing existed) and browse (breadcrumb navigation over
- * directories derived purely from key structure — DirectoryList). Choosing a
- * content-type filter, or clicking "Search all files", drops out of browse
- * mode into search seeded with the current path as a recursive prefix:
- * folders are for navigation, filtering is search's job.
+ * directories derived purely from key structure — DirectoryList). Browse
+ * mode is entered from the sidebar FolderTree; search mode is the default,
+ * re-entered via the top bar's app link or global search: folders are for
+ * navigation, filtering is search's job.
  *
  * Directories are virtual: there is no CreateDirectory call. "New folder"
  * just navigates to a path nothing lives under yet; DirectoryList shows it
@@ -85,24 +85,12 @@ export function Browser({ filters, onFiltersChange, onOpenFile }: BrowserProps) 
   }
 
   if (!browsing) {
-    return (
-      <div>
-        <p>
-          <button type="button" onClick={() => handleNavigate('')}>
-            Browse folders
-          </button>
-        </p>
-        <FileList filters={filters} onFiltersChange={onFiltersChange} onOpenFile={onOpenFile} />
-      </div>
-    )
+    return <FileList filters={filters} onFiltersChange={onFiltersChange} onOpenFile={onOpenFile} />
   }
 
   return (
     <div>
       <Breadcrumbs path={path} onNavigate={handleNavigate} />{' '}
-      <button type="button" onClick={() => onFiltersChange(toSearchFromPath(filters, ''))}>
-        Search all files
-      </button>{' '}
       <button type="button" onClick={handleNewFolder}>
         New folder
       </button>

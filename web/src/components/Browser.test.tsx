@@ -74,19 +74,10 @@ afterEach(() => {
 })
 
 describe('Browser', () => {
-  it('defaults to search mode with a Browse folders button', async () => {
+  it('defaults to search mode', async () => {
     renderBrowser()
 
     expect(await screen.findByText('No files.')).toBeDefined()
-    expect(screen.getByRole('button', { name: 'Browse folders' })).toBeDefined()
-  })
-
-  it('switches to browse mode at the root when Browse folders is clicked', async () => {
-    renderBrowser()
-    fireEvent.click(await screen.findByRole('button', { name: 'Browse folders' }))
-
-    await waitFor(() => expect(currentFilters().path).toBe(''))
-    expect(await screen.findByRole('navigation', { name: 'Breadcrumb' })).toBeDefined()
   })
 
   it('renders breadcrumbs and directory contents in browse mode', async () => {
@@ -115,17 +106,6 @@ describe('Browser', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Home' }))
     await waitFor(() => expect(currentFilters().path).toBe(''))
-  })
-
-  it('switches to search mode, seeded with the current path as prefix', async () => {
-    renderBrowser(normalizeFilters({ path: 'docs/' }))
-    fireEvent.click(await screen.findByRole('button', { name: 'Search all files' }))
-
-    await waitFor(() => {
-      const f = currentFilters()
-      expect(f.path).toBeUndefined()
-      expect(f.prefix).toBe('docs/')
-    })
   })
 
   it('creates a new folder by navigating to it, without a backend call', async () => {

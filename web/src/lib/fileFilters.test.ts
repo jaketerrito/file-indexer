@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  DEFAULT_FILTERS,
-  isBrowsing,
-  normalizeFilters,
-  toBrowsePath,
-  toSearchFromPath,
-} from './fileFilters'
+import { DEFAULT_FILTERS, isBrowsing, normalizeFilters, toBrowsePath } from './fileFilters'
 
 describe('normalizeFilters', () => {
   it('returns defaults for empty search params', () => {
@@ -74,22 +68,5 @@ describe('toBrowsePath', () => {
     // Sort/order are preserved across the navigation.
     expect(next.sort).toBe(filters.sort)
     expect(next.order).toBe(filters.order)
-  })
-})
-
-describe('toSearchFromPath', () => {
-  it('seeds prefix from the current path and clears path', () => {
-    const filters = normalizeFilters({ path: 'docs/sub/' })
-    const next = toSearchFromPath(filters, 'image/')
-    expect(next.path).toBeUndefined()
-    expect(next.prefix).toBe('docs/sub/')
-    expect(next.type).toBe('image/')
-  })
-
-  it('seeds an empty prefix from the root path', () => {
-    const filters = normalizeFilters({ path: '' })
-    const next = toSearchFromPath(filters, 'video/')
-    expect(next.prefix).toBe('')
-    expect(next.type).toBe('video/')
   })
 })

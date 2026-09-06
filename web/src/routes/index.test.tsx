@@ -88,7 +88,7 @@ describe('folder navigation history', () => {
   it('folder navigation pushes; Back/Forward move between folders', async () => {
     const router = renderRoute()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Browse folders' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Home' }))
     await waitFor(() => expect(currentFilters(router).path).toBe(''))
 
     fireEvent.click(await waitFor(() => docsListButton()))
@@ -109,7 +109,7 @@ describe('folder navigation history', () => {
   it('sort change replaces — no history entry', async () => {
     const router = renderRoute()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Browse folders' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Home' }))
     await waitFor(() => expect(currentFilters(router).path).toBe(''))
     fireEvent.click(await waitFor(() => docsListButton()))
     await waitFor(() => expect(currentFilters(router).path).toBe('docs/'))
@@ -126,15 +126,18 @@ describe('folder navigation history', () => {
     await waitFor(() => expect(currentFilters(router).path).toBe(''))
   })
 
-  it('leaving browse mode via "Search all files" pushes', async () => {
+  it('leaving browse mode via the app link pushes', async () => {
     const router = renderRoute('/?path=docs%2F')
-    await screen.findByRole('button', { name: 'Search all files' })
+    await screen.findByRole('button', { name: 'New folder' })
     await waitFor(() => expect(currentFilters(router).path).toBe('docs/'))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Search all files' }))
+    // The header app link resets to the default filters — search mode with
+    // no prefix seeding (toSearchFromPath is gone with the old button).
+    fireEvent.click(screen.getByRole('link', { name: 'file-indexer' }))
     await waitFor(() => {
       expect(currentFilters(router).path).toBeUndefined()
-      expect(currentFilters(router).prefix).toBe('docs/')
+      // stripSearchParams drops default values, so '' never reaches the URL.
+      expect(currentFilters(router).prefix ?? '').toBe('')
     })
 
     router.history.back()
