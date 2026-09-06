@@ -184,6 +184,42 @@ export const ListDirectoryResponseSchema: GenMessage<ListDirectoryResponse> = /*
   messageDesc(file_service_v1_search, 3);
 
 /**
+ * @generated from message service.v1.ListContentTypesRequest
+ */
+export type ListContentTypesRequest = Message<"service.v1.ListContentTypesRequest"> & {
+};
+
+/**
+ * Describes the message service.v1.ListContentTypesRequest.
+ * Use `create(ListContentTypesRequestSchema)` to create a new message.
+ */
+export const ListContentTypesRequestSchema: GenMessage<ListContentTypesRequest> = /*@__PURE__*/
+  messageDesc(file_service_v1_search, 4);
+
+/**
+ * @generated from message service.v1.ListContentTypesResponse
+ */
+export type ListContentTypesResponse = Message<"service.v1.ListContentTypesResponse"> & {
+  /**
+   * Distinct top-level MIME categories present in the stat index, each
+   * ending in "/" (e.g. "image/"), sorted ascending. Every value is a valid
+   * content_type filter for ListFiles (category-prefix semantics), so a
+   * filter UI can offer exactly the categories that match at least one
+   * indexed file.
+   *
+   * @generated from field: repeated string categories = 1;
+   */
+  categories: string[];
+};
+
+/**
+ * Describes the message service.v1.ListContentTypesResponse.
+ * Use `create(ListContentTypesResponseSchema)` to create a new message.
+ */
+export const ListContentTypesResponseSchema: GenMessage<ListContentTypesResponse> = /*@__PURE__*/
+  messageDesc(file_service_v1_search, 5);
+
+/**
  * SortField selects the column ListFiles orders results by.
  *
  * @generated from enum service.v1.SortField
@@ -270,6 +306,14 @@ export const SearchService: GenService<{
     methodKind: "unary";
     input: typeof ListDirectoryRequestSchema;
     output: typeof ListDirectoryResponseSchema;
+  },
+  /**
+   * @generated from rpc service.v1.SearchService.ListContentTypes
+   */
+  listContentTypes: {
+    methodKind: "unary";
+    input: typeof ListContentTypesRequestSchema;
+    output: typeof ListContentTypesResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_service_v1_search, 0);

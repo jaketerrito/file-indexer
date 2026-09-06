@@ -288,6 +288,17 @@ export async function listFilesImpl(
   return { files: dtos, nextPageToken: res.nextPageToken }
 }
 
+export interface ListContentTypesResult {
+  categories: string[]
+}
+
+export async function listContentTypesImpl(
+  search: Client<typeof SearchService>,
+): Promise<ListContentTypesResult> {
+  const res = await search.listContentTypes({})
+  return { categories: res.categories }
+}
+
 export async function getDownloadUrlImpl(
   client: Client<typeof FilesService>,
   id: string,

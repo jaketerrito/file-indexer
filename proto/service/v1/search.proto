@@ -10,6 +10,7 @@ option go_package = "file-indexer/internal/pb/service/v1;pb";
 service SearchService {
   rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
   rpc ListDirectory(ListDirectoryRequest) returns (ListDirectoryResponse);
+  rpc ListContentTypes(ListContentTypesRequest) returns (ListContentTypesResponse);
 }
 
 // SortField selects the column ListFiles orders results by.
@@ -85,4 +86,15 @@ message ListDirectoryResponse {
   repeated string directories = 1;
   repeated FileInfo files = 2;
   string next_page_token = 3;
+}
+
+message ListContentTypesRequest {}
+
+message ListContentTypesResponse {
+  // Distinct top-level MIME categories present in the stat index, each
+  // ending in "/" (e.g. "image/"), sorted ascending. Every value is a valid
+  // content_type filter for ListFiles (category-prefix semantics), so a
+  // filter UI can offer exactly the categories that match at least one
+  // indexed file.
+  repeated string categories = 1;
 }

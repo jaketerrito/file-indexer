@@ -9,6 +9,7 @@ import {
   getFileMetadataImpl,
   getFilePreviewStatusesImpl,
   getUploadUrlImpl,
+  listContentTypesImpl,
   listDirectoryImpl,
   listFilesImpl,
   validateIdInput,
@@ -24,6 +25,10 @@ import {
 export const listFiles = createServerFn({ method: 'GET' })
   .validator(validateListFilesInput)
   .handler(({ data }) => listFilesImpl(getSearchClient(), getFilesClient(), data))
+
+export const listContentTypes = createServerFn({ method: 'GET' }).handler(() =>
+  listContentTypesImpl(getSearchClient()),
+)
 
 export const getDownloadUrl = createServerFn({ method: 'GET' })
   .validator(validateIdInput)
