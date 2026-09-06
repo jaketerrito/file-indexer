@@ -115,6 +115,16 @@ interfaces listed in `.mockery.yaml`, and commit the output.
 - Long-running dev processes (e.g. `search-local` via `hub`) survive across
   sessions and serve stale code — check process age (`ps -o etime`) before
   trusting observed behavior; restart before debugging "phantom" bugs.
+- The files/search services serve gRPC (HTTP/2) only — no connect/JSON over
+  HTTP/1.1, so curl seeding fails with "Received HTTP/0.9". To seed dev data:
+  pipe files into the local-s3 pod (`kubectl exec -i ... -c minio -- sh -c
+  'cat > /tmp/x'` — `kubectl cp` fails, the minio image has no tar), `mc cp`
+  to `local/test/<key>`, then `tilt trigger crawler --port <tilt_port>`.
+- Local web dev: `kubectl port-forward --address 127.0.0.1 svc/files
+  50052:50051` and `svc/search 50053:50051`, then `npm --prefix web run dev`
+  (clients.ts defaults match). The shared gateway routes only web/s3, not
+  gRPC. Never run `just fmt-web` mid-browser-session: biome's rewrite fires
+  vite HMR and resets UI state (e.g. tree expansion) under test.
 - A running tilt session can wedge its file watcher on rapid multi-file moves
   (e.g. `git mv` + immediate kustomization edits): the (Tiltfile) resource
   shows a stale `kustomize` error while manual builds pass. Restart the
@@ -122,10 +132,10 @@ interfaces listed in `.mockery.yaml`, and commit the output.
 - Server functions may return flattened DTOs rather than protobuf wrapper
   shapes — check the impl before assuming a response shape in web hooks.
 - Dialogs rendered in-flow after a long list land below the fold and look
-  like a dead button. The visible-modal convention is FileMetadataModal's
-  inline-style fixed overlay (position:fixed inset-0, dimmed backdrop,
-  centered white box, backdrop-click + Escape to close); both delete
-  confirmations (DeleteFileConfirmation, DeleteFolderConfirmation) follow it.
+  like a dead button. The visible-modal convention is an inline-style fixed
+  overlay (position:fixed inset-0, dimmed backdrop, centered white box,
+  backdrop-click + Escape to close) — canonical example
+  DeleteFileConfirmation; DeleteFolderConfirmation follows it.
 - `useInfiniteQuery` + `refetchInterval` refetches every loaded page; poll a
   batch-status endpoint for pending IDs and patch the query cache instead.
 - `file_infos` metadata columns (`content_type`, `size_bytes`,
@@ -135,8 +145,17 @@ interfaces listed in `.mockery.yaml`, and commit the output.
 - Call TanStack Start server functions via imported references only — their
   IDs derive from file path/export name, so hand-constructed URLs break with
   "Invalid server function ID" after renames.
+- Components that need router navigation stay router-free: they take an
+  `onX` callback prop (e.g. SearchBar's `onSelect`, the lists' `onOpenFile`)
+  and the route component wires `useNavigate` at the top (`__root.tsx`,
+  `index.tsx`). This keeps unit tests renderable with only a
+  QueryClientProvider — no router harness.
 - Generated Go code (`internal/pb/`, `mocks_test.go`) is excluded from
   golangci-lint via `linters.exclusions.paths` in `.golangci.yml` — not the
   generated-file marker filter, which fails open when the shared analysis
   cache references deleted worktrees. CI lint-go uses `only-new-issues`, so
   local `just lint` is stricter than PR checks.
+- The CI `unit` job runs `tsc --noEmit` on web; nothing local does (`just
+  lint` = biome only, vite build strips types unchecked). Run
+  `npm --prefix web run typecheck` before pushing web changes — biome-clean
+  code can still fail CI on types.
