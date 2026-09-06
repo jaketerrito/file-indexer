@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -34,6 +35,16 @@ func New(endpoint, accessKeyID, secretAccessKey string, secure bool, bucket, reg
 	return NewWithPublicEndpoint(endpoint, "", accessKeyID, secretAccessKey, secure, bucket, region)
 }
 
+// validateEndpoint enforces the documented host:port (no scheme) contract.
+// minio-go ≥ v7.3 accepts scheme-prefixed endpoints and infers TLS from the
+// scheme, which would silently override the explicit secure flag.
+func validateEndpoint(endpoint string) error {
+	if strings.Contains(endpoint, "://") {
+		return fmt.Errorf("endpoint %q must be host:port without a scheme", endpoint)
+	}
+	return nil
+}
+
 // NewWithPublicEndpoint is New for services that hand presigned URLs to
 // clients outside the cluster network (e.g. browsers). A presigned URL's
 // signature binds the host, so URLs signed against an in-cluster endpoint
@@ -48,6 +59,12 @@ func New(endpoint, accessKeyID, secretAccessKey string, secure bool, bucket, reg
 // non-empty region, or presigning will attempt a location lookup against
 // publicEndpoint.
 func NewWithPublicEndpoint(endpoint, publicEndpoint, accessKeyID, secretAccessKey string, secure bool, bucket, region string) (Storage, error) {
+	if err := validateEndpoint(endpoint); err != nil {
+		return nil, err
+	}
+	if err := validateEndpoint(publicEndpoint); err != nil {
+		return nil, err
+	}
 	creds := credentials.NewStaticV4(accessKeyID, secretAccessKey, "")
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  creds,
