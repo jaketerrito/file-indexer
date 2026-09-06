@@ -10,6 +10,10 @@ RUN npm run build
 RUN npm prune --omit=dev
 
 FROM node-base
+# The pinned alpine3.24 base ships libcrypto3 3.5.7-r0 (CVE-2026-14456, fixed
+# in 3.5.8-r0) and node:24-alpine3.24 has no newer build yet; upgrade the
+# openssl libs until a rebuilt base absorbs this.
+RUN apk add --no-cache --upgrade libcrypto3 libssl3
 RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx
 WORKDIR /app
 ENV NODE_ENV=production
