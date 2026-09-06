@@ -2,9 +2,9 @@
 
 Go backend + React/TS frontend for a searchable S3 file index.
 
-See DESIGN.md for architecture rationale, TODO.md for open work items,
-NOTES.md for later decisions not yet folded into DESIGN.md, README.md for
-human quickstart. Run `just` for the full, self-documented command list.
+See docs/DESIGN.md for architecture rationale, docs/TODO.md for open work
+items, README.md for human quickstart. Run `just` for the full,
+self-documented command list.
 
 ## Codegen — never hand-edit
 
@@ -35,7 +35,7 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   (preview-gc's ListIndexPreviewKeys did; fixed by
   internal/db/index_preview_result_integration_test.go).
 
-## Invariants (see DESIGN.md for rationale)
+## Invariants (see docs/DESIGN.md for rationale)
 
 - **S3 is the single source of truth.** Nothing is indexed unless it lives
   in S3; the DB is a derived search index, not a store.
