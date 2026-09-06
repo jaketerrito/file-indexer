@@ -1,25 +1,25 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
 import type { FileFilters } from '../lib/fileFilters'
 import { useFileStatusPoller } from '../lib/useFileStatusPoller'
-import { deleteFile, getDownloadUrl, getFileMetadata, listFiles } from '../server/files'
+import {
+  deleteFile,
+  getDownloadUrl,
+  getFileMetadata,
+  listContentTypes,
+  listFiles,
+} from '../server/files'
 import { FileMetadataModal } from './FileMetadataModal'
 
 const PAGE_SIZE = 50
 const PREFIX_DEBOUNCE_MS = 300
 
-// TODO: populate these options from the backend (e.g. a SearchService RPC
-// returning the distinct content-type categories that actually exist) instead
-// of this hardcoded list.
-const CONTENT_TYPE_OPTIONS = [
-  { value: '', label: 'All types' },
-  { value: 'image/', label: 'Images' },
-  { value: 'video/', label: 'Video' },
-  { value: 'audio/', label: 'Audio' },
-  { value: 'text/', label: 'Text' },
-  { value: 'application/', label: 'Application' },
-]
+/** Human label for a MIME category value: "image/" → "Image". */
+function categoryLabel(category: string): string {
+  const base = category.endsWith('/') ? category.slice(0, -1) : category
+  return base.charAt(0).toUpperCase() + base.slice(1)
+}
 
 interface FileListProps {
   filters: FileFilters
@@ -48,6 +48,23 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
       initialPageParam: '',
       getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     })
+
+  // Categories that actually exist in the index, for the type dropdown.
+  // Loading or failure degrades to just "All types": the list below has its
+  // own error surface and the filter stays usable without options.
+  const { data: contentTypes } = useQuery({
+    queryKey: ['contentTypes'],
+    queryFn: () => listContentTypes(),
+  })
+
+  const categories = contentTypes?.categories ?? []
+  // Keep an active filter selectable even when the backend doesn't report
+  // its category: a stale shared URL, or an exact MIME type like
+  // "application/pdf", which the filter supports but categories never list.
+  const optionValues =
+    filters.type !== '' && !categories.includes(filters.type)
+      ? [filters.type, ...categories]
+      : categories
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteFile({ data: { id } }),
@@ -113,9 +130,10 @@ export function FileList({ filters, onFiltersChange }: FileListProps) {
             value={filters.type}
             onChange={(e) => onFiltersChange({ ...filters, type: e.target.value })}
           >
-            {CONTENT_TYPE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
+            <option value="">All types</option>
+            {optionValues.map((value) => (
+              <option key={value} value={value}>
+                {categoryLabel(value)}
               </option>
             ))}
           </select>

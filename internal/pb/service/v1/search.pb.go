@@ -426,6 +426,91 @@ func (x *ListDirectoryResponse) GetNextPageToken() string {
 	return ""
 }
 
+type ListContentTypesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListContentTypesRequest) Reset() {
+	*x = ListContentTypesRequest{}
+	mi := &file_service_v1_search_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListContentTypesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListContentTypesRequest) ProtoMessage() {}
+
+func (x *ListContentTypesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_search_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListContentTypesRequest.ProtoReflect.Descriptor instead.
+func (*ListContentTypesRequest) Descriptor() ([]byte, []int) {
+	return file_service_v1_search_proto_rawDescGZIP(), []int{4}
+}
+
+type ListContentTypesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Distinct top-level MIME categories present in the stat index, each
+	// ending in "/" (e.g. "image/"), sorted ascending. Every value is a valid
+	// content_type filter for ListFiles (category-prefix semantics), so a
+	// filter UI can offer exactly the categories that match at least one
+	// indexed file.
+	Categories    []string `protobuf:"bytes,1,rep,name=categories,proto3" json:"categories,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListContentTypesResponse) Reset() {
+	*x = ListContentTypesResponse{}
+	mi := &file_service_v1_search_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListContentTypesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListContentTypesResponse) ProtoMessage() {}
+
+func (x *ListContentTypesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_search_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListContentTypesResponse.ProtoReflect.Descriptor instead.
+func (*ListContentTypesResponse) Descriptor() ([]byte, []int) {
+	return file_service_v1_search_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListContentTypesResponse) GetCategories() []string {
+	if x != nil {
+		return x.Categories
+	}
+	return nil
+}
+
 var File_service_v1_search_proto protoreflect.FileDescriptor
 
 const file_service_v1_search_proto_rawDesc = "" +
@@ -457,7 +542,12 @@ const file_service_v1_search_proto_rawDesc = "" +
 	"\x15ListDirectoryResponse\x12 \n" +
 	"\vdirectories\x18\x01 \x03(\tR\vdirectories\x12*\n" +
 	"\x05files\x18\x02 \x03(\v2\x14.service.v1.FileInfoR\x05files\x12&\n" +
-	"\x0fnext_page_token\x18\x03 \x01(\tR\rnextPageToken*n\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tR\rnextPageToken\"\x19\n" +
+	"\x17ListContentTypesRequest\":\n" +
+	"\x18ListContentTypesResponse\x12\x1e\n" +
+	"\n" +
+	"categories\x18\x01 \x03(\tR\n" +
+	"categories*n\n" +
 	"\tSortField\x12\x1a\n" +
 	"\x16SORT_FIELD_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSORT_FIELD_KEY\x10\x01\x12\x1c\n" +
@@ -466,10 +556,11 @@ const file_service_v1_search_proto_rawDesc = "" +
 	"\tSortOrder\x12\x1a\n" +
 	"\x16SORT_ORDER_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSORT_ORDER_ASC\x10\x01\x12\x13\n" +
-	"\x0fSORT_ORDER_DESC\x10\x022\xaf\x01\n" +
+	"\x0fSORT_ORDER_DESC\x10\x022\x8e\x02\n" +
 	"\rSearchService\x12H\n" +
 	"\tListFiles\x12\x1c.service.v1.ListFilesRequest\x1a\x1d.service.v1.ListFilesResponse\x12T\n" +
-	"\rListDirectory\x12 .service.v1.ListDirectoryRequest\x1a!.service.v1.ListDirectoryResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
+	"\rListDirectory\x12 .service.v1.ListDirectoryRequest\x1a!.service.v1.ListDirectoryResponse\x12]\n" +
+	"\x10ListContentTypes\x12#.service.v1.ListContentTypesRequest\x1a$.service.v1.ListContentTypesResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
 
 var (
 	file_service_v1_search_proto_rawDescOnce sync.Once
@@ -484,29 +575,33 @@ func file_service_v1_search_proto_rawDescGZIP() []byte {
 }
 
 var file_service_v1_search_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_service_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_service_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_service_v1_search_proto_goTypes = []any{
-	(SortField)(0),                // 0: service.v1.SortField
-	(SortOrder)(0),                // 1: service.v1.SortOrder
-	(*ListFilesRequest)(nil),      // 2: service.v1.ListFilesRequest
-	(*ListFilesResponse)(nil),     // 3: service.v1.ListFilesResponse
-	(*ListDirectoryRequest)(nil),  // 4: service.v1.ListDirectoryRequest
-	(*ListDirectoryResponse)(nil), // 5: service.v1.ListDirectoryResponse
-	(*FileInfo)(nil),              // 6: service.v1.FileInfo
+	(SortField)(0),                   // 0: service.v1.SortField
+	(SortOrder)(0),                   // 1: service.v1.SortOrder
+	(*ListFilesRequest)(nil),         // 2: service.v1.ListFilesRequest
+	(*ListFilesResponse)(nil),        // 3: service.v1.ListFilesResponse
+	(*ListDirectoryRequest)(nil),     // 4: service.v1.ListDirectoryRequest
+	(*ListDirectoryResponse)(nil),    // 5: service.v1.ListDirectoryResponse
+	(*ListContentTypesRequest)(nil),  // 6: service.v1.ListContentTypesRequest
+	(*ListContentTypesResponse)(nil), // 7: service.v1.ListContentTypesResponse
+	(*FileInfo)(nil),                 // 8: service.v1.FileInfo
 }
 var file_service_v1_search_proto_depIdxs = []int32{
 	0, // 0: service.v1.ListFilesRequest.sort_field:type_name -> service.v1.SortField
 	1, // 1: service.v1.ListFilesRequest.sort_order:type_name -> service.v1.SortOrder
-	6, // 2: service.v1.ListFilesResponse.files:type_name -> service.v1.FileInfo
+	8, // 2: service.v1.ListFilesResponse.files:type_name -> service.v1.FileInfo
 	0, // 3: service.v1.ListDirectoryRequest.sort_field:type_name -> service.v1.SortField
 	1, // 4: service.v1.ListDirectoryRequest.sort_order:type_name -> service.v1.SortOrder
-	6, // 5: service.v1.ListDirectoryResponse.files:type_name -> service.v1.FileInfo
+	8, // 5: service.v1.ListDirectoryResponse.files:type_name -> service.v1.FileInfo
 	2, // 6: service.v1.SearchService.ListFiles:input_type -> service.v1.ListFilesRequest
 	4, // 7: service.v1.SearchService.ListDirectory:input_type -> service.v1.ListDirectoryRequest
-	3, // 8: service.v1.SearchService.ListFiles:output_type -> service.v1.ListFilesResponse
-	5, // 9: service.v1.SearchService.ListDirectory:output_type -> service.v1.ListDirectoryResponse
-	8, // [8:10] is the sub-list for method output_type
-	6, // [6:8] is the sub-list for method input_type
+	6, // 8: service.v1.SearchService.ListContentTypes:input_type -> service.v1.ListContentTypesRequest
+	3, // 9: service.v1.SearchService.ListFiles:output_type -> service.v1.ListFilesResponse
+	5, // 10: service.v1.SearchService.ListDirectory:output_type -> service.v1.ListDirectoryResponse
+	7, // 11: service.v1.SearchService.ListContentTypes:output_type -> service.v1.ListContentTypesResponse
+	9, // [9:12] is the sub-list for method output_type
+	6, // [6:9] is the sub-list for method input_type
 	6, // [6:6] is the sub-list for extension type_name
 	6, // [6:6] is the sub-list for extension extendee
 	0, // [0:6] is the sub-list for field type_name
@@ -524,7 +619,7 @@ func file_service_v1_search_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_v1_search_proto_rawDesc), len(file_service_v1_search_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

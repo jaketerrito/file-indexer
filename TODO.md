@@ -48,10 +48,6 @@ history is the archive.
 - **Styling / design system** (7/5/26): the UI is intentionally bare semantic
   HTML — no styling dependencies in web/package.json. Needs an actual design
   pass.
-- **Backend-driven content-type filter** (7/5/26): the dropdown is hardcoded
-  in web/src/components/FileList.tsx (live TODO comment at the top of the
-  file). Populate from the backend, e.g. a SearchService RPC returning the
-  distinct content-type categories that actually exist.
 - **SSR first-page data** (7/5/26): the file list fetches client-side after
   hydration; nothing in web/src uses a router loader. Consider a TanStack
   Router loader + react-query SSR integration so the first page renders

@@ -31,7 +31,8 @@ const previewIndexType = "preview"
 
 // FileIndex is the database surface the search service depends on: one list
 // query per (sort field, direction), all keyset-paginated on (value, id),
-// plus ListChildDirectories for directory browsing.
+// plus ListChildDirectories for directory browsing and
+// ListContentTypeCategories for the content-type filter's option list.
 type FileIndex interface {
 	ListFilesByKeyAsc(ctx context.Context, arg db.ListFilesByKeyAscParams) ([]db.FileInfo, error)
 	ListFilesByKeyDesc(ctx context.Context, arg db.ListFilesByKeyDescParams) ([]db.FileInfo, error)
@@ -41,6 +42,9 @@ type FileIndex interface {
 	ListFilesBySizeDesc(ctx context.Context, arg db.ListFilesBySizeDescParams) ([]db.FileInfo, error)
 	ListChildDirectories(ctx context.Context, arg db.ListChildDirectoriesParams) ([]string, error)
 	GetIndexQueueStatuses(ctx context.Context, arg db.GetIndexQueueStatusesParams) ([]db.GetIndexQueueStatusesRow, error)
+	// sqlc scans the query's computed category expression as interface{};
+	// pgx delivers text as string.
+	ListContentTypeCategories(ctx context.Context) ([]interface{}, error)
 }
 
 func previewStatus(f db.FileInfo, qStatus string, qQueued bool) pb.PreviewStatus {
@@ -151,6 +155,25 @@ func (s *SearchServer) ListFiles(ctx context.Context, req *pb.ListFilesRequest) 
 		return nil, err
 	}
 	return &pb.ListFilesResponse{Files: infos, NextPageToken: nextPageToken}, nil
+}
+
+// ListContentTypes returns the distinct top-level MIME categories currently
+// in the index, for populating filter UIs with exactly the categories that
+// match at least one indexed file.
+func (s *SearchServer) ListContentTypes(ctx context.Context, req *pb.ListContentTypesRequest) (*pb.ListContentTypesResponse, error) {
+	rows, err := s.queries.ListContentTypeCategories(ctx)
+	if err != nil {
+		return nil, err
+	}
+	categories := make([]string, 0, len(rows))
+	for _, row := range rows {
+		category, ok := row.(string)
+		if !ok {
+			return nil, status.Errorf(codes.Internal, "ListContentTypeCategories returned %T, want string", row)
+		}
+		categories = append(categories, category)
+	}
+	return &pb.ListContentTypesResponse{Categories: categories}, nil
 }
 
 // listFiles dispatches to the sqlc query matching the requested sort.

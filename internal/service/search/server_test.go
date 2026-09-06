@@ -740,3 +740,34 @@ func TestServeBadAddr(t *testing.T) {
 		t.Fatal("Serve with bad addr: want error, got nil")
 	}
 }
+
+func TestListContentTypes(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	// sqlc scans the computed category column as interface{} (pgx delivers
+	// text as string), so the mock mirrors that shape.
+	queries.EXPECT().ListContentTypeCategories(mock.Anything).
+		Return([]interface{}{"image/", "text/"}, nil)
+
+	srv := SearchServer{queries: queries}
+
+	resp, err := srv.ListContentTypes(context.Background(), &pb.ListContentTypesRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := resp.GetCategories()
+	if len(got) != 2 || got[0] != "image/" || got[1] != "text/" {
+		t.Errorf("categories = %v, want [image/ text/]", got)
+	}
+}
+
+func TestListContentTypesError(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	want := errors.New("db down")
+	queries.EXPECT().ListContentTypeCategories(mock.Anything).Return(nil, want)
+
+	srv := SearchServer{queries: queries}
+
+	if _, err := srv.ListContentTypes(context.Background(), &pb.ListContentTypesRequest{}); !errors.Is(err, want) {
+		t.Errorf("err = %v, want %v", err, want)
+	}
+}
