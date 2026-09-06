@@ -2,10 +2,6 @@ name: test-web
 on:
   pull_request:
     branches: [main]
-    paths:
-      - "web/**"
-      - "proto/**"
-      - ".github/workflows/test-web.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -16,7 +12,7 @@ permissions:
 
 jobs:
   unit:
-    name: unit
+    name: unit-web
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:

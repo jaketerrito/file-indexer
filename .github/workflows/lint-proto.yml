@@ -2,9 +2,6 @@ name: lint-proto
 on:
   pull_request:
     branches: [main]
-    paths:
-      - "proto/**"
-      - ".github/workflows/lint-proto.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -2,20 +2,6 @@ name: check-generated
 on:
   pull_request:
     branches: [main]
-    paths:
-      - "internal/service/**"
-      - "proto/**"
-      - "internal/db/queries/**"
-      - "internal/db/migrations/**"
-      - "sqlc.yaml"
-      - ".mockery.yaml"
-      - "**/generate.go"
-      - "go.mod"
-      - "go.sum"
-      - "web/package.json"
-      - "web/package-lock.json"
-      - ".github/workflows/generate.yml"
-      - ".github/actions/setup-go-cache/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -44,6 +30,6 @@ jobs:
       - name: Generate web TS clients
         run: |
           npm --prefix web ci
-          go tool buf generate --template proto/buf.gen.web.yaml proto
+          go tool buf generate --template proto/buf.gen.web.yaml proto --include-imports
       - name: Check for uncommitted changes
         run: git diff --exit-code
