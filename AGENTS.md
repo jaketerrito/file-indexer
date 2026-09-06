@@ -103,6 +103,11 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   `split_part(content_type, '/', 1) || '/'`): it emits `[]interface{}`.
   Mirror the generated signature in consuming interfaces and assert elements
   (pgx delivers text as string); don't reshape the query to force `[]string`.
+- golangci-lint's cache leaks across worktrees: every checkout shares the
+  module path `file-indexer`, so cached analysis from sibling worktrees (or a
+  since-restructured one) surfaces as phantom issues with `../<sibling>/...`
+  paths and "no such file or directory" warnings. `go tool golangci-lint
+  cache clean` fixes it; suspect this before believing cross-tree lint output.
 - `storage.Walk` lists the entire bucket, not a prefix — filter client-side
   with `strings.HasPrefix`.
 - The crawler package lives at `internal/service/crawler/`, not
