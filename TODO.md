@@ -37,9 +37,6 @@ history is the archive.
 
 ## Frontend
 
-- **Playwright e2e tests** (7/5/26): no Playwright dependency or config in
-  web/; unit tests only. Add e2e coverage against the tilt environment,
-  slotting into the existing test-integration flow.
 - **Styling / design system** (7/5/26): the UI is intentionally bare semantic
   HTML — no styling dependencies in web/package.json. Needs an actual design
   pass.

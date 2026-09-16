@@ -1,7 +1,16 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["**", "!src/gen", "!src/routeTree.gen.ts", "!dist", "!coverage"]
+    "includes": [
+      "**",
+      "!src/gen",
+      "!src/routeTree.gen.ts",
+      "!dist",
+      "!coverage",
+      "!playwright-report",
+      "!test-results",
+      "!blob-report"
+    ]
   },
   "formatter": {
     "enabled": true,

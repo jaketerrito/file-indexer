@@ -1,11 +1,13 @@
 import viteReact from '@vitejs/plugin-react'
-import { defineConfig } from 'vitest/config'
+import { defaultExclude, defineConfig } from 'vitest/config'
 
 // Separate from vite.config.ts on purpose: unit tests don't need (or want)
 // the TanStack Start plugin, which spins up SSR/router codegen machinery.
 export default defineConfig({
   plugins: [viteReact()],
   test: {
+    // e2e/ holds Playwright specs (run via `just test-e2e`), not vitest tests.
+    exclude: [...defaultExclude, 'e2e/**'],
     environment: 'jsdom',
     globals: true,
     coverage: {
