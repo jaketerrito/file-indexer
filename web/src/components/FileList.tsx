@@ -34,7 +34,7 @@ export function FileList({ filters, onFiltersChange, onOpenFile }: FileListProps
           data: {
             pageSize: PAGE_SIZE,
             pageToken: pageParam,
-            prefix: filters.prefix,
+            query: filters.query,
             contentType: filters.type,
             sortField: filters.sort,
             sortOrder: filters.order,
@@ -95,7 +95,7 @@ export function FileList({ filters, onFiltersChange, onOpenFile }: FileListProps
 
   useFileStatusPoller(data?.pages, ['files', filters])
 
-  const isFiltered = filters.prefix !== '' || filters.type !== ''
+  const isFiltered = filters.query !== '' || filters.type !== ''
 
   return (
     <div>

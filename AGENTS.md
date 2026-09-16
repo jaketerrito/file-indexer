@@ -128,6 +128,13 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   cache clean` fixes it; suspect this before believing cross-tree lint output.
 - `storage.Walk` lists the entire bucket, not a prefix — filter client-side
   with `strings.HasPrefix`.
+- pg_trgm `%` compares WHOLE strings (Jaccard over the full key), so a short
+  query against a long key can never reach the 0.3 default threshold —
+  verified on Postgres 18: similarity ≈ 0.2 for a one-transposition query
+  vs a ~72-char key. Term-within-key fuzzy matching must use `%>`
+  (word_similarity, threshold `pg_trgm.word_similarity_threshold` = 0.6).
+  Corollary for tests: a "no match" fixture query must share no trigrams
+  with ANY seeded key — `zzz-unrelated` fuzzy-matches `zz-unrelated/...`.
 - The crawler package lives at `internal/service/crawler/`, not
   `internal/crawler/`; grep scoped to the wrong path returns false negatives.
 - Long-running dev processes (e.g. `search-local` via `hub`) survive across

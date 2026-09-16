@@ -50,6 +50,7 @@ func TestListFilesDefaults(t *testing.T) {
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
 		KeyPattern:         "%",
+		KeyQueryPattern:    "%%",
 		ContentTypePattern: "",
 		HasCursor:          false,
 		PageLimit:          defaultPageSize + 1,
@@ -76,8 +77,9 @@ func TestListFilesDefaults(t *testing.T) {
 func TestListFilesPageSizeClamped(t *testing.T) {
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
-		KeyPattern: "%",
-		PageLimit:  maxPageSize + 1,
+		KeyPattern:      "%",
+		KeyQueryPattern: "%%",
+		PageLimit:       maxPageSize + 1,
 	}).Return(nil, nil)
 
 	srv := SearchServer{queries: queries}
@@ -87,16 +89,18 @@ func TestListFilesPageSizeClamped(t *testing.T) {
 	}
 }
 
-func TestListFilesPrefixEscaped(t *testing.T) {
+func TestListFilesQueryEscaped(t *testing.T) {
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
-		KeyPattern: `docs\%1\_a\\%`,
-		PageLimit:  defaultPageSize + 1,
+		KeyPattern:      "%",
+		KeyQuery:        `docs%1_a\`,
+		KeyQueryPattern: `%docs\%1\_a\\%`,
+		PageLimit:       defaultPageSize + 1,
 	}).Return(nil, nil)
 
 	srv := SearchServer{queries: queries}
 
-	if _, err := srv.ListFiles(context.Background(), &pb.ListFilesRequest{Prefix: `docs%1_a\`}); err != nil {
+	if _, err := srv.ListFiles(context.Background(), &pb.ListFilesRequest{Query: `docs%1_a\`}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -105,6 +109,7 @@ func TestListFilesContentTypeExact(t *testing.T) {
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
 		KeyPattern:         "%",
+		KeyQueryPattern:    "%%",
 		ContentTypePattern: "image/png",
 		PageLimit:          defaultPageSize + 1,
 	}).Return(nil, nil)
@@ -120,6 +125,7 @@ func TestListFilesContentTypeCategory(t *testing.T) {
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
 		KeyPattern:         "%",
+		KeyQueryPattern:    "%%",
 		ContentTypePattern: "image/%",
 		PageLimit:          defaultPageSize + 1,
 	}).Return(nil, nil)
@@ -202,8 +208,9 @@ func TestListFilesPagination(t *testing.T) {
 
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
-		KeyPattern: "%",
-		PageLimit:  3,
+		KeyPattern:      "%",
+		KeyQueryPattern: "%%",
+		PageLimit:       3,
 	}).Return(files, nil)
 	queries.EXPECT().GetIndexQueueStatuses(mock.Anything, mock.Anything).Return(nil, nil)
 
@@ -230,11 +237,12 @@ func TestListFilesPagination(t *testing.T) {
 
 	// Second page: the cursor must be passed through to the query.
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
-		KeyPattern: "%",
-		HasCursor:  true,
-		LastKey:    "b",
-		LastID:     2,
-		PageLimit:  3,
+		KeyPattern:      "%",
+		KeyQueryPattern: "%%",
+		HasCursor:       true,
+		LastKey:         "b",
+		LastID:          2,
+		PageLimit:       3,
 	}).Return(files[2:], nil)
 
 	resp2, err := srv.ListFiles(context.Background(), &pb.ListFilesRequest{
@@ -271,16 +279,16 @@ func TestListFilesPageTokenQueryMismatch(t *testing.T) {
 		req  *pb.ListFilesRequest
 	}{
 		{"sort_field changed", &pb.ListFilesRequest{
-			PageToken: token, SortField: pb.SortField_SORT_FIELD_SIZE, Prefix: "docs/", ContentType: "image/",
+			PageToken: token, SortField: pb.SortField_SORT_FIELD_SIZE, Query: "docs/", ContentType: "image/",
 		}},
 		{"sort_order changed", &pb.ListFilesRequest{
-			PageToken: token, SortOrder: pb.SortOrder_SORT_ORDER_DESC, Prefix: "docs/", ContentType: "image/",
+			PageToken: token, SortOrder: pb.SortOrder_SORT_ORDER_DESC, Query: "docs/", ContentType: "image/",
 		}},
-		{"prefix changed", &pb.ListFilesRequest{
-			PageToken: token, Prefix: "other/", ContentType: "image/",
+		{"query changed", &pb.ListFilesRequest{
+			PageToken: token, Query: "other/", ContentType: "image/",
 		}},
 		{"content_type changed", &pb.ListFilesRequest{
-			PageToken: token, Prefix: "docs/", ContentType: "video/",
+			PageToken: token, Query: "docs/", ContentType: "video/",
 		}},
 	}
 	for _, tt := range tests {
@@ -302,7 +310,9 @@ func TestListFilesPageTokenCarriesFilters(t *testing.T) {
 
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
-		KeyPattern:         "docs/%",
+		KeyPattern:         "%",
+		KeyQuery:           "docs/",
+		KeyQueryPattern:    "%docs/%",
 		ContentTypePattern: "image/%",
 		HasCursor:          true,
 		LastKey:            "docs/a",
@@ -314,7 +324,7 @@ func TestListFilesPageTokenCarriesFilters(t *testing.T) {
 
 	_, err := srv.ListFiles(context.Background(), &pb.ListFilesRequest{
 		PageToken:   token,
-		Prefix:      "docs/",
+		Query:       "docs/",
 		ContentType: "image/",
 	})
 	if err != nil {
@@ -407,10 +417,11 @@ func TestListDirectoryRoot(t *testing.T) {
 	}).Return([]string{"docs/", "other/"}, nil)
 	queries.EXPECT().GetIndexQueueStatuses(mock.Anything, mock.Anything).Return(nil, nil)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
-		KeyPattern: "%",
-		DirectOnly: true,
-		DirPrefix:  "",
-		PageLimit:  defaultPageSize - 2 + 1,
+		KeyPattern:      "%",
+		KeyQueryPattern: "%%",
+		DirectOnly:      true,
+		DirPrefix:       "",
+		PageLimit:       defaultPageSize - 2 + 1,
 	}).Return([]db.FileInfo{testFile(1, "root.txt")}, nil)
 
 	srv := SearchServer{queries: queries}
@@ -477,10 +488,11 @@ func TestListDirectoryResumeDirectoriesPhase(t *testing.T) {
 		PageLimit: 3,
 	}).Return([]string{"docs/c/"}, nil)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
-		KeyPattern: "docs/%",
-		DirectOnly: true,
-		DirPrefix:  "docs/",
-		PageLimit:  2,
+		KeyPattern:      "docs/%",
+		KeyQueryPattern: "%%",
+		DirectOnly:      true,
+		DirPrefix:       "docs/",
+		PageLimit:       2,
 	}).Return(nil, nil)
 
 	srv := SearchServer{queries: queries}
@@ -506,10 +518,11 @@ func TestListDirectoryDirectoriesFillPageExactlyStillProbesFiles(t *testing.T) {
 		PageLimit: 3,
 	}).Return([]string{"a/", "b/"}, nil)
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
-		KeyPattern: "%",
-		DirectOnly: true,
-		DirPrefix:  "",
-		PageLimit:  1,
+		KeyPattern:      "%",
+		KeyQueryPattern: "%%",
+		DirectOnly:      true,
+		DirPrefix:       "",
+		PageLimit:       1,
 	}).Return([]db.FileInfo{testFile(9, "z.txt")}, nil)
 
 	srv := SearchServer{queries: queries}
@@ -540,13 +553,14 @@ func TestListDirectoryResumeFilesPhase(t *testing.T) {
 	queries.EXPECT().GetIndexQueueStatuses(mock.Anything, mock.Anything).Return(nil, nil)
 	// Directories phase must not run again once a FILES-phase token exists.
 	queries.EXPECT().ListFilesByKeyAsc(mock.Anything, db.ListFilesByKeyAscParams{
-		KeyPattern: "docs/%",
-		DirectOnly: true,
-		DirPrefix:  "docs/",
-		HasCursor:  true,
-		LastKey:    "docs/z.txt",
-		LastID:     9,
-		PageLimit:  3,
+		KeyPattern:      "docs/%",
+		KeyQueryPattern: "%%",
+		DirectOnly:      true,
+		DirPrefix:       "docs/",
+		HasCursor:       true,
+		LastKey:         "docs/z.txt",
+		LastID:          9,
+		PageLimit:       3,
 	}).Return([]db.FileInfo{testFile(10, "docs/zz.txt")}, nil)
 
 	srv := SearchServer{queries: queries}

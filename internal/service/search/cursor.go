@@ -22,12 +22,12 @@ type cursor = cursorv1.PageToken
 
 // newCursor captures the query being paginated and the keyset position of
 // the last returned row.
-func newCursor(sortField pb.SortField, sortOrder pb.SortOrder, prefix, contentType string, last db.FileInfo) *cursor {
+func newCursor(sortField pb.SortField, sortOrder pb.SortOrder, query, contentType string, last db.FileInfo) *cursor {
 	c := &cursor{
 		SortField:   sortField,
 		SortOrder:   sortOrder,
 		LastId:      last.ID,
-		Prefix:      prefix,
+		Query:       query,
 		ContentType: contentType,
 	}
 	setSortValue(c, sortField, last)
@@ -35,7 +35,7 @@ func newCursor(sortField pb.SortField, sortOrder pb.SortOrder, prefix, contentTy
 }
 
 // newDirFilesCursor is newCursor's ListDirectory counterpart: it records
-// path/phase instead of prefix/content_type (see PageToken in cursor.proto).
+// path/phase instead of query/content_type (see PageToken in cursor.proto).
 // last may be the zero db.FileInfo — LastId 0 then signals "no file cursor
 // yet, resume at the start of the files phase" (see listFiles' hasCursor).
 func newDirFilesCursor(sortField pb.SortField, sortOrder pb.SortOrder, path string, last db.FileInfo) *cursor {

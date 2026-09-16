@@ -12,9 +12,9 @@ interface SearchBarProps {
 }
 
 /**
- * Everpresent header search: debounced key-prefix query against ListFiles
- * (the backend's only text filter — substring search would need a server
- * change), showing a dropdown of matching file keys (path + name).
+ * Everpresent header search: debounced text query against ListFiles
+ * (case-insensitive substring + trigram fuzzy match), showing a dropdown of
+ * matching file keys (path + name).
  * Selecting one hands the file to onSelect and clears the box.
  */
 export function SearchBar({ onSelect }: SearchBarProps) {
@@ -31,7 +31,7 @@ export function SearchBar({ onSelect }: SearchBarProps) {
     queryKey: ['search-dropdown', query],
     queryFn: () =>
       listFiles({
-        data: { prefix: query, pageSize: RESULT_LIMIT, sortField: 'key', sortOrder: 'asc' },
+        data: { query, pageSize: RESULT_LIMIT, sortField: 'key', sortOrder: 'asc' },
       }),
     enabled: query !== '',
   })

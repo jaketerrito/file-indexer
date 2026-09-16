@@ -1,15 +1,15 @@
 import { SORT_FIELDS, SORT_ORDERS, type SortFieldInput, type SortOrderInput } from '../server/impl'
 
 // URL-backed filter state for the file list. The route's validateSearch runs
-// normalizeFilters over raw ?path=&prefix=&type=&sort=&order= params; a
+// normalizeFilters over raw ?path=&query=&type=&sort=&order= params; a
 // stripSearchParams middleware on the route drops default values from the URL.
 //
-// path and prefix are mutually exclusive modes, not independent filters:
+// path and query are mutually exclusive modes, not independent filters:
 // path present (even "" for root) means browse mode (ListDirectory, folders
-// + direct children); prefix present means search mode (ListFiles, flat
+// + direct children); query present means search mode (ListFiles, flat
 // recursive results). Setting either clears the other — see toBrowsePath
 // below — because a request can't sensibly carry both (ListDirectory has no
-// prefix param, and folder navigation while a recursive search prefix is
+// query param, and folder navigation while a recursive text search is
 // still applied would be confusing).
 //
 // path defaults to undefined, not "", specifically so the default,
@@ -20,8 +20,8 @@ import { SORT_FIELDS, SORT_ORDERS, type SortFieldInput, type SortOrderInput } fr
 export interface FileFilters {
   /** Browse mode: current directory ("" is root). undefined means search mode. */
   path?: string
-  /** Key prefix to search by; '' means no prefix filter. */
-  prefix: string
+  /** Text query to search keys by; '' means no query filter. */
+  query: string
   /** Content-type filter ('image/', ...); '' means all types. */
   type: string
   sort: SortFieldInput
@@ -29,7 +29,7 @@ export interface FileFilters {
 }
 
 export const DEFAULT_FILTERS: FileFilters = {
-  prefix: '',
+  query: '',
   type: '',
   sort: 'key',
   order: 'asc',
@@ -39,7 +39,7 @@ export const DEFAULT_FILTERS: FileFilters = {
 export function normalizeFilters(search: Record<string, unknown>): FileFilters {
   return {
     path: typeof search.path === 'string' ? search.path : undefined,
-    prefix: typeof search.prefix === 'string' ? search.prefix : DEFAULT_FILTERS.prefix,
+    query: typeof search.query === 'string' ? search.query : DEFAULT_FILTERS.query,
     type: typeof search.type === 'string' ? search.type : DEFAULT_FILTERS.type,
     sort: SORT_FIELDS.includes(search.sort as SortFieldInput)
       ? (search.sort as SortFieldInput)
@@ -55,7 +55,7 @@ export function isBrowsing(filters: FileFilters): boolean {
   return filters.path !== undefined
 }
 
-/** Filters for navigating to a directory: clears prefix/type, which don't apply in browse mode. */
+/** Filters for navigating to a directory: clears query/type, which don't apply in browse mode. */
 export function toBrowsePath(filters: FileFilters, path: string): FileFilters {
-  return { ...filters, path, prefix: '', type: '' }
+  return { ...filters, path, query: '', type: '' }
 }

@@ -47,7 +47,7 @@ function listArgs(overrides: Record<string, unknown> = {}) {
     data: {
       pageSize: 50,
       pageToken: '',
-      prefix: '',
+      query: '',
       contentType: '',
       sortField: 'key',
       sortOrder: 'asc',
@@ -142,7 +142,7 @@ describe('FileList', () => {
 
   it('shows a filtered empty state when filters are active', async () => {
     listFilesMock.mockResolvedValue(page([], 0))
-    renderFileList({ ...DEFAULT_FILTERS, prefix: 'zzz' })
+    renderFileList({ ...DEFAULT_FILTERS, query: 'zzz' })
     expect(await screen.findByText('No files match your filters.')).toBeDefined()
   })
 
