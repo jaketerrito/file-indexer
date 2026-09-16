@@ -34,6 +34,11 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   integration test can regress its file below 60% and red the gate
   (preview-gc's ListIndexPreviewKeys did; fixed by
   internal/db/index_preview_result_integration_test.go).
+- DB-only integration tests (e.g. internal/service/search) can run against
+  any checkout's cluster postgres (`kubectl -n <other-ns> port-forward
+  svc/postgres :5432`, then set DB_HOST/DB_PORT) — dbtest gives each run a
+  throwaway database, so a stack in this checkout's own namespace is not
+  required.
 
 ## Invariants (see docs/DESIGN.md for rationale)
 
