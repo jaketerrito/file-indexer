@@ -69,6 +69,20 @@ port-forward, MinIO via the shared gateway (requires `just up`).
 
 Integration tests fail hard if postgres/MinIO are unreachable; they never skip.
 
+### E2E tests
+
+Playwright e2e tests live in `web/e2e/` (config: `web/playwright.config.ts`)
+and run against this checkout's Tilt deployment through the shared gateway —
+they need `just up` running, with the seed dataset indexed (the crawler runs
+once when the session starts):
+
+`just test-e2e`
+
+The recipe installs the Playwright Chromium binary on first run and points the
+suite at `http://web.<checkout-dir>.localhost`. The suite also runs as the
+`test-e2e` Tilt resource under `just ci` (this is the only place it runs in
+CI, via the deploy-verify workflow).
+
 ### CI caching
 
 `setup-go`'s built-in caching is disabled in CI; every Go job instead uses the `.github/actions/setup-go-cache` composite action, which layers two `actions/cache` entries:

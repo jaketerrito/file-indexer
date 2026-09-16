@@ -6,3 +6,8 @@ dist
 coverage
 Dockerfile
 .gitignore
+e2e
+playwright.config.ts
+test-results
+playwright-report
+blob-report

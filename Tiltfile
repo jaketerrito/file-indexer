@@ -43,6 +43,19 @@ local_resource('test-integration',
    labels=['checks'],
 )
 
+# Playwright e2e against the deployed web app via the shared gateway. Depends
+# on crawler so `tilt ci` (which never runs manual resources) only starts the
+# suite after the seed dataset's crawl has completed; the specs still poll,
+# since the index workers process the crawl asynchronously.
+local_resource('test-e2e',
+   cmd='just test-e2e',
+   deps=['web/e2e', 'web/playwright.config.ts', 'web/package.json', 'web/package-lock.json', 'web/src'],
+   resource_deps=['web', 'crawler'],
+   auto_init=checks_auto,
+   trigger_mode=TRIGGER_MODE_AUTO if checks_auto else TRIGGER_MODE_MANUAL,
+   labels=['checks'],
+)
+
 # Per-checkout dev environment: all checkouts share one kind cluster (`just
 # cluster-up`); each deploys into its own namespace via `tilt --namespace`
 # (`just tilt-up` derives it from the checkout directory name). Services are
@@ -126,7 +139,10 @@ k8s_resource('web', resource_deps=['files', 'search'], links=['http://web.%s.loc
 k8s_resource(
     'crawler',
     resource_deps=['postgres', 'migrate', 'local-s3'],
-    trigger_mode=TRIGGER_MODE_MANUAL,
+    # Manual by default (a crawl is not something you want on every rebuild),
+    # but auto under --checks: `tilt ci` never runs manual resources, and the
+    # test-e2e suite needs the seed dataset crawled first.
+    trigger_mode=TRIGGER_MODE_AUTO if checks_auto else TRIGGER_MODE_MANUAL,
     auto_init=True,
 )
 k8s_resource(

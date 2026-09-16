@@ -146,6 +146,32 @@ test-web:
     npm --prefix web ci
     npm --prefix web run test:coverage
 
+# Run Playwright e2e tests against this checkout's Tilt environment (requires
+# `just up`): exercises the deployed app through the shared gateway and expects
+# the seed dataset indexed — the crawler runs once when the Tilt session
+# starts (trigger it manually if the data changed since). Installs the
+# Chromium browser binary on first run. Also runs as the test-e2e Tilt
+# resource under `just ci`.
+test-e2e:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ns="{{ns}}"
+    base_url="http://web.$ns.localhost"
+    # Retry rather than fail fast: under `tilt ci` the test-e2e resource can
+    # start while the web rollout is still propagating to the gateway.
+    ready=""
+    for _ in $(seq 1 60); do
+        curl -fs -o /dev/null "$base_url" && ready=1 && break
+        sleep 2
+    done
+    if [[ -z "$ready" ]]; then
+        echo "web app unreachable at $base_url after 2m — is this checkout's Tilt running? (just up)" >&2
+        exit 1
+    fi
+    npm --prefix web ci
+    npm --prefix web exec -- playwright install chromium
+    E2E_BASE_URL="$base_url" npm --prefix web run test:e2e
+
 # Open a psql shell in this checkout's postgres pod
 psql:
     kubectl --context kind-kind -n {{ns}} exec -it deploy/postgres -- psql -U postgres -d postgres
