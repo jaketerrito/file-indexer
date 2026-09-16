@@ -47,7 +47,7 @@ afterEach(() => {
 })
 
 describe('SearchBar', () => {
-  it('queries by prefix after debounce and shows matching keys', async () => {
+  it('queries by text after debounce and shows matching keys', async () => {
     listFilesMock.mockResolvedValue({
       files: [file('1', 'docs/notes.txt'), file('2', 'docs/todo.txt')],
       nextPageToken: '',
@@ -61,7 +61,7 @@ describe('SearchBar', () => {
     expect(await screen.findByRole('button', { name: 'docs/notes.txt' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'docs/todo.txt' })).toBeTruthy()
     expect(listFilesMock).toHaveBeenCalledWith({
-      data: { prefix: 'docs', pageSize: 10, sortField: 'key', sortOrder: 'asc' },
+      data: { query: 'docs', pageSize: 10, sortField: 'key', sortOrder: 'asc' },
     })
   })
 

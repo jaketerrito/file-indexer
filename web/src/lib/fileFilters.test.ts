@@ -8,9 +8,9 @@ describe('normalizeFilters', () => {
 
   it('keeps valid values', () => {
     expect(
-      normalizeFilters({ prefix: 'docs/', type: 'image/', sort: 'size', order: 'desc' }),
+      normalizeFilters({ query: 'docs/', type: 'image/', sort: 'size', order: 'desc' }),
     ).toEqual({
-      prefix: 'docs/',
+      query: 'docs/',
       type: 'image/',
       sort: 'size',
       order: 'desc',
@@ -18,7 +18,7 @@ describe('normalizeFilters', () => {
   })
 
   it('drops invalid values back to defaults', () => {
-    expect(normalizeFilters({ prefix: 42, type: ['image/'], sort: 'bogus', order: 'up' })).toEqual(
+    expect(normalizeFilters({ query: 42, type: ['image/'], sort: 'bogus', order: 'up' })).toEqual(
       DEFAULT_FILTERS,
     )
   })
@@ -27,7 +27,7 @@ describe('normalizeFilters', () => {
 describe('normalizeFilters round-trip', () => {
   it('is stable when re-parsing its own output', () => {
     const filters = normalizeFilters({
-      prefix: 'a',
+      query: 'a',
       type: 'text/',
       sort: 'lastModified',
       order: 'desc',
@@ -49,7 +49,7 @@ describe('normalizeFilters round-trip', () => {
 describe('isBrowsing', () => {
   it('is false when path is absent (search mode)', () => {
     expect(isBrowsing(normalizeFilters({}))).toBe(false)
-    expect(isBrowsing(normalizeFilters({ prefix: 'docs/' }))).toBe(false)
+    expect(isBrowsing(normalizeFilters({ query: 'docs/' }))).toBe(false)
   })
 
   it('is true when path is present, even at the root', () => {
@@ -59,11 +59,11 @@ describe('isBrowsing', () => {
 })
 
 describe('toBrowsePath', () => {
-  it('sets path and clears prefix/type', () => {
-    const filters = normalizeFilters({ prefix: 'old/', type: 'image/' })
+  it('sets path and clears query/type', () => {
+    const filters = normalizeFilters({ query: 'old/', type: 'image/' })
     const next = toBrowsePath(filters, 'docs/')
     expect(next.path).toBe('docs/')
-    expect(next.prefix).toBe('')
+    expect(next.query).toBe('')
     expect(next.type).toBe('')
     // Sort/order are preserved across the navigation.
     expect(next.sort).toBe(filters.sort)

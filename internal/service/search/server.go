@@ -1,6 +1,6 @@
 // Package search implements the SearchService gRPC API: listing indexed
-// files with prefix and content-type filters, configurable sorting, and
-// keyset pagination via opaque page tokens.
+// files with text (substring + fuzzy) and content-type filters, configurable
+// sorting, and keyset pagination via opaque page tokens.
 package search
 
 import (
@@ -123,14 +123,14 @@ func (s *SearchServer) ListFiles(ctx context.Context, req *pb.ListFilesRequest) 
 		// AIP-158: all arguments other than page_size and page_token must
 		// match the call that produced the token.
 		if c.GetSortField() != sortField || c.GetSortOrder() != sortOrder ||
-			c.GetPrefix() != req.GetPrefix() || c.GetContentType() != req.GetContentType() {
+			c.GetQuery() != req.GetQuery() || c.GetContentType() != req.GetContentType() {
 			return nil, status.Error(codes.InvalidArgument, "page_token was issued for a different query")
 		}
 		cur = c
 	}
 
 	// Fetch one extra row to detect whether another page exists.
-	files, err := s.listFiles(ctx, sortField, sortOrder, req.GetPrefix(), req.GetContentType(), false, "", cur, limit+1)
+	files, err := s.listFiles(ctx, sortField, sortOrder, req.GetQuery(), req.GetContentType(), false, "", cur, limit+1)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +138,7 @@ func (s *SearchServer) ListFiles(ctx context.Context, req *pb.ListFilesRequest) 
 	var nextPageToken string
 	if len(files) > limit {
 		files = files[:limit]
-		nextPageToken = encodeCursor(newCursor(sortField, sortOrder, req.GetPrefix(), req.GetContentType(), files[len(files)-1]))
+		nextPageToken = encodeCursor(newCursor(sortField, sortOrder, req.GetQuery(), req.GetContentType(), files[len(files)-1]))
 	}
 
 	infos := make([]*pb.FileInfo, 0, len(files))
@@ -170,12 +170,19 @@ func (s *SearchServer) ListContentTypes(ctx context.Context, req *pb.ListContent
 	return &pb.ListContentTypesResponse{Categories: categories}, nil
 }
 
-// listFiles dispatches to the sqlc query matching the requested sort.
+// listFiles dispatches to the sqlc query matching the requested sort. query
+// is the raw text search string (empty disables the text filter).
 // directOnly/dirPrefix restrict results to files directly inside dirPrefix
 // (no further '/'), used by ListDirectory's files phase; search's ListFiles
-// passes directOnly=false to search the whole subtree under prefix.
-func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, sortOrder pb.SortOrder, prefix, contentType string, directOnly bool, dirPrefix string, cur *cursor, limit int) ([]db.FileInfo, error) {
-	keyPattern := escapeLike(prefix) + "%"
+// passes directOnly=false to match the query against every indexed key.
+func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, sortOrder pb.SortOrder, query, contentType string, directOnly bool, dirPrefix string, cur *cursor, limit int) ([]db.FileInfo, error) {
+	// ListFiles searches every key (key_pattern '%'); only ListDirectory's
+	// files phase scopes by directory prefix (directOnly).
+	keyPattern := "%"
+	if directOnly {
+		keyPattern = escapeLike(dirPrefix) + "%"
+	}
+	keyQueryPattern := "%" + escapeLike(query) + "%"
 	contentTypePattern := contentTypeToPattern(contentType)
 	asc := sortOrder == pb.SortOrder_SORT_ORDER_ASC
 	// A file's own row id is never 0 (BIGSERIAL starts at 1), so LastId == 0
@@ -193,6 +200,8 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 		if asc {
 			return s.queries.ListFilesByKeyAsc(ctx, db.ListFilesByKeyAscParams{
 				KeyPattern:         keyPattern,
+				KeyQuery:           query,
+				KeyQueryPattern:    keyQueryPattern,
 				ContentTypePattern: contentTypePattern,
 				DirectOnly:         directOnly,
 				DirPrefix:          dirPrefix,
@@ -204,6 +213,8 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 		}
 		return s.queries.ListFilesByKeyDesc(ctx, db.ListFilesByKeyDescParams{
 			KeyPattern:         keyPattern,
+			KeyQuery:           query,
+			KeyQueryPattern:    keyQueryPattern,
 			ContentTypePattern: contentTypePattern,
 			DirectOnly:         directOnly,
 			DirPrefix:          dirPrefix,
@@ -216,6 +227,8 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 		if asc {
 			return s.queries.ListFilesByLastModifiedAsc(ctx, db.ListFilesByLastModifiedAscParams{
 				KeyPattern:         keyPattern,
+				KeyQuery:           query,
+				KeyQueryPattern:    keyQueryPattern,
 				ContentTypePattern: contentTypePattern,
 				DirectOnly:         directOnly,
 				DirPrefix:          dirPrefix,
@@ -227,6 +240,8 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 		}
 		return s.queries.ListFilesByLastModifiedDesc(ctx, db.ListFilesByLastModifiedDescParams{
 			KeyPattern:         keyPattern,
+			KeyQuery:           query,
+			KeyQueryPattern:    keyQueryPattern,
 			ContentTypePattern: contentTypePattern,
 			DirectOnly:         directOnly,
 			DirPrefix:          dirPrefix,
@@ -239,6 +254,8 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 		if asc {
 			return s.queries.ListFilesBySizeAsc(ctx, db.ListFilesBySizeAscParams{
 				KeyPattern:         keyPattern,
+				KeyQuery:           query,
+				KeyQueryPattern:    keyQueryPattern,
 				ContentTypePattern: contentTypePattern,
 				DirectOnly:         directOnly,
 				DirPrefix:          dirPrefix,
@@ -250,6 +267,8 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 		}
 		return s.queries.ListFilesBySizeDesc(ctx, db.ListFilesBySizeDescParams{
 			KeyPattern:         keyPattern,
+			KeyQuery:           query,
+			KeyQueryPattern:    keyQueryPattern,
 			ContentTypePattern: contentTypePattern,
 			DirectOnly:         directOnly,
 			DirPrefix:          dirPrefix,
@@ -325,7 +344,7 @@ func (s *SearchServer) ListDirectory(ctx context.Context, req *pb.ListDirectoryR
 	// Fetch one extra file to detect whether another page exists, even when
 	// remaining is 0: that still tells us whether a FILES-phase token is
 	// needed to resume into (see hasCursor's LastId==0 sentinel in listFiles).
-	filesFetched, err := s.listFiles(ctx, sortField, sortOrder, path, "", true, path, cur, remaining+1)
+	filesFetched, err := s.listFiles(ctx, sortField, sortOrder, "", "", true, path, cur, remaining+1)
 	if err != nil {
 		return nil, err
 	}

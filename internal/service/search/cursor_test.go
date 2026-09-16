@@ -25,8 +25,8 @@ func TestCursorRoundTripKey(t *testing.T) {
 	if got.GetSortField() != pb.SortField_SORT_FIELD_KEY || got.GetSortOrder() != pb.SortOrder_SORT_ORDER_DESC {
 		t.Errorf("sort = (%v, %v), want (KEY, DESC)", got.GetSortField(), got.GetSortOrder())
 	}
-	if got.GetPrefix() != "docs/" || got.GetContentType() != "text/plain" {
-		t.Errorf("filters = (%q, %q), want (docs/, text/plain)", got.GetPrefix(), got.GetContentType())
+	if got.GetQuery() != "docs/" || got.GetContentType() != "text/plain" {
+		t.Errorf("filters = (%q, %q), want (docs/, text/plain)", got.GetQuery(), got.GetContentType())
 	}
 }
 

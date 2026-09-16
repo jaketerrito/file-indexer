@@ -26,11 +26,8 @@ history is the archive.
   type, no tag filter in search. DESIGN.md wants AI-based tagging (heavy-duty
   indexing, separate process) and "string match tags" search.
 - **Date-range search filters** (DESIGN.md): ListFilesRequest filters are
-  prefix + content_type only (proto/service/v1/search.proto); DESIGN.md
+  query + content_type only (proto/service/v1/search.proto); DESIGN.md
   lists date-range filtering on created/updated.
-- **Name-substring search** (DESIGN.md): prefix matching is the only name
-  match today (proto/service/v1/search.proto); DESIGN.md wants string-match
-  name search.
 - **Resumable large uploads** (DESIGN.md): upload is a single presigned PUT
   followed by CommitUpload; an interrupted large upload restarts from zero.
   Add presigned S3 multipart upload for per-part resumability.

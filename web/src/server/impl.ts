@@ -166,8 +166,9 @@ const SORT_ORDER_PB: Record<SortOrderInput, SortOrder> = {
 export interface ListFilesInput {
   pageSize?: number
   pageToken?: string
-  /** Only return files whose key starts with this prefix. */
-  prefix?: string
+  /** Only return files whose key contains this text (case-insensitive
+   * substring) or is a close spelling of it (trigram fuzzy match). */
+  query?: string
   /** Exact MIME type ("image/png") or category prefix ("image/"). */
   contentType?: string
   sortField?: SortFieldInput
@@ -214,11 +215,11 @@ export function validateListFilesInput(input: unknown): ListFilesInput {
     }
     out.pageToken = data.pageToken
   }
-  if (data.prefix !== undefined) {
-    if (typeof data.prefix !== 'string') {
-      throw new Error('prefix must be a string')
+  if (data.query !== undefined) {
+    if (typeof data.query !== 'string') {
+      throw new Error('query must be a string')
     }
-    out.prefix = data.prefix
+    out.query = data.query
   }
   if (data.contentType !== undefined) {
     if (typeof data.contentType !== 'string') {
@@ -257,7 +258,7 @@ export async function listFilesImpl(
   const res = await search.listFiles({
     pageSize: input.pageSize ?? 0,
     pageToken: input.pageToken ?? '',
-    prefix: input.prefix ?? '',
+    query: input.query ?? '',
     contentType: input.contentType ?? '',
     // Explicit defaults match the server's (KEY ascending).
     sortField: SORT_FIELD_PB[input.sortField ?? 'key'],

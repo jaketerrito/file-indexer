@@ -39,7 +39,7 @@ function FilePage() {
           to: '/',
           search: {
             path: data.key.slice(0, data.key.lastIndexOf('/') + 1),
-            prefix: '',
+            query: '',
             type: '',
             sort: 'key',
             order: 'asc',
@@ -76,7 +76,7 @@ function FilePage() {
   return (
     <main style={{ padding: '0 1rem' }}>
       <p>
-        <Link to="/" search={{ path: parentPath, prefix: '', type: '', sort: 'key', order: 'asc' }}>
+        <Link to="/" search={{ path: parentPath, query: '', type: '', sort: 'key', order: 'asc' }}>
           📁 {parentPath === '' ? '/' : parentPath}
         </Link>
       </p>
