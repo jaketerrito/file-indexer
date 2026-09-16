@@ -13,11 +13,6 @@ history is the archive.
   enable gRPC reflection and use a port-forward + an external client
   (grpcurl/grpcui), or add a swagger-style generation path for FilesService
   and SearchService.
-- **Full-service search integration tests** (7/3/26): internal/service/search
-  has only mock-based unit tests; the DB list queries have their own
-  integration coverage (internal/db/list_files_integration_test.go). Add
-  //go:build integration tests that exercise SearchService.ListFiles over a
-  real gRPC server: cursor paging, filters, sorting.
 - **Video/audio/PDF metadata** (7/27/26): imagemeta covers images + camera
   RAW only. A future mp4/id3 extractor can reuse index_exif_result's common
   columns (make, model, taken_at, gps, dimensions) rather than inventing a
@@ -25,9 +20,6 @@ history is the archive.
 - **Tagging and tag search** (DESIGN.md): no tags table, no tagging index
   type, no tag filter in search. DESIGN.md wants AI-based tagging (heavy-duty
   indexing, separate process) and "string match tags" search.
-- **Date-range search filters** (DESIGN.md): ListFilesRequest filters are
-  prefix + content_type only (proto/service/v1/search.proto); DESIGN.md
-  lists date-range filtering on created/updated.
 - **Name-substring search** (DESIGN.md): prefix matching is the only name
   match today (proto/service/v1/search.proto); DESIGN.md wants string-match
   name search.
