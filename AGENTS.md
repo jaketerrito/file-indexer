@@ -92,6 +92,13 @@ interfaces listed in `.mockery.yaml`, and commit the output.
 - `*.localhost` resolves to `::1` first under systemd-resolved; docker-proxy
   IPv6 listeners accept-then-reset and Chrome does not fall back. Bind
   forwarders (e.g. the kind-gateway-proxy socat container) to `127.0.0.1`.
+- When every `*.<ns>.localhost` URL suddenly fails (curl "Empty reply" /
+  connection refused): the shared gateway rots independently of any checkout.
+  The kind-gateway-proxy's target IP goes stale when the gateway address
+  drifts (`just cluster-up` reconciles it), and the provider's envoy LB
+  container (kindccm-gw-*) can lose its xDS config stream after host
+  suspend/resume (visible in its docker logs) and stop listening — restart
+  `cloud-provider-kind`, then re-run `just cluster-up` to retarget the proxy.
 - justfile recipes: a literal `{{` (e.g. `docker ps --format '{{.Names}}'`)
   must be escaped as `{{"{{"}}` or `just` fails with "Unknown start of token".
   Conversely, `{{var}}` is NOT interpolated inside a backtick expression —
