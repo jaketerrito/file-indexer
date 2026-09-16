@@ -181,3 +181,17 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   lint` = biome only, vite build strips types unchecked). Run
   `npm --prefix web run typecheck` before pushing web changes — biome-clean
   code can still fail CI on types.
+- Third-party container images: Docker Hub's `minio` org denies anonymous
+  pulls (401) — `minio/minio` and `minio/mc` both broke CI this way. Use the
+  `quay.io/minio/*` mirrors (same tags); Docker Hub official/library images
+  (postgres, alpine) are unaffected.
+- Renovate Go PRs can ship an incomplete go.sum (no gomodTidy in
+  .github/renovate.json) — missing tool-build hashes break `just lint`; run
+  `go mod tidy` before pushing a fix. Its npm lockfile updates also pin the
+  minimal version satisfying the new range, not the latest — run
+  `npm --prefix web install <pkg>@^<latest>` when the PR should land the
+  newest patch.
+- `gh pr checks --watch` started in the same instant as a push can return
+  the PREVIOUS head's completed results and exit immediately; confirm
+  `gh pr view <N> --json headRefOid` matches the pushed SHA before trusting
+  a fast green/red readout.
