@@ -13,11 +13,6 @@ history is the archive.
   enable gRPC reflection and use a port-forward + an external client
   (grpcurl/grpcui), or add a swagger-style generation path for FilesService
   and SearchService.
-- **Full-service search integration tests** (7/3/26): internal/service/search
-  has only mock-based unit tests; the DB list queries have their own
-  integration coverage (internal/db/list_files_integration_test.go). Add
-  //go:build integration tests that exercise SearchService.ListFiles over a
-  real gRPC server: cursor paging, filters, sorting.
 - **Video/audio/PDF metadata** (7/27/26): imagemeta covers images + camera
   RAW only. A future mp4/id3 extractor can reuse index_exif_result's common
   columns (make, model, taken_at, gps, dimensions) rather than inventing a
