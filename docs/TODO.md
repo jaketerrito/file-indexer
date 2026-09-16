@@ -20,9 +20,6 @@ history is the archive.
 - **Tagging and tag search** (DESIGN.md): no tags table, no tagging index
   type, no tag filter in search. DESIGN.md wants AI-based tagging (heavy-duty
   indexing, separate process) and "string match tags" search.
-- **Date-range search filters** (DESIGN.md): ListFilesRequest filters are
-  prefix + content_type only (proto/service/v1/search.proto); DESIGN.md
-  lists date-range filtering on created/updated.
 - **Name-substring search** (DESIGN.md): prefix matching is the only name
   match today (proto/service/v1/search.proto); DESIGN.md wants string-match
   name search.
