@@ -71,7 +71,7 @@ jobs:
           curl -fsSL "https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" | tar -xz -C ~/.tools just
       - name: Add tools to PATH
         run: echo "$HOME/.tools" >> "$GITHUB_PATH"
-      # Service containers can't override CMD (minio/minio needs
+      # Service containers can't override CMD (quay.io/minio/minio needs
       # `server /data`), so MinIO runs as a plain docker run step instead of
       # a `services:` entry. internal/storage's integration tests create and
       # tear down their own bucket per test, so no seeding is needed here.
@@ -80,7 +80,7 @@ jobs:
           docker run -d --name minio -p 9000:9000 -p 9001:9001 \
             -e MINIO_ROOT_USER=user \
             -e MINIO_ROOT_PASSWORD=password \
-            minio/minio server /data --console-address ":9001"
+            quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z server /data --console-address ":9001"
           for i in $(seq 1 30); do
             if curl -fs http://localhost:9000/minio/health/live > /dev/null; then
               exit 0
