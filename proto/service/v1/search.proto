@@ -41,8 +41,10 @@ message ListFilesRequest {
   // page_size) must match the call that provided the page token; otherwise
   // the request fails with INVALID_ARGUMENT.
   string page_token = 2;
-  // Only return files whose key starts with this prefix.
-  string prefix = 3;
+  // Only return files whose key contains this text (case-insensitive
+  // substring) or is a close spelling of it (trigram fuzzy match). Empty
+  // disables the filter.
+  string query = 3;
   // Filter by MIME type: an exact match like "image/png", or a category
   // prefix ending in "/" like "image/" to match all images.
   string content_type = 4;

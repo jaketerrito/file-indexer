@@ -96,7 +96,7 @@ type PageToken struct {
 	// Matches COALESCE(size_bytes, 0) in the list queries.
 	Size int64 `protobuf:"varint,6,opt,name=size,proto3" json:"size,omitempty"`
 	// Filters the token was issued for, stored raw (before LIKE escaping).
-	Prefix      string `protobuf:"bytes,7,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	Query       string `protobuf:"bytes,7,opt,name=query,proto3" json:"query,omitempty"`
 	ContentType string `protobuf:"bytes,8,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
 	// ListDirectory's own two-phase cursor. path is the directory being
 	// browsed (raw, trailing "/"); phase records whether the previous page
@@ -186,9 +186,9 @@ func (x *PageToken) GetSize() int64 {
 	return 0
 }
 
-func (x *PageToken) GetPrefix() string {
+func (x *PageToken) GetQuery() string {
 	if x != nil {
-		return x.Prefix
+		return x.Query
 	}
 	return ""
 }
@@ -225,7 +225,7 @@ var File_cursor_v1_cursor_proto protoreflect.FileDescriptor
 
 const file_cursor_v1_cursor_proto_rawDesc = "" +
 	"\n" +
-	"\x16cursor/v1/cursor.proto\x12\tcursor.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17service/v1/search.proto\"\x8d\x03\n" +
+	"\x16cursor/v1/cursor.proto\x12\tcursor.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17service/v1/search.proto\"\x8b\x03\n" +
 	"\tPageToken\x124\n" +
 	"\n" +
 	"sort_field\x18\x01 \x01(\x0e2\x15.service.v1.SortFieldR\tsortField\x124\n" +
@@ -234,8 +234,8 @@ const file_cursor_v1_cursor_proto_rawDesc = "" +
 	"\alast_id\x18\x03 \x01(\x03R\x06lastId\x12\x10\n" +
 	"\x03key\x18\x04 \x01(\tR\x03key\x12?\n" +
 	"\rlast_modified\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\flastModified\x12\x12\n" +
-	"\x04size\x18\x06 \x01(\x03R\x04size\x12\x16\n" +
-	"\x06prefix\x18\a \x01(\tR\x06prefix\x12!\n" +
+	"\x04size\x18\x06 \x01(\x03R\x04size\x12\x14\n" +
+	"\x05query\x18\a \x01(\tR\x05query\x12!\n" +
 	"\fcontent_type\x18\b \x01(\tR\vcontentType\x12\x12\n" +
 	"\x04path\x18\t \x01(\tR\x04path\x12*\n" +
 	"\x05phase\x18\n" +

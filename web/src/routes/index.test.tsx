@@ -132,12 +132,12 @@ describe('folder navigation history', () => {
     await waitFor(() => expect(currentFilters(router).path).toBe('docs/'))
 
     // The header app link resets to the default filters — search mode with
-    // no prefix seeding (toSearchFromPath is gone with the old button).
+    // no query seeding (toSearchFromPath is gone with the old button).
     fireEvent.click(screen.getByRole('link', { name: 'file-indexer' }))
     await waitFor(() => {
       expect(currentFilters(router).path).toBeUndefined()
       // stripSearchParams drops default values, so '' never reaches the URL.
-      expect(currentFilters(router).prefix ?? '').toBe('')
+      expect(currentFilters(router).query ?? '').toBe('')
     })
 
     router.history.back()

@@ -139,8 +139,10 @@ type ListFilesRequest struct {
 	// page_size) must match the call that provided the page token; otherwise
 	// the request fails with INVALID_ARGUMENT.
 	PageToken string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
-	// Only return files whose key starts with this prefix.
-	Prefix string `protobuf:"bytes,3,opt,name=prefix,proto3" json:"prefix,omitempty"`
+	// Only return files whose key contains this text (case-insensitive
+	// substring) or is a close spelling of it (trigram fuzzy match). Empty
+	// disables the filter.
+	Query string `protobuf:"bytes,3,opt,name=query,proto3" json:"query,omitempty"`
 	// Filter by MIME type: an exact match like "image/png", or a category
 	// prefix ending in "/" like "image/" to match all images.
 	ContentType   string    `protobuf:"bytes,4,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
@@ -194,9 +196,9 @@ func (x *ListFilesRequest) GetPageToken() string {
 	return ""
 }
 
-func (x *ListFilesRequest) GetPrefix() string {
+func (x *ListFilesRequest) GetQuery() string {
 	if x != nil {
-		return x.Prefix
+		return x.Query
 	}
 	return ""
 }
@@ -519,12 +521,12 @@ var File_service_v1_search_proto protoreflect.FileDescriptor
 const file_service_v1_search_proto_rawDesc = "" +
 	"\n" +
 	"\x17service/v1/search.proto\x12\n" +
-	"service.v1\x1a\x1bbuf/validate/validate.proto\x1a\x16service/v1/files.proto\"\x92\x02\n" +
+	"service.v1\x1a\x1bbuf/validate/validate.proto\x1a\x16service/v1/files.proto\"\x90\x02\n" +
 	"\x10ListFilesRequest\x12$\n" +
 	"\tpage_size\x18\x01 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tR\tpageToken\x12\x16\n" +
-	"\x06prefix\x18\x03 \x01(\tR\x06prefix\x12!\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\x12\x14\n" +
+	"\x05query\x18\x03 \x01(\tR\x05query\x12!\n" +
 	"\fcontent_type\x18\x04 \x01(\tR\vcontentType\x12>\n" +
 	"\n" +
 	"sort_field\x18\x05 \x01(\x0e2\x15.service.v1.SortFieldB\b\xbaH\x05\x82\x01\x02\x10\x01R\tsortField\x12>\n" +

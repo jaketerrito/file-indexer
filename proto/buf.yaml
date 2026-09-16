@@ -9,3 +9,14 @@ lint:
 breaking:
   use:
     - FILE
+  # Intentional field renames (same number and type): ListFilesRequest
+  # prefix->query (3) and PageToken prefix->query (7). Binary-wire compatible;
+  # every consumer (Go services, web TS client) is regenerated from these
+  # protos in the same commit, and page tokens are short-lived. See PR #105.
+  ignore_only:
+    FIELD_SAME_NAME:
+      - service/v1/search.proto
+      - cursor/v1/cursor.proto
+    FIELD_SAME_JSON_NAME:
+      - service/v1/search.proto
+      - cursor/v1/cursor.proto

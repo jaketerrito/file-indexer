@@ -132,13 +132,13 @@ describe('validateListFilesInput', () => {
   it('accepts filter and sort fields', () => {
     expect(
       validateListFilesInput({
-        prefix: 'docs/',
+        query: 'docs/',
         contentType: 'image/',
         sortField: 'size',
         sortOrder: 'desc',
       }),
     ).toEqual({
-      prefix: 'docs/',
+      query: 'docs/',
       contentType: 'image/',
       sortField: 'size',
       sortOrder: 'desc',
@@ -146,7 +146,7 @@ describe('validateListFilesInput', () => {
   })
 
   it.each([
-    [{ prefix: 42 }, /prefix/],
+    [{ query: 42 }, /query/],
     [{ contentType: 42 }, /contentType/],
     [{ sortField: 'bogus' }, /sortField/],
     [{ sortField: 1 }, /sortField/],
@@ -202,7 +202,7 @@ describe('listFilesImpl', () => {
     expect(listFiles).toHaveBeenCalledWith({
       pageSize: 25,
       pageToken: 'token-1',
-      prefix: '',
+      query: '',
       contentType: '',
       sortField: SortField.KEY,
       sortOrder: SortOrder.ASC,
@@ -218,7 +218,7 @@ describe('listFilesImpl', () => {
     const search = { listFiles } as unknown as Client<typeof SearchService>
 
     await listFilesImpl(search, noPreviewFilesClient(), {
-      prefix: 'docs/',
+      query: 'docs/',
       contentType: 'image/',
       sortField: 'size',
       sortOrder: 'desc',
@@ -227,7 +227,7 @@ describe('listFilesImpl', () => {
     expect(listFiles).toHaveBeenCalledWith({
       pageSize: 0,
       pageToken: '',
-      prefix: 'docs/',
+      query: 'docs/',
       contentType: 'image/',
       sortField: SortField.SIZE,
       sortOrder: SortOrder.DESC,
@@ -245,7 +245,7 @@ describe('listFilesImpl', () => {
     expect(listFiles).toHaveBeenCalledWith({
       pageSize: 0,
       pageToken: '',
-      prefix: '',
+      query: '',
       contentType: '',
       sortField: SortField.KEY,
       sortOrder: SortOrder.ASC,

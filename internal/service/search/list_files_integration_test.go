@@ -9,6 +9,7 @@ import (
 	pb "file-indexer/internal/pb/service/v1"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -190,7 +191,7 @@ func TestListFilesIntegrationSorting(t *testing.T) {
 	client := searchClient(t, pool)
 
 	// Unspecified sort field/order defaults to KEY/ASC end-to-end.
-	resp := mustListFiles(t, client, &pb.ListFilesRequest{Prefix: prefix})
+	resp := mustListFiles(t, client, &pb.ListFilesRequest{Query: prefix})
 	assertInfoKeys(t, resp.GetFiles(), prefix+"a.txt", prefix+"b.png", prefix+"c.jpg")
 
 	// The proto mapping lands from real columns: stat results populate the
@@ -219,7 +220,7 @@ func TestListFilesIntegrationSorting(t *testing.T) {
 
 	// Size descending: 300, 200, 100.
 	resp = mustListFiles(t, client, &pb.ListFilesRequest{
-		Prefix:    prefix,
+		Query:     prefix,
 		SortField: pb.SortField_SORT_FIELD_SIZE,
 		SortOrder: pb.SortOrder_SORT_ORDER_DESC,
 	})
@@ -227,7 +228,7 @@ func TestListFilesIntegrationSorting(t *testing.T) {
 
 	// Last-modified ascending: base+1s, base+2s, base+3s.
 	resp = mustListFiles(t, client, &pb.ListFilesRequest{
-		Prefix:    prefix,
+		Query:     prefix,
 		SortField: pb.SortField_SORT_FIELD_LAST_MODIFIED,
 		SortOrder: pb.SortOrder_SORT_ORDER_ASC,
 	})
@@ -239,14 +240,14 @@ func TestListFilesIntegrationPaging(t *testing.T) {
 	prefix := seedListFiles(t, pool)
 	client := searchClient(t, pool)
 
-	page1 := mustListFiles(t, client, &pb.ListFilesRequest{Prefix: prefix, PageSize: 2})
+	page1 := mustListFiles(t, client, &pb.ListFilesRequest{Query: prefix, PageSize: 2})
 	assertInfoKeys(t, page1.GetFiles(), prefix+"a.txt", prefix+"b.png")
 	if page1.GetNextPageToken() == "" {
 		t.Fatal("page 1 NextPageToken is empty, want a token for page 2")
 	}
 
 	page2 := mustListFiles(t, client, &pb.ListFilesRequest{
-		Prefix:    prefix,
+		Query:     prefix,
 		PageSize:  2,
 		PageToken: page1.GetNextPageToken(),
 	})
@@ -259,7 +260,7 @@ func TestListFilesIntegrationPaging(t *testing.T) {
 	// page_size/page_token) is invalid — here over the wire, not just
 	// against decodeCursor.
 	err := listFilesErr(t, client, &pb.ListFilesRequest{
-		Prefix:    uniqueKey(t) + "/",
+		Query:     uniqueKey(t) + "/",
 		PageSize:  2,
 		PageToken: page1.GetNextPageToken(),
 	})
@@ -267,7 +268,7 @@ func TestListFilesIntegrationPaging(t *testing.T) {
 		t.Errorf("mismatched token: code = %v, want InvalidArgument (err=%v)", code, err)
 	}
 
-	err = listFilesErr(t, client, &pb.ListFilesRequest{Prefix: prefix, PageToken: "not-a-token"})
+	err = listFilesErr(t, client, &pb.ListFilesRequest{Query: prefix, PageToken: "not-a-token"})
 	if code := status.Code(err); code != codes.InvalidArgument {
 		t.Errorf("garbage token: code = %v, want InvalidArgument (err=%v)", code, err)
 	}
@@ -276,18 +277,32 @@ func TestListFilesIntegrationPaging(t *testing.T) {
 func TestListFilesIntegrationFilters(t *testing.T) {
 	pool := testPool(t)
 	prefix := seedListFiles(t, pool)
-	// A stray file under a different prefix must not leak into the results.
-	createListFile(t, pool, uniqueKey(t)+"/stray.txt", "text/plain", 1, time.Now().UTC())
+	// A stray file with no trigram overlap with the fixtures must not leak
+	// into the results — not even via the fuzzy word-similarity branch. (A
+	// near-identical key WOULD match: that is the intended typo tolerance,
+	// not a leak.)
+	createListFile(t, pool, "zz-unrelated/stray.txt", "text/plain", 1, time.Now().UTC())
 	client := searchClient(t, pool)
 
-	resp := mustListFiles(t, client, &pb.ListFilesRequest{Prefix: prefix})
+	resp := mustListFiles(t, client, &pb.ListFilesRequest{Query: prefix})
 	assertInfoKeys(t, resp.GetFiles(), prefix+"a.txt", prefix+"b.png", prefix+"c.jpg")
 
+	// The query is a substring match, not a key prefix: dropping the leading
+	// "it/" still finds every fixture key.
+	resp = mustListFiles(t, client, &pb.ListFilesRequest{Query: strings.TrimPrefix(prefix, "it/")})
+	assertInfoKeys(t, resp.GetFiles(), prefix+"a.txt", prefix+"b.png", prefix+"c.jpg")
+
+	// A query with no lexical overlap matches nothing. (It must share no
+	// trigrams with the stray key either: a near-spelling of an existing key
+	// is exactly what the fuzzy branch is supposed to match.)
+	resp = mustListFiles(t, client, &pb.ListFilesRequest{Query: "qwxyz-nomatch"})
+	assertInfoKeys(t, resp.GetFiles())
+
 	// A category ("image/") is a prefix match.
-	resp = mustListFiles(t, client, &pb.ListFilesRequest{Prefix: prefix, ContentType: "image/"})
+	resp = mustListFiles(t, client, &pb.ListFilesRequest{Query: prefix, ContentType: "image/"})
 	assertInfoKeys(t, resp.GetFiles(), prefix+"b.png", prefix+"c.jpg")
 
 	// Anything else matches exactly.
-	resp = mustListFiles(t, client, &pb.ListFilesRequest{Prefix: prefix, ContentType: "image/png"})
+	resp = mustListFiles(t, client, &pb.ListFilesRequest{Query: prefix, ContentType: "image/png"})
 	assertInfoKeys(t, resp.GetFiles(), prefix+"b.png")
 }

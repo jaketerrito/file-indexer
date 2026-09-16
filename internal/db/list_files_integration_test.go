@@ -209,6 +209,47 @@ func TestListFilesPrefixIsolation(t *testing.T) {
 	}
 }
 
+func TestListFilesKeyQuery(t *testing.T) {
+	conn := testConn(t)
+	q := New(conn)
+	ctx := context.Background()
+	prefix := uniqueKey(t) + "/"
+	now := time.Now().UTC()
+	report := prefix + "january-quarterly-report.pdf"
+	createListFile(t, conn, report, "application/pdf", 100, now)
+	createListFile(t, conn, prefix+"a.txt", "text/plain", 100, now)
+
+	tests := []struct {
+		name    string
+		query   string
+		pattern string
+		want    []string
+	}{
+		// Mid-key substring: a prefix LIKE could never match this.
+		{"substring mid-key", "quarterly-report", "%quarterly-report%", []string{report}},
+		// ILIKE branch is case-insensitive.
+		{"case-insensitive", "QUARTERLY-REPORT", "%QUARTERLY-REPORT%", []string{report}},
+		// Transposed letters: ILIKE cannot match, so the hit must come from
+		// the %> word-similarity branch alone.
+		{"fuzzy transposition", "quarterly-reprot", "%quarterly-reprot%", []string{report}},
+		{"no match", "zzz-unrelated", "%zzz-unrelated%", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			files, err := q.ListFilesByKeyAsc(ctx, ListFilesByKeyAscParams{
+				KeyPattern:      prefix + "%",
+				KeyQuery:        tt.query,
+				KeyQueryPattern: tt.pattern,
+				PageLimit:       10,
+			})
+			if err != nil {
+				t.Fatalf("ListFilesByKeyAsc: %v", err)
+			}
+			assertKeys(t, files, tt.want...)
+		})
+	}
+}
+
 func TestListFilesKeysetPagination(t *testing.T) {
 	conn := testConn(t)
 	q := New(conn)

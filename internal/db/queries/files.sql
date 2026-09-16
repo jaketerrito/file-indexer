@@ -85,7 +85,14 @@ LIMIT sqlc.arg(page_limit);
 -- service: one query per (sort field, direction), always tie-breaking on id
 -- so cursors are stable. key_pattern and content_type_pattern are LIKE
 -- patterns built (and escaped) by the caller; an empty content_type_pattern
--- disables the content type filter. When has_cursor is false the last_*
+-- disables the content type filter. key_query is the raw text search string;
+-- key_query_pattern is the escaped '%'+key_query+'%' ILIKE pattern for the
+-- substring branch. An empty key_query disables the text filter; otherwise a
+-- row matches when its key contains the query (case-insensitive ILIKE) or is
+-- a close spelling of it (pg_trgm %> word similarity at the default 0.6
+-- threshold — plain % compares whole strings, so a short query against a
+-- long key could never reach its threshold).
+-- When has_cursor is false the last_*
 -- arguments are ignored. Metadata columns come from the stat index via the
 -- file_infos view and are NULL until a file is indexed; sorts fall back via
 -- COALESCE so unindexed files group together instead of disappearing.
@@ -101,6 +108,7 @@ LIMIT sqlc.arg(page_limit);
 -- name: ListFilesByKeyAsc :many
 SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
+  AND (sqlc.arg(key_query)::text = '' OR key ILIKE sqlc.arg(key_query_pattern) OR key %> sqlc.arg(key_query))
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
   AND (NOT sqlc.arg(direct_only)::bool OR strpos(substr(key, char_length(sqlc.arg(dir_prefix)::text) + 1), '/') = 0)
   AND (NOT sqlc.arg(has_cursor)::bool OR (key, id) > (sqlc.arg(last_key)::text, sqlc.arg(last_id)::bigint))
@@ -110,6 +118,7 @@ LIMIT sqlc.arg(page_limit);
 -- name: ListFilesByKeyDesc :many
 SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
+  AND (sqlc.arg(key_query)::text = '' OR key ILIKE sqlc.arg(key_query_pattern) OR key %> sqlc.arg(key_query))
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
   AND (NOT sqlc.arg(direct_only)::bool OR strpos(substr(key, char_length(sqlc.arg(dir_prefix)::text) + 1), '/') = 0)
   AND (NOT sqlc.arg(has_cursor)::bool OR (key, id) < (sqlc.arg(last_key)::text, sqlc.arg(last_id)::bigint))
@@ -119,6 +128,7 @@ LIMIT sqlc.arg(page_limit);
 -- name: ListFilesByLastModifiedAsc :many
 SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
+  AND (sqlc.arg(key_query)::text = '' OR key ILIKE sqlc.arg(key_query_pattern) OR key %> sqlc.arg(key_query))
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
   AND (NOT sqlc.arg(direct_only)::bool OR strpos(substr(key, char_length(sqlc.arg(dir_prefix)::text) + 1), '/') = 0)
   AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(last_modified, 'epoch'::timestamptz), id) > (sqlc.arg(cursor_last_modified)::timestamptz, sqlc.arg(last_id)::bigint))
@@ -128,6 +138,7 @@ LIMIT sqlc.arg(page_limit);
 -- name: ListFilesByLastModifiedDesc :many
 SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
+  AND (sqlc.arg(key_query)::text = '' OR key ILIKE sqlc.arg(key_query_pattern) OR key %> sqlc.arg(key_query))
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
   AND (NOT sqlc.arg(direct_only)::bool OR strpos(substr(key, char_length(sqlc.arg(dir_prefix)::text) + 1), '/') = 0)
   AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(last_modified, 'epoch'::timestamptz), id) < (sqlc.arg(cursor_last_modified)::timestamptz, sqlc.arg(last_id)::bigint))
@@ -137,6 +148,7 @@ LIMIT sqlc.arg(page_limit);
 -- name: ListFilesBySizeAsc :many
 SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
+  AND (sqlc.arg(key_query)::text = '' OR key ILIKE sqlc.arg(key_query_pattern) OR key %> sqlc.arg(key_query))
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
   AND (NOT sqlc.arg(direct_only)::bool OR strpos(substr(key, char_length(sqlc.arg(dir_prefix)::text) + 1), '/') = 0)
   AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(size_bytes, 0), id) > (sqlc.arg(last_size)::bigint, sqlc.arg(last_id)::bigint))
@@ -146,6 +158,7 @@ LIMIT sqlc.arg(page_limit);
 -- name: ListFilesBySizeDesc :many
 SELECT * FROM file_infos
 WHERE key LIKE sqlc.arg(key_pattern)
+  AND (sqlc.arg(key_query)::text = '' OR key ILIKE sqlc.arg(key_query_pattern) OR key %> sqlc.arg(key_query))
   AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
   AND (NOT sqlc.arg(direct_only)::bool OR strpos(substr(key, char_length(sqlc.arg(dir_prefix)::text) + 1), '/') = 0)
   AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(size_bytes, 0), id) < (sqlc.arg(last_size)::bigint, sqlc.arg(last_id)::bigint))
