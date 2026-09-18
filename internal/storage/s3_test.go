@@ -40,6 +40,33 @@ func TestGetURLSignsAgainstPublicEndpoint(t *testing.T) {
 	}
 }
 
+func TestUploadPartURLSignsPartAndUploadID(t *testing.T) {
+	s, err := New("internal:9000", "id", "secret", false, "bkt", "us-east-1")
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	raw, err := s.UploadPartURL(context.Background(), "big/movie.mp4", "upload-123", 7)
+	if err != nil {
+		t.Fatalf("UploadPartURL: %v", err)
+	}
+
+	u, err := url.Parse(raw)
+	if err != nil {
+		t.Fatalf("url.Parse(%q): %v", raw, err)
+	}
+	q := u.Query()
+	if q.Get("uploadId") != "upload-123" {
+		t.Errorf("uploadId = %q, want upload-123", q.Get("uploadId"))
+	}
+	if q.Get("partNumber") != "7" {
+		t.Errorf("partNumber = %q, want 7", q.Get("partNumber"))
+	}
+	if q.Get("X-Amz-Signature") == "" {
+		t.Error("missing X-Amz-Signature query parameter")
+	}
+}
+
 func TestNewWithPublicEndpointRejectsInvalidEndpoint(t *testing.T) {
 	if _, err := NewWithPublicEndpoint("internal:9000", "http://has-a-scheme:9000", "id", "secret", false, "bkt", "us-east-1"); err == nil {
 		t.Error("expected error for public endpoint with scheme, got nil")

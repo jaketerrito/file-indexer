@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -152,6 +154,86 @@ func (s *s3Storage) Put(ctx context.Context, key string, r io.Reader, size int64
 	_, err := s.client.PutObject(ctx, s.bucket, key, r, size,
 		minio.PutObjectOptions{ContentType: contentType})
 	return err
+}
+
+// multipartCore wraps the internal (non-presigning) client with minio-go's
+// low-level multipart API. Core is a thin adapter (Core{Client: ...}), never
+// wrapped over presignClient: initiating, listing, completing, and aborting
+// a multipart upload are admin calls this service makes directly against
+// S3, not URLs handed to a browser.
+func (s *s3Storage) multipartCore() minio.Core {
+	return minio.Core{Client: s.client}
+}
+
+func (s *s3Storage) CreateMultipartUpload(ctx context.Context, key, contentType string) (string, error) {
+	return s.multipartCore().NewMultipartUpload(ctx, s.bucket, key, minio.PutObjectOptions{ContentType: contentType})
+}
+
+// UploadPartURL presigns a PUT for one part exactly as S3's UploadPart API
+// expects it: the partNumber and uploadId query parameters are bound into
+// the signature, so the client's PUT must carry them unchanged.
+func (s *s3Storage) UploadPartURL(ctx context.Context, key, uploadID string, partNumber int) (string, error) {
+	reqParams := make(url.Values)
+	reqParams.Set("uploadId", uploadID)
+	reqParams.Set("partNumber", strconv.Itoa(partNumber))
+	presignedURL, err := s.presignClient.Presign(ctx, http.MethodPut, s.bucket, key, presignExpiry, reqParams)
+	if err != nil {
+		return "", err
+	}
+	return presignedURL.String(), nil
+}
+
+// listAllParts pages through ListObjectParts, since S3 caps a single
+// response to maxPartsPerPage parts.
+const maxPartsPerPage = 1000
+
+func (s *s3Storage) listAllParts(ctx context.Context, key, uploadID string) ([]minio.ObjectPart, error) {
+	core := s.multipartCore()
+	var parts []minio.ObjectPart
+	marker := 0
+	for {
+		result, err := core.ListObjectParts(ctx, s.bucket, key, uploadID, marker, maxPartsPerPage)
+		if err != nil {
+			return nil, err
+		}
+		parts = append(parts, result.ObjectParts...)
+		if !result.IsTruncated {
+			return parts, nil
+		}
+		marker = result.NextPartNumberMarker
+	}
+}
+
+func (s *s3Storage) ListParts(ctx context.Context, key, uploadID string) ([]PartInfo, error) {
+	parts, err := s.listAllParts(ctx, key, uploadID)
+	if err != nil {
+		return nil, err
+	}
+	infos := make([]PartInfo, len(parts))
+	for i, p := range parts {
+		infos[i] = PartInfo{PartNumber: p.PartNumber, Size: p.Size}
+	}
+	return infos, nil
+}
+
+// CompleteMultipartUpload lists uploadID's landed parts itself (never
+// trusting a client-supplied part/ETag list) and submits them to S3 in
+// part-number order, which CompleteMultipartUpload requires.
+func (s *s3Storage) CompleteMultipartUpload(ctx context.Context, key, uploadID string) error {
+	parts, err := s.listAllParts(ctx, key, uploadID)
+	if err != nil {
+		return err
+	}
+	completeParts := make([]minio.CompletePart, len(parts))
+	for i, p := range parts {
+		completeParts[i] = minio.CompletePart{PartNumber: p.PartNumber, ETag: p.ETag}
+	}
+	_, err = s.multipartCore().CompleteMultipartUpload(ctx, s.bucket, key, uploadID, completeParts, minio.PutObjectOptions{})
+	return err
+}
+
+func (s *s3Storage) AbortMultipartUpload(ctx context.Context, key, uploadID string) error {
+	return s.multipartCore().AbortMultipartUpload(ctx, s.bucket, key, uploadID)
 }
 
 func (s *s3Storage) Walk(ctx context.Context, fn func(ObjectInfo) error) error {

@@ -380,3 +380,105 @@ func TestDeleteManyManyKeys(t *testing.T) {
 		t.Errorf("remaining objects under bulk/ = %d, want 0", remaining)
 	}
 }
+
+// minMultipartPartSize is S3's minimum part size for every part except the
+// last; the first part below must meet it or CompleteMultipartUpload fails.
+const minMultipartPartSize = 5 << 20 // 5 MiB
+
+func putPart(t *testing.T, url, body string) {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodPut, url, strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec // presigned URL built by the code under test
+	if err != nil {
+		t.Fatalf("PUT part: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("PUT part status = %d, want 200", resp.StatusCode)
+	}
+}
+
+// TestMultipartUploadRoundTrip drives the full resumable-upload sequence a
+// browser client does: initiate, presign+PUT each part directly (never
+// through this service), confirm ListParts sees what landed before every
+// part is up (the resume check), then complete and verify the object.
+func TestMultipartUploadRoundTrip(t *testing.T) {
+	s, _, _ := setupBucket(t)
+	ctx := context.Background()
+
+	uploadID, err := s.CreateMultipartUpload(ctx, "big/movie.mp4", "video/mp4")
+	if err != nil {
+		t.Fatalf("CreateMultipartUpload: %v", err)
+	}
+
+	part1 := strings.Repeat("a", minMultipartPartSize)
+	part2 := "final short part"
+
+	url1, err := s.UploadPartURL(ctx, "big/movie.mp4", uploadID, 1)
+	if err != nil {
+		t.Fatalf("UploadPartURL(1): %v", err)
+	}
+	putPart(t, url1, part1)
+
+	parts, err := s.ListParts(ctx, "big/movie.mp4", uploadID)
+	if err != nil {
+		t.Fatalf("ListParts after part 1: %v", err)
+	}
+	if len(parts) != 1 || parts[0].PartNumber != 1 || parts[0].Size != int64(len(part1)) {
+		t.Fatalf("ListParts after part 1 = %+v, want one part (1, %d)", parts, len(part1))
+	}
+
+	url2, err := s.UploadPartURL(ctx, "big/movie.mp4", uploadID, 2)
+	if err != nil {
+		t.Fatalf("UploadPartURL(2): %v", err)
+	}
+	putPart(t, url2, part2)
+
+	if err := s.CompleteMultipartUpload(ctx, "big/movie.mp4", uploadID); err != nil {
+		t.Fatalf("CompleteMultipartUpload: %v", err)
+	}
+
+	obj, err := s.Get(ctx, "big/movie.mp4")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	defer func() { _ = obj.Reader.Close() }()
+	got, err := io.ReadAll(obj.Reader)
+	if err != nil {
+		t.Fatalf("ReadAll: %v", err)
+	}
+	if string(got) != part1+part2 {
+		t.Errorf("assembled object length = %d, want %d", len(got), len(part1)+len(part2))
+	}
+	if obj.ContentType != "video/mp4" {
+		t.Errorf("ContentType = %q, want video/mp4", obj.ContentType)
+	}
+}
+
+// TestAbortMultipartUpload confirms an aborted upload's parts are gone: S3
+// refuses to complete it afterward.
+func TestAbortMultipartUpload(t *testing.T) {
+	s, _, _ := setupBucket(t)
+	ctx := context.Background()
+
+	uploadID, err := s.CreateMultipartUpload(ctx, "big/cancelled.bin", "application/octet-stream")
+	if err != nil {
+		t.Fatalf("CreateMultipartUpload: %v", err)
+	}
+	url, err := s.UploadPartURL(ctx, "big/cancelled.bin", uploadID, 1)
+	if err != nil {
+		t.Fatalf("UploadPartURL: %v", err)
+	}
+	putPart(t, url, strings.Repeat("b", minMultipartPartSize))
+
+	if err := s.AbortMultipartUpload(ctx, "big/cancelled.bin", uploadID); err != nil {
+		t.Fatalf("AbortMultipartUpload: %v", err)
+	}
+
+	if err := s.CompleteMultipartUpload(ctx, "big/cancelled.bin", uploadID); err == nil {
+		t.Error("CompleteMultipartUpload after abort: expected error, got nil")
+	}
+}

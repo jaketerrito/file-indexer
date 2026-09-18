@@ -601,6 +601,191 @@ func TestCommitUploadRejectsReservedPrefix(t *testing.T) {
 	storage.AssertNotCalled(t, "Stat", mock.Anything, mock.Anything)
 }
 
+func TestCreateMultipartUpload(t *testing.T) {
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().CreateMultipartUpload(mock.Anything, "big/movie.mp4", "video/mp4").
+		Return("upload-123", nil)
+
+	srv := FilesServer{storage: storage, indexPrefix: ".index/"}
+
+	resp, err := srv.CreateMultipartUpload(context.Background(), &pb.CreateMultipartUploadRequest{
+		Key:         "big/movie.mp4",
+		ContentType: "video/mp4",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.UploadId != "upload-123" {
+		t.Errorf("UploadId = %q, want upload-123", resp.UploadId)
+	}
+}
+
+func TestCreateMultipartUploadRejectsReservedPrefix(t *testing.T) {
+	storage := NewMockObjectStore(t)
+
+	srv := FilesServer{storage: storage, indexPrefix: ".index/"}
+
+	_, err := srv.CreateMultipartUpload(context.Background(), &pb.CreateMultipartUploadRequest{Key: ".index/x"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	storage.AssertNotCalled(t, "CreateMultipartUpload", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestGetUploadPartURL(t *testing.T) {
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().UploadPartURL(mock.Anything, "big/movie.mp4", "upload-123", 3).
+		Return("https://example.com/part-url", nil)
+
+	srv := FilesServer{storage: storage, indexPrefix: ".index/"}
+
+	resp, err := srv.GetUploadPartURL(context.Background(), &pb.GetUploadPartURLRequest{
+		Key:        "big/movie.mp4",
+		UploadId:   "upload-123",
+		PartNumber: 3,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Url != "https://example.com/part-url" {
+		t.Errorf("Url = %q", resp.Url)
+	}
+}
+
+func TestGetUploadPartURLRejectsEmptyUploadID(t *testing.T) {
+	srv := FilesServer{storage: NewMockObjectStore(t), indexPrefix: ".index/"}
+
+	_, err := srv.GetUploadPartURL(context.Background(), &pb.GetUploadPartURLRequest{
+		Key: "big/movie.mp4", UploadId: "", PartNumber: 1,
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestGetUploadPartURLRejectsOutOfRangePartNumber(t *testing.T) {
+	srv := FilesServer{storage: NewMockObjectStore(t), indexPrefix: ".index/"}
+
+	for _, n := range []int32{0, -1, 10001} {
+		_, err := srv.GetUploadPartURL(context.Background(), &pb.GetUploadPartURLRequest{
+			Key: "big/movie.mp4", UploadId: "upload-123", PartNumber: n,
+		})
+		if err == nil {
+			t.Errorf("part_number %d: expected error, got nil", n)
+		}
+	}
+}
+
+func TestListUploadedParts(t *testing.T) {
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().ListParts(mock.Anything, "big/movie.mp4", "upload-123").
+		Return([]objstore.PartInfo{{PartNumber: 1, Size: 5 << 20}, {PartNumber: 2, Size: 1024}}, nil)
+
+	srv := FilesServer{storage: storage, indexPrefix: ".index/"}
+
+	resp, err := srv.ListUploadedParts(context.Background(), &pb.ListUploadedPartsRequest{
+		Key: "big/movie.mp4", UploadId: "upload-123",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Parts) != 2 || resp.Parts[0].PartNumber != 1 || resp.Parts[0].Size != 5<<20 ||
+		resp.Parts[1].PartNumber != 2 || resp.Parts[1].Size != 1024 {
+		t.Errorf("Parts = %+v", resp.Parts)
+	}
+}
+
+func TestListUploadedPartsRejectsEmptyUploadID(t *testing.T) {
+	srv := FilesServer{storage: NewMockObjectStore(t), indexPrefix: ".index/"}
+
+	_, err := srv.ListUploadedParts(context.Background(), &pb.ListUploadedPartsRequest{Key: "big/movie.mp4"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestCompleteMultipartUpload(t *testing.T) {
+	now := time.Now()
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().UpsertFilesWithDirectories(mock.Anything, db.UpsertFilesParams{
+		Keys:      []string{"big/movie.mp4"},
+		MarkedAts: []pgtype.Timestamptz{{Time: now, Valid: true}},
+	}).Return(int64(1), nil)
+	queries.EXPECT().GetFileByKey(mock.Anything, "big/movie.mp4").
+		Return(db.FileInfo{ID: 9, Key: "big/movie.mp4"}, nil)
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().CompleteMultipartUpload(mock.Anything, "big/movie.mp4", "upload-123").Return(nil)
+	storage.EXPECT().Stat(mock.Anything, "big/movie.mp4").
+		Return(objstore.ObjectInfo{Key: "big/movie.mp4", LastModified: now}, nil)
+
+	srv := FilesServer{queries: queries, storage: storage, indexPrefix: ".index/"}
+
+	resp, err := srv.CompleteMultipartUpload(context.Background(), &pb.CompleteMultipartUploadRequest{
+		Key: "big/movie.mp4", UploadId: "upload-123",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.File.Id != 9 || resp.File.Key != "big/movie.mp4" {
+		t.Errorf("CompleteMultipartUpload = %+v", resp.File)
+	}
+}
+
+func TestCompleteMultipartUploadStorageError(t *testing.T) {
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().CompleteMultipartUpload(mock.Anything, "big/movie.mp4", "upload-123").
+		Return(errors.New("s3 down"))
+
+	queries := NewMockFileIndex(t)
+
+	srv := FilesServer{queries: queries, storage: storage, indexPrefix: ".index/"}
+
+	_, err := srv.CompleteMultipartUpload(context.Background(), &pb.CompleteMultipartUploadRequest{
+		Key: "big/movie.mp4", UploadId: "upload-123",
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	queries.AssertNotCalled(t, "UpsertFilesWithDirectories", mock.Anything, mock.Anything)
+}
+
+func TestCompleteMultipartUploadRejectsEmptyUploadID(t *testing.T) {
+	srv := FilesServer{storage: NewMockObjectStore(t), indexPrefix: ".index/"}
+
+	_, err := srv.CompleteMultipartUpload(context.Background(), &pb.CompleteMultipartUploadRequest{Key: "big/movie.mp4"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestAbortMultipartUpload(t *testing.T) {
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().AbortMultipartUpload(mock.Anything, "big/movie.mp4", "upload-123").Return(nil)
+
+	srv := FilesServer{storage: storage, indexPrefix: ".index/"}
+
+	if _, err := srv.AbortMultipartUpload(context.Background(), &pb.AbortMultipartUploadRequest{
+		Key: "big/movie.mp4", UploadId: "upload-123",
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestAbortMultipartUploadRejectsReservedPrefix(t *testing.T) {
+	storage := NewMockObjectStore(t)
+
+	srv := FilesServer{storage: storage, indexPrefix: ".index/"}
+
+	_, err := srv.AbortMultipartUpload(context.Background(), &pb.AbortMultipartUploadRequest{
+		Key: ".index/x", UploadId: "upload-123",
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	storage.AssertNotCalled(t, "AbortMultipartUpload", mock.Anything, mock.Anything, mock.Anything)
+}
+
 func TestGetDirectoryStats(t *testing.T) {
 	queries := NewMockFileIndex(t)
 	queries.EXPECT().GetDirectoryStats(mock.Anything, "docs/%").

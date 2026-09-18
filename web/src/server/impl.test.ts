@@ -4,6 +4,8 @@ import type { Client } from '@connectrpc/connect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   CommitUploadResponseSchema,
+  CompleteMultipartUploadResponseSchema,
+  CreateMultipartUploadResponseSchema,
   DeleteDirectoryResponseSchema,
   DeleteFileResponseSchema,
   DownloadURLSpecSchema,
@@ -14,8 +16,11 @@ import {
   GetDownloadURLResponseSchema,
   GetFileInfoResponseSchema,
   GetPreviewURLResponseSchema,
+  GetUploadPartURLResponseSchema,
   GetUploadURLResponseSchema,
+  ListUploadedPartsResponseSchema,
   PreviewURLSpecSchema,
+  UploadedPartSchema,
 } from '../gen/service/v1/files_pb'
 import {
   ListContentTypesResponseSchema,
@@ -26,23 +31,31 @@ import {
   SortOrder,
 } from '../gen/service/v1/search_pb'
 import {
+  abortMultipartUploadImpl,
   commitUploadImpl,
+  completeMultipartUploadImpl,
+  createMultipartUploadImpl,
   deleteDirectoryImpl,
   deleteFileImpl,
   getDirectoryStatsImpl,
   getDownloadUrlImpl,
   getFileMetadataImpl,
+  getUploadPartUrlImpl,
   getUploadUrlImpl,
   listContentTypesImpl,
   listDirectoryImpl,
   listFilesImpl,
+  listUploadedPartsImpl,
   toFileDto,
   toFileMetadataDto,
+  validateCreateMultipartUploadInput,
   validateIdInput,
   validateKeyInput,
   validateListDirectoryInput,
   validateListFilesInput,
   validatePathInput,
+  validateUploadIdInput,
+  validateUploadPartUrlInput,
 } from './impl'
 
 const CREATED_AT = new Date('2026-01-02T03:04:05.000Z')
@@ -462,6 +475,145 @@ describe('commitUploadImpl', () => {
     } as unknown as Client<typeof FilesService>
 
     await expect(commitUploadImpl(client, 'docs/report.pdf')).rejects.toThrow('no file returned')
+  })
+})
+
+describe('validateCreateMultipartUploadInput', () => {
+  it('accepts key and contentType', () => {
+    expect(
+      validateCreateMultipartUploadInput({ key: 'big/movie.mp4', contentType: 'video/mp4' }),
+    ).toEqual({ key: 'big/movie.mp4', contentType: 'video/mp4' })
+  })
+
+  it.each([
+    [{}],
+    [{ key: 'k' }],
+    [{ key: '', contentType: 'video/mp4' }],
+    [{ key: 'k', contentType: '' }],
+  ])('rejects %j', (input) => {
+    expect(() => validateCreateMultipartUploadInput(input)).toThrow()
+  })
+})
+
+describe('createMultipartUploadImpl', () => {
+  it('sends key and contentType, returns the upload id', async () => {
+    const createMultipartUpload = vi
+      .fn()
+      .mockResolvedValue(create(CreateMultipartUploadResponseSchema, { uploadId: 'upload-1' }))
+    const client = { createMultipartUpload } as unknown as Client<typeof FilesService>
+
+    await expect(createMultipartUploadImpl(client, 'big/movie.mp4', 'video/mp4')).resolves.toEqual({
+      uploadId: 'upload-1',
+    })
+    expect(createMultipartUpload).toHaveBeenCalledWith({
+      key: 'big/movie.mp4',
+      contentType: 'video/mp4',
+    })
+  })
+})
+
+describe('validateUploadPartUrlInput', () => {
+  it('accepts key, uploadId, and an integer partNumber', () => {
+    expect(validateUploadPartUrlInput({ key: 'k', uploadId: 'u', partNumber: 3 })).toEqual({
+      key: 'k',
+      uploadId: 'u',
+      partNumber: 3,
+    })
+  })
+
+  it.each([
+    [{ uploadId: 'u', partNumber: 1 }],
+    [{ key: 'k', partNumber: 1 }],
+    [{ key: 'k', uploadId: 'u' }],
+    [{ key: 'k', uploadId: 'u', partNumber: 1.5 }],
+  ])('rejects %j', (input) => {
+    expect(() => validateUploadPartUrlInput(input)).toThrow()
+  })
+})
+
+describe('getUploadPartUrlImpl', () => {
+  it('requests key, uploadId, and partNumber and returns the presigned URL', async () => {
+    const getUploadPartURL = vi
+      .fn()
+      .mockResolvedValue(create(GetUploadPartURLResponseSchema, { url: 'https://s3/part-3' }))
+    const client = { getUploadPartURL } as unknown as Client<typeof FilesService>
+
+    await expect(getUploadPartUrlImpl(client, 'k', 'u', 3)).resolves.toEqual({
+      url: 'https://s3/part-3',
+    })
+    expect(getUploadPartURL).toHaveBeenCalledWith({ key: 'k', uploadId: 'u', partNumber: 3 })
+  })
+})
+
+describe('validateUploadIdInput', () => {
+  it('accepts key and uploadId', () => {
+    expect(validateUploadIdInput({ key: 'k', uploadId: 'u' })).toEqual({ key: 'k', uploadId: 'u' })
+  })
+
+  it.each([[{}], [{ key: 'k' }], [{ uploadId: 'u' }]])('rejects %j', (input) => {
+    expect(() => validateUploadIdInput(input)).toThrow()
+  })
+})
+
+describe('listUploadedPartsImpl', () => {
+  it('requests key/uploadId and maps parts to plain numbers', async () => {
+    const listUploadedParts = vi.fn().mockResolvedValue(
+      create(ListUploadedPartsResponseSchema, {
+        parts: [
+          create(UploadedPartSchema, { partNumber: 1, size: 5242880n }),
+          create(UploadedPartSchema, { partNumber: 2, size: 1024n }),
+        ],
+      }),
+    )
+    const client = { listUploadedParts } as unknown as Client<typeof FilesService>
+
+    const result = await listUploadedPartsImpl(client, 'k', 'u')
+
+    expect(listUploadedParts).toHaveBeenCalledWith({ key: 'k', uploadId: 'u' })
+    expect(result.parts).toEqual([
+      { partNumber: 1, size: 5242880 },
+      { partNumber: 2, size: 1024 },
+    ])
+  })
+})
+
+describe('completeMultipartUploadImpl', () => {
+  it('sends key/uploadId and maps the returned file', async () => {
+    const completeMultipartUpload = vi.fn().mockResolvedValue(
+      create(CompleteMultipartUploadResponseSchema, {
+        file: fileInfo({ id: 9n, key: 'big/movie.mp4' }),
+      }),
+    )
+    const client = { completeMultipartUpload } as unknown as Client<typeof FilesService>
+
+    const result = await completeMultipartUploadImpl(client, 'big/movie.mp4', 'upload-1')
+
+    expect(completeMultipartUpload).toHaveBeenCalledWith({
+      key: 'big/movie.mp4',
+      uploadId: 'upload-1',
+    })
+    expect(result.id).toBe('9')
+  })
+
+  it('throws when the response has no file', async () => {
+    const client = {
+      completeMultipartUpload: vi
+        .fn()
+        .mockResolvedValue(create(CompleteMultipartUploadResponseSchema, {})),
+    } as unknown as Client<typeof FilesService>
+
+    await expect(completeMultipartUploadImpl(client, 'k', 'u')).rejects.toThrow('no file returned')
+  })
+})
+
+describe('abortMultipartUploadImpl', () => {
+  it('sends key and uploadId', async () => {
+    const abortMultipartUpload = vi.fn().mockResolvedValue({})
+    const client = { abortMultipartUpload } as unknown as Client<typeof FilesService>
+
+    await abortMultipartUploadImpl(client, 'k', 'u')
+
+    expect(abortMultipartUpload).toHaveBeenCalledWith({ key: 'k', uploadId: 'u' })
   })
 })
 
