@@ -15,14 +15,32 @@ vi.mock('../server/files', () => ({
   getDownloadUrl: vi.fn(),
   getUploadUrl: vi.fn(),
   commitUpload: vi.fn(),
+  createMultipartUpload: vi.fn(),
+  getUploadPartUrl: vi.fn(),
+  listUploadedParts: vi.fn(),
+  completeMultipartUpload: vi.fn(),
+  abortMultipartUpload: vi.fn(),
 }))
 
-import { commitUpload, getUploadUrl, listDirectory, listFiles } from '../server/files'
+import {
+  abortMultipartUpload,
+  commitUpload,
+  completeMultipartUpload,
+  createMultipartUpload,
+  getUploadPartUrl,
+  getUploadUrl,
+  listDirectory,
+  listFiles,
+} from '../server/files'
 
 const listFilesMock = vi.mocked(listFiles)
 const listDirectoryMock = vi.mocked(listDirectory)
 const getUploadUrlMock = vi.mocked(getUploadUrl)
 const commitUploadMock = vi.mocked(commitUpload)
+const createMultipartUploadMock = vi.mocked(createMultipartUpload)
+const getUploadPartUrlMock = vi.mocked(getUploadPartUrl)
+const completeMultipartUploadMock = vi.mocked(completeMultipartUpload)
+const abortMultipartUploadMock = vi.mocked(abortMultipartUpload)
 
 class FakeIntersectionObserver implements IntersectionObserver {
   readonly root = null
@@ -66,6 +84,7 @@ beforeEach(() => {
   vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
   listFilesMock.mockResolvedValue({ files: [], nextPageToken: '' })
   listDirectoryMock.mockResolvedValue({ directories: [], files: [], nextPageToken: '' })
+  localStorage.clear()
 })
 
 afterEach(() => {
@@ -222,5 +241,73 @@ describe('Browser', () => {
         expect.objectContaining({ data: expect.objectContaining({ sortField: 'size' }) }),
       ),
     )
+  })
+
+  it('uploads large files via the resumable multipart path instead of a single PUT', async () => {
+    createMultipartUploadMock.mockResolvedValue({ uploadId: 'upload-1' })
+    getUploadPartUrlMock.mockResolvedValue({ url: 'https://s3/part-url' })
+    completeMultipartUploadMock.mockResolvedValue({
+      id: '1',
+      key: 'docs/big.bin',
+      contentType: '',
+      sizeBytes: 40 << 20,
+      createdAt: null,
+      previewUrl: null,
+      previewWidth: null,
+      previewHeight: null,
+      previewStatus: PreviewStatus.PENDING,
+    })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
+
+    renderBrowser(normalizeFilters({ path: 'docs/' }))
+    await screen.findByRole('button', { name: 'Upload' })
+
+    const bigFile = new File([new ArrayBuffer(40 << 20)], 'big.bin', {
+      type: 'application/octet-stream',
+    })
+    fireEvent.change(screen.getByLabelText('Upload files'), { target: { files: [bigFile] } })
+
+    await waitFor(() =>
+      expect(createMultipartUploadMock).toHaveBeenCalledWith({
+        data: { key: 'docs/big.bin', contentType: 'application/octet-stream' },
+      }),
+    )
+    await waitFor(() =>
+      expect(completeMultipartUploadMock).toHaveBeenCalledWith({
+        data: { key: 'docs/big.bin', uploadId: 'upload-1' },
+      }),
+    )
+    expect(getUploadUrlMock).not.toHaveBeenCalled()
+  })
+
+  it('cancels an in-progress multipart upload and aborts it server-side', async () => {
+    createMultipartUploadMock.mockResolvedValue({ uploadId: 'upload-1' })
+    getUploadPartUrlMock.mockResolvedValue({ url: 'https://s3/part-url' })
+    // Simulates a real fetch: the PUT never resolves on its own, but rejects
+    // as soon as its AbortSignal fires — exactly what the Cancel button
+    // needs to interrupt a part transfer already in flight.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init?: RequestInit) => {
+        return new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => reject(new Error('aborted')))
+        })
+      }),
+    )
+
+    renderBrowser(normalizeFilters({ path: 'docs/' }))
+    await screen.findByRole('button', { name: 'Upload' })
+
+    const bigFile = new File([new ArrayBuffer(40 << 20)], 'big.bin', {
+      type: 'application/octet-stream',
+    })
+    fireEvent.change(screen.getByLabelText('Upload files'), { target: { files: [bigFile] } })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/cancelled/))
+    expect(abortMultipartUploadMock).toHaveBeenCalledWith({
+      data: { key: 'docs/big.bin', uploadId: 'upload-1' },
+    })
   })
 })

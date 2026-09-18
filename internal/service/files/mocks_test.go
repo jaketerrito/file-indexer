@@ -39,6 +39,204 @@ func (_m *MockObjectStore) EXPECT() *MockObjectStore_Expecter {
 	return &MockObjectStore_Expecter{mock: &_m.Mock}
 }
 
+// AbortMultipartUpload provides a mock function for the type MockObjectStore
+func (_mock *MockObjectStore) AbortMultipartUpload(ctx context.Context, key string, uploadID string) error {
+	ret := _mock.Called(ctx, key, uploadID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AbortMultipartUpload")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = returnFunc(ctx, key, uploadID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockObjectStore_AbortMultipartUpload_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AbortMultipartUpload'
+type MockObjectStore_AbortMultipartUpload_Call struct {
+	*mock.Call
+}
+
+// AbortMultipartUpload is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - uploadID string
+func (_e *MockObjectStore_Expecter) AbortMultipartUpload(ctx any, key any, uploadID any) *MockObjectStore_AbortMultipartUpload_Call {
+	return &MockObjectStore_AbortMultipartUpload_Call{Call: _e.mock.On("AbortMultipartUpload", ctx, key, uploadID)}
+}
+
+func (_c *MockObjectStore_AbortMultipartUpload_Call) Run(run func(ctx context.Context, key string, uploadID string)) *MockObjectStore_AbortMultipartUpload_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockObjectStore_AbortMultipartUpload_Call) Return(err error) *MockObjectStore_AbortMultipartUpload_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockObjectStore_AbortMultipartUpload_Call) RunAndReturn(run func(ctx context.Context, key string, uploadID string) error) *MockObjectStore_AbortMultipartUpload_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CompleteMultipartUpload provides a mock function for the type MockObjectStore
+func (_mock *MockObjectStore) CompleteMultipartUpload(ctx context.Context, key string, uploadID string) error {
+	ret := _mock.Called(ctx, key, uploadID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CompleteMultipartUpload")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = returnFunc(ctx, key, uploadID)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockObjectStore_CompleteMultipartUpload_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CompleteMultipartUpload'
+type MockObjectStore_CompleteMultipartUpload_Call struct {
+	*mock.Call
+}
+
+// CompleteMultipartUpload is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - uploadID string
+func (_e *MockObjectStore_Expecter) CompleteMultipartUpload(ctx any, key any, uploadID any) *MockObjectStore_CompleteMultipartUpload_Call {
+	return &MockObjectStore_CompleteMultipartUpload_Call{Call: _e.mock.On("CompleteMultipartUpload", ctx, key, uploadID)}
+}
+
+func (_c *MockObjectStore_CompleteMultipartUpload_Call) Run(run func(ctx context.Context, key string, uploadID string)) *MockObjectStore_CompleteMultipartUpload_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockObjectStore_CompleteMultipartUpload_Call) Return(err error) *MockObjectStore_CompleteMultipartUpload_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockObjectStore_CompleteMultipartUpload_Call) RunAndReturn(run func(ctx context.Context, key string, uploadID string) error) *MockObjectStore_CompleteMultipartUpload_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateMultipartUpload provides a mock function for the type MockObjectStore
+func (_mock *MockObjectStore) CreateMultipartUpload(ctx context.Context, key string, contentType string) (string, error) {
+	ret := _mock.Called(ctx, key, contentType)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateMultipartUpload")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (string, error)); ok {
+		return returnFunc(ctx, key, contentType)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) string); ok {
+		r0 = returnFunc(ctx, key, contentType)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, key, contentType)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockObjectStore_CreateMultipartUpload_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateMultipartUpload'
+type MockObjectStore_CreateMultipartUpload_Call struct {
+	*mock.Call
+}
+
+// CreateMultipartUpload is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - contentType string
+func (_e *MockObjectStore_Expecter) CreateMultipartUpload(ctx any, key any, contentType any) *MockObjectStore_CreateMultipartUpload_Call {
+	return &MockObjectStore_CreateMultipartUpload_Call{Call: _e.mock.On("CreateMultipartUpload", ctx, key, contentType)}
+}
+
+func (_c *MockObjectStore_CreateMultipartUpload_Call) Run(run func(ctx context.Context, key string, contentType string)) *MockObjectStore_CreateMultipartUpload_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockObjectStore_CreateMultipartUpload_Call) Return(uploadID string, err error) *MockObjectStore_CreateMultipartUpload_Call {
+	_c.Call.Return(uploadID, err)
+	return _c
+}
+
+func (_c *MockObjectStore_CreateMultipartUpload_Call) RunAndReturn(run func(ctx context.Context, key string, contentType string) (string, error)) *MockObjectStore_CreateMultipartUpload_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Delete provides a mock function for the type MockObjectStore
 func (_mock *MockObjectStore) Delete(ctx context.Context, key string) error {
 	ret := _mock.Called(ctx, key)
@@ -285,6 +483,80 @@ func (_c *MockObjectStore_GetURL_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
+// ListParts provides a mock function for the type MockObjectStore
+func (_mock *MockObjectStore) ListParts(ctx context.Context, key string, uploadID string) ([]storage.PartInfo, error) {
+	ret := _mock.Called(ctx, key, uploadID)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListParts")
+	}
+
+	var r0 []storage.PartInfo
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) ([]storage.PartInfo, error)); ok {
+		return returnFunc(ctx, key, uploadID)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) []storage.PartInfo); ok {
+		r0 = returnFunc(ctx, key, uploadID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]storage.PartInfo)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, key, uploadID)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockObjectStore_ListParts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListParts'
+type MockObjectStore_ListParts_Call struct {
+	*mock.Call
+}
+
+// ListParts is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - uploadID string
+func (_e *MockObjectStore_Expecter) ListParts(ctx any, key any, uploadID any) *MockObjectStore_ListParts_Call {
+	return &MockObjectStore_ListParts_Call{Call: _e.mock.On("ListParts", ctx, key, uploadID)}
+}
+
+func (_c *MockObjectStore_ListParts_Call) Run(run func(ctx context.Context, key string, uploadID string)) *MockObjectStore_ListParts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockObjectStore_ListParts_Call) Return(partInfos []storage.PartInfo, err error) *MockObjectStore_ListParts_Call {
+	_c.Call.Return(partInfos, err)
+	return _c
+}
+
+func (_c *MockObjectStore_ListParts_Call) RunAndReturn(run func(ctx context.Context, key string, uploadID string) ([]storage.PartInfo, error)) *MockObjectStore_ListParts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // PutURL provides a mock function for the type MockObjectStore
 func (_mock *MockObjectStore) PutURL(ctx context.Context, key string) (string, error) {
 	ret := _mock.Called(ctx, key)
@@ -413,6 +685,84 @@ func (_c *MockObjectStore_Stat_Call) Return(objectInfo storage.ObjectInfo, err e
 }
 
 func (_c *MockObjectStore_Stat_Call) RunAndReturn(run func(ctx context.Context, key string) (storage.ObjectInfo, error)) *MockObjectStore_Stat_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UploadPartURL provides a mock function for the type MockObjectStore
+func (_mock *MockObjectStore) UploadPartURL(ctx context.Context, key string, uploadID string, partNumber int) (string, error) {
+	ret := _mock.Called(ctx, key, uploadID, partNumber)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UploadPartURL")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, int) (string, error)); ok {
+		return returnFunc(ctx, key, uploadID, partNumber)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, int) string); ok {
+		r0 = returnFunc(ctx, key, uploadID, partNumber)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, int) error); ok {
+		r1 = returnFunc(ctx, key, uploadID, partNumber)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockObjectStore_UploadPartURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UploadPartURL'
+type MockObjectStore_UploadPartURL_Call struct {
+	*mock.Call
+}
+
+// UploadPartURL is a helper method to define mock.On call
+//   - ctx context.Context
+//   - key string
+//   - uploadID string
+//   - partNumber int
+func (_e *MockObjectStore_Expecter) UploadPartURL(ctx any, key any, uploadID any, partNumber any) *MockObjectStore_UploadPartURL_Call {
+	return &MockObjectStore_UploadPartURL_Call{Call: _e.mock.On("UploadPartURL", ctx, key, uploadID, partNumber)}
+}
+
+func (_c *MockObjectStore_UploadPartURL_Call) Run(run func(ctx context.Context, key string, uploadID string, partNumber int)) *MockObjectStore_UploadPartURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockObjectStore_UploadPartURL_Call) Return(s string, err error) *MockObjectStore_UploadPartURL_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockObjectStore_UploadPartURL_Call) RunAndReturn(run func(ctx context.Context, key string, uploadID string, partNumber int) (string, error)) *MockObjectStore_UploadPartURL_Call {
 	_c.Call.Return(run)
 	return _c
 }

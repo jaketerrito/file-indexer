@@ -19,15 +19,20 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	FilesService_GetDownloadURL_FullMethodName         = "/service.v1.FilesService/GetDownloadURL"
-	FilesService_GetPreviewURL_FullMethodName          = "/service.v1.FilesService/GetPreviewURL"
-	FilesService_GetFileInfo_FullMethodName            = "/service.v1.FilesService/GetFileInfo"
-	FilesService_DeleteFile_FullMethodName             = "/service.v1.FilesService/DeleteFile"
-	FilesService_GetUploadURL_FullMethodName           = "/service.v1.FilesService/GetUploadURL"
-	FilesService_CommitUpload_FullMethodName           = "/service.v1.FilesService/CommitUpload"
-	FilesService_GetDirectoryStats_FullMethodName      = "/service.v1.FilesService/GetDirectoryStats"
-	FilesService_DeleteDirectory_FullMethodName        = "/service.v1.FilesService/DeleteDirectory"
-	FilesService_GetFilePreviewStatuses_FullMethodName = "/service.v1.FilesService/GetFilePreviewStatuses"
+	FilesService_GetDownloadURL_FullMethodName          = "/service.v1.FilesService/GetDownloadURL"
+	FilesService_GetPreviewURL_FullMethodName           = "/service.v1.FilesService/GetPreviewURL"
+	FilesService_GetFileInfo_FullMethodName             = "/service.v1.FilesService/GetFileInfo"
+	FilesService_DeleteFile_FullMethodName              = "/service.v1.FilesService/DeleteFile"
+	FilesService_GetUploadURL_FullMethodName            = "/service.v1.FilesService/GetUploadURL"
+	FilesService_CommitUpload_FullMethodName            = "/service.v1.FilesService/CommitUpload"
+	FilesService_CreateMultipartUpload_FullMethodName   = "/service.v1.FilesService/CreateMultipartUpload"
+	FilesService_GetUploadPartURL_FullMethodName        = "/service.v1.FilesService/GetUploadPartURL"
+	FilesService_ListUploadedParts_FullMethodName       = "/service.v1.FilesService/ListUploadedParts"
+	FilesService_CompleteMultipartUpload_FullMethodName = "/service.v1.FilesService/CompleteMultipartUpload"
+	FilesService_AbortMultipartUpload_FullMethodName    = "/service.v1.FilesService/AbortMultipartUpload"
+	FilesService_GetDirectoryStats_FullMethodName       = "/service.v1.FilesService/GetDirectoryStats"
+	FilesService_DeleteDirectory_FullMethodName         = "/service.v1.FilesService/DeleteDirectory"
+	FilesService_GetFilePreviewStatuses_FullMethodName  = "/service.v1.FilesService/GetFilePreviewStatuses"
 )
 
 // FilesServiceClient is the client API for FilesService service.
@@ -40,6 +45,15 @@ type FilesServiceClient interface {
 	DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error)
 	GetUploadURL(ctx context.Context, in *GetUploadURLRequest, opts ...grpc.CallOption) (*GetUploadURLResponse, error)
 	CommitUpload(ctx context.Context, in *CommitUploadRequest, opts ...grpc.CallOption) (*CommitUploadResponse, error)
+	// Large-file resumable path: initiate once, PUT parts independently via
+	// GetUploadPartURL, resume a dropped session with ListUploadedParts, and
+	// finish with CompleteMultipartUpload (or clean up with
+	// AbortMultipartUpload). See CreateMultipartUploadRequest's doc comment.
+	CreateMultipartUpload(ctx context.Context, in *CreateMultipartUploadRequest, opts ...grpc.CallOption) (*CreateMultipartUploadResponse, error)
+	GetUploadPartURL(ctx context.Context, in *GetUploadPartURLRequest, opts ...grpc.CallOption) (*GetUploadPartURLResponse, error)
+	ListUploadedParts(ctx context.Context, in *ListUploadedPartsRequest, opts ...grpc.CallOption) (*ListUploadedPartsResponse, error)
+	CompleteMultipartUpload(ctx context.Context, in *CompleteMultipartUploadRequest, opts ...grpc.CallOption) (*CompleteMultipartUploadResponse, error)
+	AbortMultipartUpload(ctx context.Context, in *AbortMultipartUploadRequest, opts ...grpc.CallOption) (*AbortMultipartUploadResponse, error)
 	GetDirectoryStats(ctx context.Context, in *GetDirectoryStatsRequest, opts ...grpc.CallOption) (*GetDirectoryStatsResponse, error)
 	DeleteDirectory(ctx context.Context, in *DeleteDirectoryRequest, opts ...grpc.CallOption) (*DeleteDirectoryResponse, error)
 	GetFilePreviewStatuses(ctx context.Context, in *GetFilePreviewStatusesRequest, opts ...grpc.CallOption) (*GetFilePreviewStatusesResponse, error)
@@ -113,6 +127,56 @@ func (c *filesServiceClient) CommitUpload(ctx context.Context, in *CommitUploadR
 	return out, nil
 }
 
+func (c *filesServiceClient) CreateMultipartUpload(ctx context.Context, in *CreateMultipartUploadRequest, opts ...grpc.CallOption) (*CreateMultipartUploadResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CreateMultipartUploadResponse)
+	err := c.cc.Invoke(ctx, FilesService_CreateMultipartUpload_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *filesServiceClient) GetUploadPartURL(ctx context.Context, in *GetUploadPartURLRequest, opts ...grpc.CallOption) (*GetUploadPartURLResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetUploadPartURLResponse)
+	err := c.cc.Invoke(ctx, FilesService_GetUploadPartURL_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *filesServiceClient) ListUploadedParts(ctx context.Context, in *ListUploadedPartsRequest, opts ...grpc.CallOption) (*ListUploadedPartsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListUploadedPartsResponse)
+	err := c.cc.Invoke(ctx, FilesService_ListUploadedParts_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *filesServiceClient) CompleteMultipartUpload(ctx context.Context, in *CompleteMultipartUploadRequest, opts ...grpc.CallOption) (*CompleteMultipartUploadResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(CompleteMultipartUploadResponse)
+	err := c.cc.Invoke(ctx, FilesService_CompleteMultipartUpload_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *filesServiceClient) AbortMultipartUpload(ctx context.Context, in *AbortMultipartUploadRequest, opts ...grpc.CallOption) (*AbortMultipartUploadResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AbortMultipartUploadResponse)
+	err := c.cc.Invoke(ctx, FilesService_AbortMultipartUpload_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *filesServiceClient) GetDirectoryStats(ctx context.Context, in *GetDirectoryStatsRequest, opts ...grpc.CallOption) (*GetDirectoryStatsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetDirectoryStatsResponse)
@@ -153,6 +217,15 @@ type FilesServiceServer interface {
 	DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error)
 	GetUploadURL(context.Context, *GetUploadURLRequest) (*GetUploadURLResponse, error)
 	CommitUpload(context.Context, *CommitUploadRequest) (*CommitUploadResponse, error)
+	// Large-file resumable path: initiate once, PUT parts independently via
+	// GetUploadPartURL, resume a dropped session with ListUploadedParts, and
+	// finish with CompleteMultipartUpload (or clean up with
+	// AbortMultipartUpload). See CreateMultipartUploadRequest's doc comment.
+	CreateMultipartUpload(context.Context, *CreateMultipartUploadRequest) (*CreateMultipartUploadResponse, error)
+	GetUploadPartURL(context.Context, *GetUploadPartURLRequest) (*GetUploadPartURLResponse, error)
+	ListUploadedParts(context.Context, *ListUploadedPartsRequest) (*ListUploadedPartsResponse, error)
+	CompleteMultipartUpload(context.Context, *CompleteMultipartUploadRequest) (*CompleteMultipartUploadResponse, error)
+	AbortMultipartUpload(context.Context, *AbortMultipartUploadRequest) (*AbortMultipartUploadResponse, error)
 	GetDirectoryStats(context.Context, *GetDirectoryStatsRequest) (*GetDirectoryStatsResponse, error)
 	DeleteDirectory(context.Context, *DeleteDirectoryRequest) (*DeleteDirectoryResponse, error)
 	GetFilePreviewStatuses(context.Context, *GetFilePreviewStatusesRequest) (*GetFilePreviewStatusesResponse, error)
@@ -183,6 +256,21 @@ func (UnimplementedFilesServiceServer) GetUploadURL(context.Context, *GetUploadU
 }
 func (UnimplementedFilesServiceServer) CommitUpload(context.Context, *CommitUploadRequest) (*CommitUploadResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CommitUpload not implemented")
+}
+func (UnimplementedFilesServiceServer) CreateMultipartUpload(context.Context, *CreateMultipartUploadRequest) (*CreateMultipartUploadResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateMultipartUpload not implemented")
+}
+func (UnimplementedFilesServiceServer) GetUploadPartURL(context.Context, *GetUploadPartURLRequest) (*GetUploadPartURLResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetUploadPartURL not implemented")
+}
+func (UnimplementedFilesServiceServer) ListUploadedParts(context.Context, *ListUploadedPartsRequest) (*ListUploadedPartsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListUploadedParts not implemented")
+}
+func (UnimplementedFilesServiceServer) CompleteMultipartUpload(context.Context, *CompleteMultipartUploadRequest) (*CompleteMultipartUploadResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method CompleteMultipartUpload not implemented")
+}
+func (UnimplementedFilesServiceServer) AbortMultipartUpload(context.Context, *AbortMultipartUploadRequest) (*AbortMultipartUploadResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method AbortMultipartUpload not implemented")
 }
 func (UnimplementedFilesServiceServer) GetDirectoryStats(context.Context, *GetDirectoryStatsRequest) (*GetDirectoryStatsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDirectoryStats not implemented")
@@ -322,6 +410,96 @@ func _FilesService_CommitUpload_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _FilesService_CreateMultipartUpload_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateMultipartUploadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FilesServiceServer).CreateMultipartUpload(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FilesService_CreateMultipartUpload_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FilesServiceServer).CreateMultipartUpload(ctx, req.(*CreateMultipartUploadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FilesService_GetUploadPartURL_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetUploadPartURLRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FilesServiceServer).GetUploadPartURL(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FilesService_GetUploadPartURL_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FilesServiceServer).GetUploadPartURL(ctx, req.(*GetUploadPartURLRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FilesService_ListUploadedParts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListUploadedPartsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FilesServiceServer).ListUploadedParts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FilesService_ListUploadedParts_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FilesServiceServer).ListUploadedParts(ctx, req.(*ListUploadedPartsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FilesService_CompleteMultipartUpload_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CompleteMultipartUploadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FilesServiceServer).CompleteMultipartUpload(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FilesService_CompleteMultipartUpload_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FilesServiceServer).CompleteMultipartUpload(ctx, req.(*CompleteMultipartUploadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FilesService_AbortMultipartUpload_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AbortMultipartUploadRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FilesServiceServer).AbortMultipartUpload(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FilesService_AbortMultipartUpload_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FilesServiceServer).AbortMultipartUpload(ctx, req.(*AbortMultipartUploadRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _FilesService_GetDirectoryStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetDirectoryStatsRequest)
 	if err := dec(in); err != nil {
@@ -406,6 +584,26 @@ var FilesService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CommitUpload",
 			Handler:    _FilesService_CommitUpload_Handler,
+		},
+		{
+			MethodName: "CreateMultipartUpload",
+			Handler:    _FilesService_CreateMultipartUpload_Handler,
+		},
+		{
+			MethodName: "GetUploadPartURL",
+			Handler:    _FilesService_GetUploadPartURL_Handler,
+		},
+		{
+			MethodName: "ListUploadedParts",
+			Handler:    _FilesService_ListUploadedParts_Handler,
+		},
+		{
+			MethodName: "CompleteMultipartUpload",
+			Handler:    _FilesService_CompleteMultipartUpload_Handler,
+		},
+		{
+			MethodName: "AbortMultipartUpload",
+			Handler:    _FilesService_AbortMultipartUpload_Handler,
 		},
 		{
 			MethodName: "GetDirectoryStats",

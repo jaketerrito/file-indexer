@@ -13,6 +13,15 @@ service FilesService {
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
   rpc GetUploadURL(GetUploadURLRequest) returns (GetUploadURLResponse);
   rpc CommitUpload(CommitUploadRequest) returns (CommitUploadResponse);
+  // Large-file resumable path: initiate once, PUT parts independently via
+  // GetUploadPartURL, resume a dropped session with ListUploadedParts, and
+  // finish with CompleteMultipartUpload (or clean up with
+  // AbortMultipartUpload). See CreateMultipartUploadRequest's doc comment.
+  rpc CreateMultipartUpload(CreateMultipartUploadRequest) returns (CreateMultipartUploadResponse);
+  rpc GetUploadPartURL(GetUploadPartURLRequest) returns (GetUploadPartURLResponse);
+  rpc ListUploadedParts(ListUploadedPartsRequest) returns (ListUploadedPartsResponse);
+  rpc CompleteMultipartUpload(CompleteMultipartUploadRequest) returns (CompleteMultipartUploadResponse);
+  rpc AbortMultipartUpload(AbortMultipartUploadRequest) returns (AbortMultipartUploadResponse);
   rpc GetDirectoryStats(GetDirectoryStatsRequest) returns (GetDirectoryStatsResponse);
   rpc DeleteDirectory(DeleteDirectoryRequest) returns (DeleteDirectoryResponse);
   rpc GetFilePreviewStatuses(GetFilePreviewStatusesRequest) returns (GetFilePreviewStatusesResponse);
@@ -201,6 +210,72 @@ message CommitUploadResponse {
   // immediately, not full FileInfo.
   FileInfo file = 1;
 }
+
+// CreateMultipartUpload starts an S3 multipart upload for large files,
+// letting the client PUT parts independently and retry only the part that
+// failed instead of restarting the whole file from byte zero. The client
+// must persist the returned upload_id (with the key) itself — e.g. in
+// localStorage keyed by a file fingerprint — to resume via
+// ListUploadedParts after a reload. Small files keep using the single-PUT
+// GetUploadURL/CommitUpload path above.
+message CreateMultipartUploadRequest {
+  // Destination object key; same validation as GetUploadURL.key.
+  string key = 1;
+  // Content-Type is bound to the object at initiate time: S3's multipart
+  // API takes it up front, unlike a single presigned PUT where the client's
+  // own header on the PUT is authoritative.
+  string content_type = 2;
+}
+
+message CreateMultipartUploadResponse {
+  // Opaque S3 upload id; required by every other multipart RPC below.
+  string upload_id = 1;
+}
+
+message GetUploadPartURLRequest {
+  string key = 1;
+  string upload_id = 2;
+  // 1-indexed, per the S3 multipart API (valid range 1..10000).
+  int32 part_number = 3;
+}
+
+message GetUploadPartURLResponse {
+  string url = 1;
+}
+
+message ListUploadedPartsRequest {
+  string key = 1;
+  string upload_id = 2;
+}
+
+// UploadedPart reports one part S3 already has for an in-progress multipart
+// upload, so a resuming client can skip re-uploading it.
+message UploadedPart {
+  int32 part_number = 1;
+  int64 size = 2;
+}
+
+message ListUploadedPartsResponse {
+  repeated UploadedPart parts = 1;
+}
+
+message CompleteMultipartUploadRequest {
+  string key = 1;
+  string upload_id = 2;
+}
+
+message CompleteMultipartUploadResponse {
+  // Stat-derived record for the newly-landed object, same contract as
+  // CommitUploadResponse.file.
+  FileInfo file = 1;
+}
+
+message AbortMultipartUploadRequest {
+  string key = 1;
+  string upload_id = 2;
+}
+
+message AbortMultipartUploadResponse {}
 
 message GetDirectoryStatsRequest {
   // Directory prefix; must end in "/" (validated server-side) so a prefix

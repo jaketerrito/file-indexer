@@ -32,6 +32,14 @@ type ObjectStore interface {
 	// DeleteMany is used by DeleteDirectory to batch-remove a subtree's
 	// objects. See its doc comment on the not-atomic contract this implies.
 	DeleteMany(ctx context.Context, keys []string) error
+	// CreateMultipartUpload, UploadPartURL, ListParts, CompleteMultipartUpload,
+	// and AbortMultipartUpload back the large-file resumable upload RPCs; see
+	// storage.Storage's doc comments on each for their contracts.
+	CreateMultipartUpload(ctx context.Context, key, contentType string) (uploadID string, err error)
+	UploadPartURL(ctx context.Context, key, uploadID string, partNumber int) (string, error)
+	ListParts(ctx context.Context, key, uploadID string) ([]storage.PartInfo, error)
+	CompleteMultipartUpload(ctx context.Context, key, uploadID string) error
+	AbortMultipartUpload(ctx context.Context, key, uploadID string) error
 }
 
 // FileIndex is deliberately narrower than db.Store: it exposes only the
@@ -258,6 +266,18 @@ func (s *FilesServer) CommitUpload(ctx context.Context, req *pb.CommitUploadRequ
 	if err != nil {
 		return nil, err
 	}
+	file, err := s.indexUploadedKey(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.CommitUploadResponse{File: file}, nil
+}
+
+// indexUploadedKey re-stats key in S3 and upserts a files row from that
+// stat (the same reference-based path the crawler uses), shared by
+// CommitUpload (single-PUT path) and CompleteMultipartUpload (multipart
+// path) once each has finished landing bytes in S3.
+func (s *FilesServer) indexUploadedKey(ctx context.Context, key string) (*pb.FileInfo, error) {
 	info, err := s.storage.Stat(ctx, key)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "stat uploaded object: %v", err)
@@ -272,7 +292,110 @@ func (s *FilesServer) CommitUpload(ctx context.Context, req *pb.CommitUploadRequ
 	if err != nil {
 		return nil, err
 	}
-	return &pb.CommitUploadResponse{File: dbFileToProto(file)}, nil
+	return dbFileToProto(file), nil
+}
+
+// CreateMultipartUpload starts the resumable large-file upload path: see
+// CreateMultipartUploadRequest's doc comment in files.proto for the full
+// flow. Content-Type is required — S3 binds it to the object at initiate
+// time rather than trusting the eventual PUT.
+func (s *FilesServer) CreateMultipartUpload(ctx context.Context, req *pb.CreateMultipartUploadRequest) (*pb.CreateMultipartUploadResponse, error) {
+	key, err := s.validateUploadKey(req.GetKey())
+	if err != nil {
+		return nil, err
+	}
+	uploadID, err := s.storage.CreateMultipartUpload(ctx, key, req.GetContentType())
+	if err != nil {
+		return nil, err
+	}
+	return &pb.CreateMultipartUploadResponse{UploadId: uploadID}, nil
+}
+
+// minPartNumber and maxPartNumber bound S3's multipart part numbering.
+const (
+	minPartNumber = 1
+	maxPartNumber = 10000
+)
+
+// GetUploadPartURL returns a presigned URL for one part of an in-progress
+// multipart upload. Like GetUploadURL, this never touches the bytes — the
+// client PUTs directly to S3.
+func (s *FilesServer) GetUploadPartURL(ctx context.Context, req *pb.GetUploadPartURLRequest) (*pb.GetUploadPartURLResponse, error) {
+	key, err := s.validateUploadKey(req.GetKey())
+	if err != nil {
+		return nil, err
+	}
+	if req.GetUploadId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "upload_id must not be empty")
+	}
+	if n := req.GetPartNumber(); n < minPartNumber || n > maxPartNumber {
+		return nil, status.Errorf(codes.InvalidArgument, "part_number must be between %d and %d, got %d", minPartNumber, maxPartNumber, n)
+	}
+	url, err := s.storage.UploadPartURL(ctx, key, req.GetUploadId(), int(req.GetPartNumber()))
+	if err != nil {
+		return nil, err
+	}
+	return &pb.GetUploadPartURLResponse{Url: url}, nil
+}
+
+// ListUploadedParts reports the parts S3 already has for upload_id, letting
+// a client resuming after a dropped connection or reload skip re-uploading
+// parts that already landed.
+func (s *FilesServer) ListUploadedParts(ctx context.Context, req *pb.ListUploadedPartsRequest) (*pb.ListUploadedPartsResponse, error) {
+	key, err := s.validateUploadKey(req.GetKey())
+	if err != nil {
+		return nil, err
+	}
+	if req.GetUploadId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "upload_id must not be empty")
+	}
+	parts, err := s.storage.ListParts(ctx, key, req.GetUploadId())
+	if err != nil {
+		return nil, err
+	}
+	protoParts := make([]*pb.UploadedPart, len(parts))
+	for i, p := range parts {
+		protoParts[i] = &pb.UploadedPart{PartNumber: int32(p.PartNumber), Size: p.Size}
+	}
+	return &pb.ListUploadedPartsResponse{Parts: protoParts}, nil
+}
+
+// CompleteMultipartUpload finalizes upload_id in S3 (see
+// storage.Storage.CompleteMultipartUpload's doc comment: it lists landed
+// parts itself rather than trusting a client-supplied list) and then indexes
+// the finished object exactly as CommitUpload does for the single-PUT path.
+func (s *FilesServer) CompleteMultipartUpload(ctx context.Context, req *pb.CompleteMultipartUploadRequest) (*pb.CompleteMultipartUploadResponse, error) {
+	key, err := s.validateUploadKey(req.GetKey())
+	if err != nil {
+		return nil, err
+	}
+	if req.GetUploadId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "upload_id must not be empty")
+	}
+	if err := s.storage.CompleteMultipartUpload(ctx, key, req.GetUploadId()); err != nil {
+		return nil, err
+	}
+	file, err := s.indexUploadedKey(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.CompleteMultipartUploadResponse{File: file}, nil
+}
+
+// AbortMultipartUpload cancels an in-progress multipart upload, e.g. when
+// the client gives up retrying a part or the user cancels mid-upload.
+func (s *FilesServer) AbortMultipartUpload(ctx context.Context, req *pb.AbortMultipartUploadRequest) (*pb.AbortMultipartUploadResponse, error) {
+	key, err := s.validateUploadKey(req.GetKey())
+	if err != nil {
+		return nil, err
+	}
+	if req.GetUploadId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "upload_id must not be empty")
+	}
+	if err := s.storage.AbortMultipartUpload(ctx, key, req.GetUploadId()); err != nil {
+		return nil, err
+	}
+	return &pb.AbortMultipartUploadResponse{}, nil
 }
 
 // validateUploadKey rejects keys that are empty, escape the bucket root via
