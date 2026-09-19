@@ -9,8 +9,10 @@ if not str(local('command -v npm || true', quiet=True, echo_off=True)).strip():
 # deploys the app without waiting on them; `just ci` passes --checks to
 # auto-run them (tilt ci skips manual resources).
 config.define_bool('checks', usage='auto-run lint/test local resources (just ci sets this)')
+config.define_bool('webdev', usage='run web as a vite dev server with live_update/HMR instead of the prod image (just up-webdev)')
 cfg = config.parse()
 checks_auto = cfg.get('checks', False)
+webdev = cfg.get('webdev', False)
 
 local_resource('generate',
    cmd='just generate',
@@ -85,7 +87,23 @@ docker_build('files', '.', build_args={'BUILD_TARGET': './cmd/files'})
 docker_build('search', '.', build_args={'BUILD_TARGET': './cmd/search'})
 docker_build('crawler', '.', build_args={'BUILD_TARGET': './cmd/crawler'})
 docker_build('preview-gc', '.', build_args={'BUILD_TARGET': './cmd/preview-gc'})
-docker_build('web', 'web')
+if webdev:
+    # vite dev server in the pod; source edits sync in and HMR applies them
+    # (vite watches the synced files and self-restarts on vite.config.ts
+    # changes). tsconfig.json syncs but vite does NOT watch it: restart the
+    # web resource after changing it. The HMR websocket is served through the
+    # same gateway route as the page (vite 8 derives the ws target from the
+    # page origin when server.hmr is unset), so no per-checkout HMR config.
+    docker_build('web', 'web',
+       target='dev',
+       live_update=[
+          fall_back_on(['web/package.json', 'web/package-lock.json']),
+          sync('web/src', '/app/src'),
+          sync('web/vite.config.ts', '/app/vite.config.ts'),
+          sync('web/tsconfig.json', '/app/tsconfig.json'),
+       ])
+else:
+    docker_build('web', 'web')
 
 k8s_yaml(kustomize('deploy/overlays/local'))
 

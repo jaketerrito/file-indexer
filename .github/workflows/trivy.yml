@@ -39,6 +39,10 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: "1"
           ignore-unfixed: true
+          # Path-scoped misconfig ignores (see .trivyignore.yaml header);
+          # trivy auto-loads only a plain .trivyignore, which cannot scope
+          # an ID to one file.
+          trivyignores: .trivyignore.yaml
 
   # All seven Go targets are FROM scratch + one static binary built from the
   # same go.mod: no OS packages exist to scan, so this reports only

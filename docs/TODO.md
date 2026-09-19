@@ -31,12 +31,6 @@ history is the archive.
   Router loader + react-query SSR integration so the first page renders
   server-side.
 
-## CI / infra
-
-- **Tilt web dev loop** (7/5/26): no live_update in the Tiltfile — every web
-  change triggers a full image rebuild. Iterate with `npm run dev` against
-  port-forwards for now; add live_update or a tilt-managed dev server.
-
 ## Known limitations (not scheduled)
 
 - **No HEIC/AVIF previews** (7/26/26): no pure-Go decoder exists and the

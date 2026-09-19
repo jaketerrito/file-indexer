@@ -1,0 +1,16 @@
+# With `tilt up -- --webdev` the web container runs `vite dev`, which writes
+# its dep-optimize cache (node_modules/.vite) and regenerates
+# src/routeTree.gen.ts — both rejected by the strict readOnlyRootFilesystem
+# in deploy/base/web.yaml. Base (and any real environment) keeps the
+# read-only rootfs; only the local dev overlay relaxes it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  template:
+    spec:
+      containers:
+        - name: web
+          securityContext:
+            readOnlyRootFilesystem: false

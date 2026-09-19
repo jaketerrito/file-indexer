@@ -1,0 +1,18 @@
+# Trivy misconfig ignores, wired into the fs scan via `trivyignores` in
+# .github/workflows/trivy.yml (trivy auto-loads only a plain .trivyignore;
+# this YAML form exists for per-path scoping).
+misconfigurations:
+  # deploy/overlays/local/web-writable-rootfs.yaml is a LOCAL-overlay-only
+  # patch that intentionally sets readOnlyRootFilesystem: false so the
+  # --webdev vite dev server can write node_modules/.vite and regenerate
+  # routeTree.gen.ts (KSV-0014). KSV-0118 is a false positive from scanning
+  # the patch standalone: merged over deploy/base/web.yaml the container
+  # keeps runAsNonRoot, runAsUser 10001, allowPrivilegeEscalation:false and
+  # drops ALL capabilities. Base keeps the read-only rootfs; do NOT widen
+  # these ignores beyond this file.
+  - id: AVD-KSV-0014
+    paths:
+      - deploy/overlays/local/web-writable-rootfs.yaml
+  - id: AVD-KSV-0118
+    paths:
+      - deploy/overlays/local/web-writable-rootfs.yaml

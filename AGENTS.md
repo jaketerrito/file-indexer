@@ -144,6 +144,19 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   it cannot run under a supervisor (the child is killed on teardown). To
   supervise tilt, launch `tilt up --namespace <ns> --port <tilt_port>`
   directly in the foreground.
+- Trivy k8s inline ignores (`# trivy:ignore:KSV-XXXX`, short or AVD- form,
+  any placement) do NOT suppress findings under `trivy fs`/`config` (v0.70,
+  tested five variants). For a per-file exception use `.trivyignore.yaml`
+  (path-scoped) wired via the trivy-action `trivyignores` input — trivy
+  auto-loads only a plain `.trivyignore`, which ignores an ID repo-wide.
+  Verify locally: `docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:0.70.0
+  fs --scanners misconfig --severity CRITICAL,HIGH --ignorefile
+  .trivyignore.yaml .`
+- `just tilt-down` returns before the namespace finishes terminating; a
+  `just up` started immediately after races the deletion — every apply fails
+  with "namespace ... is being terminated" and all resources wedge pending
+  with no pods. Wait for `kubectl get ns <ns>` to 404 (or pkill + restart
+  the wedged session once it has).
 - The files/search services serve gRPC (HTTP/2) only — no connect/JSON over
   HTTP/1.1, so curl seeding fails with "Received HTTP/0.9". To seed dev data:
   pipe files into the local-s3 pod (`kubectl exec -i ... -c minio -- sh -c
