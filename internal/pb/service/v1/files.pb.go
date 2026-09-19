@@ -1338,6 +1338,555 @@ func (x *CommitUploadResponse) GetFile() *FileInfo {
 	return nil
 }
 
+// CreateMultipartUpload starts an S3 multipart upload for large files,
+// letting the client PUT parts independently and retry only the part that
+// failed instead of restarting the whole file from byte zero. The client
+// must persist the returned upload_id (with the key) itself — e.g. in
+// localStorage keyed by a file fingerprint — to resume via
+// ListUploadedParts after a reload. Small files keep using the single-PUT
+// GetUploadURL/CommitUpload path above.
+type CreateMultipartUploadRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Destination object key; same validation as GetUploadURL.key.
+	Key string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	// Content-Type is bound to the object at initiate time: S3's multipart
+	// API takes it up front, unlike a single presigned PUT where the client's
+	// own header on the PUT is authoritative.
+	ContentType   string `protobuf:"bytes,2,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateMultipartUploadRequest) Reset() {
+	*x = CreateMultipartUploadRequest{}
+	mi := &file_service_v1_files_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateMultipartUploadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateMultipartUploadRequest) ProtoMessage() {}
+
+func (x *CreateMultipartUploadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateMultipartUploadRequest.ProtoReflect.Descriptor instead.
+func (*CreateMultipartUploadRequest) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *CreateMultipartUploadRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *CreateMultipartUploadRequest) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+type CreateMultipartUploadResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Opaque S3 upload id; required by every other multipart RPC below.
+	UploadId      string `protobuf:"bytes,1,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateMultipartUploadResponse) Reset() {
+	*x = CreateMultipartUploadResponse{}
+	mi := &file_service_v1_files_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateMultipartUploadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateMultipartUploadResponse) ProtoMessage() {}
+
+func (x *CreateMultipartUploadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateMultipartUploadResponse.ProtoReflect.Descriptor instead.
+func (*CreateMultipartUploadResponse) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *CreateMultipartUploadResponse) GetUploadId() string {
+	if x != nil {
+		return x.UploadId
+	}
+	return ""
+}
+
+type GetUploadPartURLRequest struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Key      string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	UploadId string                 `protobuf:"bytes,2,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
+	// 1-indexed, per the S3 multipart API (valid range 1..10000).
+	PartNumber    int32 `protobuf:"varint,3,opt,name=part_number,json=partNumber,proto3" json:"part_number,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUploadPartURLRequest) Reset() {
+	*x = GetUploadPartURLRequest{}
+	mi := &file_service_v1_files_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUploadPartURLRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUploadPartURLRequest) ProtoMessage() {}
+
+func (x *GetUploadPartURLRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUploadPartURLRequest.ProtoReflect.Descriptor instead.
+func (*GetUploadPartURLRequest) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GetUploadPartURLRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *GetUploadPartURLRequest) GetUploadId() string {
+	if x != nil {
+		return x.UploadId
+	}
+	return ""
+}
+
+func (x *GetUploadPartURLRequest) GetPartNumber() int32 {
+	if x != nil {
+		return x.PartNumber
+	}
+	return 0
+}
+
+type GetUploadPartURLResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetUploadPartURLResponse) Reset() {
+	*x = GetUploadPartURLResponse{}
+	mi := &file_service_v1_files_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetUploadPartURLResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetUploadPartURLResponse) ProtoMessage() {}
+
+func (x *GetUploadPartURLResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetUploadPartURLResponse.ProtoReflect.Descriptor instead.
+func (*GetUploadPartURLResponse) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetUploadPartURLResponse) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+type ListUploadedPartsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	UploadId      string                 `protobuf:"bytes,2,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListUploadedPartsRequest) Reset() {
+	*x = ListUploadedPartsRequest{}
+	mi := &file_service_v1_files_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListUploadedPartsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListUploadedPartsRequest) ProtoMessage() {}
+
+func (x *ListUploadedPartsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListUploadedPartsRequest.ProtoReflect.Descriptor instead.
+func (*ListUploadedPartsRequest) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *ListUploadedPartsRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *ListUploadedPartsRequest) GetUploadId() string {
+	if x != nil {
+		return x.UploadId
+	}
+	return ""
+}
+
+// UploadedPart reports one part S3 already has for an in-progress multipart
+// upload, so a resuming client can skip re-uploading it.
+type UploadedPart struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PartNumber    int32                  `protobuf:"varint,1,opt,name=part_number,json=partNumber,proto3" json:"part_number,omitempty"`
+	Size          int64                  `protobuf:"varint,2,opt,name=size,proto3" json:"size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UploadedPart) Reset() {
+	*x = UploadedPart{}
+	mi := &file_service_v1_files_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UploadedPart) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UploadedPart) ProtoMessage() {}
+
+func (x *UploadedPart) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UploadedPart.ProtoReflect.Descriptor instead.
+func (*UploadedPart) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *UploadedPart) GetPartNumber() int32 {
+	if x != nil {
+		return x.PartNumber
+	}
+	return 0
+}
+
+func (x *UploadedPart) GetSize() int64 {
+	if x != nil {
+		return x.Size
+	}
+	return 0
+}
+
+type ListUploadedPartsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Parts         []*UploadedPart        `protobuf:"bytes,1,rep,name=parts,proto3" json:"parts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListUploadedPartsResponse) Reset() {
+	*x = ListUploadedPartsResponse{}
+	mi := &file_service_v1_files_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListUploadedPartsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListUploadedPartsResponse) ProtoMessage() {}
+
+func (x *ListUploadedPartsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListUploadedPartsResponse.ProtoReflect.Descriptor instead.
+func (*ListUploadedPartsResponse) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ListUploadedPartsResponse) GetParts() []*UploadedPart {
+	if x != nil {
+		return x.Parts
+	}
+	return nil
+}
+
+type CompleteMultipartUploadRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	UploadId      string                 `protobuf:"bytes,2,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompleteMultipartUploadRequest) Reset() {
+	*x = CompleteMultipartUploadRequest{}
+	mi := &file_service_v1_files_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompleteMultipartUploadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompleteMultipartUploadRequest) ProtoMessage() {}
+
+func (x *CompleteMultipartUploadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompleteMultipartUploadRequest.ProtoReflect.Descriptor instead.
+func (*CompleteMultipartUploadRequest) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *CompleteMultipartUploadRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *CompleteMultipartUploadRequest) GetUploadId() string {
+	if x != nil {
+		return x.UploadId
+	}
+	return ""
+}
+
+type CompleteMultipartUploadResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stat-derived record for the newly-landed object, same contract as
+	// CommitUploadResponse.file.
+	File          *FileInfo `protobuf:"bytes,1,opt,name=file,proto3" json:"file,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CompleteMultipartUploadResponse) Reset() {
+	*x = CompleteMultipartUploadResponse{}
+	mi := &file_service_v1_files_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CompleteMultipartUploadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CompleteMultipartUploadResponse) ProtoMessage() {}
+
+func (x *CompleteMultipartUploadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CompleteMultipartUploadResponse.ProtoReflect.Descriptor instead.
+func (*CompleteMultipartUploadResponse) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *CompleteMultipartUploadResponse) GetFile() *FileInfo {
+	if x != nil {
+		return x.File
+	}
+	return nil
+}
+
+type AbortMultipartUploadRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	UploadId      string                 `protobuf:"bytes,2,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AbortMultipartUploadRequest) Reset() {
+	*x = AbortMultipartUploadRequest{}
+	mi := &file_service_v1_files_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AbortMultipartUploadRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AbortMultipartUploadRequest) ProtoMessage() {}
+
+func (x *AbortMultipartUploadRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AbortMultipartUploadRequest.ProtoReflect.Descriptor instead.
+func (*AbortMultipartUploadRequest) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *AbortMultipartUploadRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *AbortMultipartUploadRequest) GetUploadId() string {
+	if x != nil {
+		return x.UploadId
+	}
+	return ""
+}
+
+type AbortMultipartUploadResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AbortMultipartUploadResponse) Reset() {
+	*x = AbortMultipartUploadResponse{}
+	mi := &file_service_v1_files_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AbortMultipartUploadResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AbortMultipartUploadResponse) ProtoMessage() {}
+
+func (x *AbortMultipartUploadResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_files_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AbortMultipartUploadResponse.ProtoReflect.Descriptor instead.
+func (*AbortMultipartUploadResponse) Descriptor() ([]byte, []int) {
+	return file_service_v1_files_proto_rawDescGZIP(), []int{29}
+}
+
 type GetDirectoryStatsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Directory prefix; must end in "/" (validated server-side) so a prefix
@@ -1349,7 +1898,7 @@ type GetDirectoryStatsRequest struct {
 
 func (x *GetDirectoryStatsRequest) Reset() {
 	*x = GetDirectoryStatsRequest{}
-	mi := &file_service_v1_files_proto_msgTypes[19]
+	mi := &file_service_v1_files_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1361,7 +1910,7 @@ func (x *GetDirectoryStatsRequest) String() string {
 func (*GetDirectoryStatsRequest) ProtoMessage() {}
 
 func (x *GetDirectoryStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[19]
+	mi := &file_service_v1_files_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1374,7 +1923,7 @@ func (x *GetDirectoryStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDirectoryStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetDirectoryStatsRequest) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{19}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GetDirectoryStatsRequest) GetPath() string {
@@ -1394,7 +1943,7 @@ type GetDirectoryStatsResponse struct {
 
 func (x *GetDirectoryStatsResponse) Reset() {
 	*x = GetDirectoryStatsResponse{}
-	mi := &file_service_v1_files_proto_msgTypes[20]
+	mi := &file_service_v1_files_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1406,7 +1955,7 @@ func (x *GetDirectoryStatsResponse) String() string {
 func (*GetDirectoryStatsResponse) ProtoMessage() {}
 
 func (x *GetDirectoryStatsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[20]
+	mi := &file_service_v1_files_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1419,7 +1968,7 @@ func (x *GetDirectoryStatsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDirectoryStatsResponse.ProtoReflect.Descriptor instead.
 func (*GetDirectoryStatsResponse) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{20}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetDirectoryStatsResponse) GetFileCount() int64 {
@@ -1448,7 +1997,7 @@ type DeleteDirectoryRequest struct {
 
 func (x *DeleteDirectoryRequest) Reset() {
 	*x = DeleteDirectoryRequest{}
-	mi := &file_service_v1_files_proto_msgTypes[21]
+	mi := &file_service_v1_files_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1460,7 +2009,7 @@ func (x *DeleteDirectoryRequest) String() string {
 func (*DeleteDirectoryRequest) ProtoMessage() {}
 
 func (x *DeleteDirectoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[21]
+	mi := &file_service_v1_files_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1473,7 +2022,7 @@ func (x *DeleteDirectoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDirectoryRequest.ProtoReflect.Descriptor instead.
 func (*DeleteDirectoryRequest) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{21}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *DeleteDirectoryRequest) GetPath() string {
@@ -1497,7 +2046,7 @@ type DeleteDirectoryResponse struct {
 
 func (x *DeleteDirectoryResponse) Reset() {
 	*x = DeleteDirectoryResponse{}
-	mi := &file_service_v1_files_proto_msgTypes[22]
+	mi := &file_service_v1_files_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1509,7 +2058,7 @@ func (x *DeleteDirectoryResponse) String() string {
 func (*DeleteDirectoryResponse) ProtoMessage() {}
 
 func (x *DeleteDirectoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_service_v1_files_proto_msgTypes[22]
+	mi := &file_service_v1_files_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1522,7 +2071,7 @@ func (x *DeleteDirectoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteDirectoryResponse.ProtoReflect.Descriptor instead.
 func (*DeleteDirectoryResponse) Descriptor() ([]byte, []int) {
-	return file_service_v1_files_proto_rawDescGZIP(), []int{22}
+	return file_service_v1_files_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *DeleteDirectoryResponse) GetDeletedCount() int64 {
@@ -1669,7 +2218,37 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\x13CommitUploadRequest\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\"@\n" +
 	"\x14CommitUploadResponse\x12(\n" +
-	"\x04file\x18\x01 \x01(\v2\x14.service.v1.FileInfoR\x04file\".\n" +
+	"\x04file\x18\x01 \x01(\v2\x14.service.v1.FileInfoR\x04file\"S\n" +
+	"\x1cCreateMultipartUploadRequest\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12!\n" +
+	"\fcontent_type\x18\x02 \x01(\tR\vcontentType\"<\n" +
+	"\x1dCreateMultipartUploadResponse\x12\x1b\n" +
+	"\tupload_id\x18\x01 \x01(\tR\buploadId\"i\n" +
+	"\x17GetUploadPartURLRequest\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x1b\n" +
+	"\tupload_id\x18\x02 \x01(\tR\buploadId\x12\x1f\n" +
+	"\vpart_number\x18\x03 \x01(\x05R\n" +
+	"partNumber\",\n" +
+	"\x18GetUploadPartURLResponse\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\"I\n" +
+	"\x18ListUploadedPartsRequest\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x1b\n" +
+	"\tupload_id\x18\x02 \x01(\tR\buploadId\"C\n" +
+	"\fUploadedPart\x12\x1f\n" +
+	"\vpart_number\x18\x01 \x01(\x05R\n" +
+	"partNumber\x12\x12\n" +
+	"\x04size\x18\x02 \x01(\x03R\x04size\"K\n" +
+	"\x19ListUploadedPartsResponse\x12.\n" +
+	"\x05parts\x18\x01 \x03(\v2\x18.service.v1.UploadedPartR\x05parts\"O\n" +
+	"\x1eCompleteMultipartUploadRequest\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x1b\n" +
+	"\tupload_id\x18\x02 \x01(\tR\buploadId\"K\n" +
+	"\x1fCompleteMultipartUploadResponse\x12(\n" +
+	"\x04file\x18\x01 \x01(\v2\x14.service.v1.FileInfoR\x04file\"L\n" +
+	"\x1bAbortMultipartUploadRequest\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x1b\n" +
+	"\tupload_id\x18\x02 \x01(\tR\buploadId\"\x1e\n" +
+	"\x1cAbortMultipartUploadResponse\".\n" +
 	"\x18GetDirectoryStatsRequest\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\"[\n" +
 	"\x19GetDirectoryStatsResponse\x12\x1d\n" +
@@ -1687,7 +2266,8 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\x16PREVIEW_STATUS_PENDING\x10\x02\x12\x1d\n" +
 	"\x19PREVIEW_STATUS_PROCESSING\x10\x03\x12\x18\n" +
 	"\x14PREVIEW_STATUS_READY\x10\x04\x12\x19\n" +
-	"\x15PREVIEW_STATUS_FAILED\x10\x052\xaf\x06\n" +
+	"\x15PREVIEW_STATUS_FAILED\x10\x052\xbd\n" +
+	"\n" +
 	"\fFilesService\x12W\n" +
 	"\x0eGetDownloadURL\x12!.service.v1.GetDownloadURLRequest\x1a\".service.v1.GetDownloadURLResponse\x12T\n" +
 	"\rGetPreviewURL\x12 .service.v1.GetPreviewURLRequest\x1a!.service.v1.GetPreviewURLResponse\x12N\n" +
@@ -1695,7 +2275,12 @@ const file_service_v1_files_proto_rawDesc = "" +
 	"\n" +
 	"DeleteFile\x12\x1d.service.v1.DeleteFileRequest\x1a\x1e.service.v1.DeleteFileResponse\x12Q\n" +
 	"\fGetUploadURL\x12\x1f.service.v1.GetUploadURLRequest\x1a .service.v1.GetUploadURLResponse\x12Q\n" +
-	"\fCommitUpload\x12\x1f.service.v1.CommitUploadRequest\x1a .service.v1.CommitUploadResponse\x12`\n" +
+	"\fCommitUpload\x12\x1f.service.v1.CommitUploadRequest\x1a .service.v1.CommitUploadResponse\x12l\n" +
+	"\x15CreateMultipartUpload\x12(.service.v1.CreateMultipartUploadRequest\x1a).service.v1.CreateMultipartUploadResponse\x12]\n" +
+	"\x10GetUploadPartURL\x12#.service.v1.GetUploadPartURLRequest\x1a$.service.v1.GetUploadPartURLResponse\x12`\n" +
+	"\x11ListUploadedParts\x12$.service.v1.ListUploadedPartsRequest\x1a%.service.v1.ListUploadedPartsResponse\x12r\n" +
+	"\x17CompleteMultipartUpload\x12*.service.v1.CompleteMultipartUploadRequest\x1a+.service.v1.CompleteMultipartUploadResponse\x12i\n" +
+	"\x14AbortMultipartUpload\x12'.service.v1.AbortMultipartUploadRequest\x1a(.service.v1.AbortMultipartUploadResponse\x12`\n" +
 	"\x11GetDirectoryStats\x12$.service.v1.GetDirectoryStatsRequest\x1a%.service.v1.GetDirectoryStatsResponse\x12Z\n" +
 	"\x0fDeleteDirectory\x12\".service.v1.DeleteDirectoryRequest\x1a#.service.v1.DeleteDirectoryResponse\x12o\n" +
 	"\x16GetFilePreviewStatuses\x12).service.v1.GetFilePreviewStatusesRequest\x1a*.service.v1.GetFilePreviewStatusesResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
@@ -1713,71 +2298,94 @@ func file_service_v1_files_proto_rawDescGZIP() []byte {
 }
 
 var file_service_v1_files_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_service_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_service_v1_files_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_service_v1_files_proto_goTypes = []any{
-	(PreviewStatus)(0),                     // 0: service.v1.PreviewStatus
-	(*GetFilePreviewStatusesRequest)(nil),  // 1: service.v1.GetFilePreviewStatusesRequest
-	(*FilePreviewStatus)(nil),              // 2: service.v1.FilePreviewStatus
-	(*GetFilePreviewStatusesResponse)(nil), // 3: service.v1.GetFilePreviewStatusesResponse
-	(*GetDownloadURLRequest)(nil),          // 4: service.v1.GetDownloadURLRequest
-	(*DownloadURLSpec)(nil),                // 5: service.v1.DownloadURLSpec
-	(*GetDownloadURLResponse)(nil),         // 6: service.v1.GetDownloadURLResponse
-	(*GetPreviewURLRequest)(nil),           // 7: service.v1.GetPreviewURLRequest
-	(*PreviewURLSpec)(nil),                 // 8: service.v1.PreviewURLSpec
-	(*GetPreviewURLResponse)(nil),          // 9: service.v1.GetPreviewURLResponse
-	(*GetFileInfoRequest)(nil),             // 10: service.v1.GetFileInfoRequest
-	(*FileInfo)(nil),                       // 11: service.v1.FileInfo
-	(*ExifMetadata)(nil),                   // 12: service.v1.ExifMetadata
-	(*GetFileInfoResponse)(nil),            // 13: service.v1.GetFileInfoResponse
-	(*DeleteFileRequest)(nil),              // 14: service.v1.DeleteFileRequest
-	(*DeleteFileResponse)(nil),             // 15: service.v1.DeleteFileResponse
-	(*GetUploadURLRequest)(nil),            // 16: service.v1.GetUploadURLRequest
-	(*GetUploadURLResponse)(nil),           // 17: service.v1.GetUploadURLResponse
-	(*CommitUploadRequest)(nil),            // 18: service.v1.CommitUploadRequest
-	(*CommitUploadResponse)(nil),           // 19: service.v1.CommitUploadResponse
-	(*GetDirectoryStatsRequest)(nil),       // 20: service.v1.GetDirectoryStatsRequest
-	(*GetDirectoryStatsResponse)(nil),      // 21: service.v1.GetDirectoryStatsResponse
-	(*DeleteDirectoryRequest)(nil),         // 22: service.v1.DeleteDirectoryRequest
-	(*DeleteDirectoryResponse)(nil),        // 23: service.v1.DeleteDirectoryResponse
-	(*timestamppb.Timestamp)(nil),          // 24: google.protobuf.Timestamp
+	(PreviewStatus)(0),                      // 0: service.v1.PreviewStatus
+	(*GetFilePreviewStatusesRequest)(nil),   // 1: service.v1.GetFilePreviewStatusesRequest
+	(*FilePreviewStatus)(nil),               // 2: service.v1.FilePreviewStatus
+	(*GetFilePreviewStatusesResponse)(nil),  // 3: service.v1.GetFilePreviewStatusesResponse
+	(*GetDownloadURLRequest)(nil),           // 4: service.v1.GetDownloadURLRequest
+	(*DownloadURLSpec)(nil),                 // 5: service.v1.DownloadURLSpec
+	(*GetDownloadURLResponse)(nil),          // 6: service.v1.GetDownloadURLResponse
+	(*GetPreviewURLRequest)(nil),            // 7: service.v1.GetPreviewURLRequest
+	(*PreviewURLSpec)(nil),                  // 8: service.v1.PreviewURLSpec
+	(*GetPreviewURLResponse)(nil),           // 9: service.v1.GetPreviewURLResponse
+	(*GetFileInfoRequest)(nil),              // 10: service.v1.GetFileInfoRequest
+	(*FileInfo)(nil),                        // 11: service.v1.FileInfo
+	(*ExifMetadata)(nil),                    // 12: service.v1.ExifMetadata
+	(*GetFileInfoResponse)(nil),             // 13: service.v1.GetFileInfoResponse
+	(*DeleteFileRequest)(nil),               // 14: service.v1.DeleteFileRequest
+	(*DeleteFileResponse)(nil),              // 15: service.v1.DeleteFileResponse
+	(*GetUploadURLRequest)(nil),             // 16: service.v1.GetUploadURLRequest
+	(*GetUploadURLResponse)(nil),            // 17: service.v1.GetUploadURLResponse
+	(*CommitUploadRequest)(nil),             // 18: service.v1.CommitUploadRequest
+	(*CommitUploadResponse)(nil),            // 19: service.v1.CommitUploadResponse
+	(*CreateMultipartUploadRequest)(nil),    // 20: service.v1.CreateMultipartUploadRequest
+	(*CreateMultipartUploadResponse)(nil),   // 21: service.v1.CreateMultipartUploadResponse
+	(*GetUploadPartURLRequest)(nil),         // 22: service.v1.GetUploadPartURLRequest
+	(*GetUploadPartURLResponse)(nil),        // 23: service.v1.GetUploadPartURLResponse
+	(*ListUploadedPartsRequest)(nil),        // 24: service.v1.ListUploadedPartsRequest
+	(*UploadedPart)(nil),                    // 25: service.v1.UploadedPart
+	(*ListUploadedPartsResponse)(nil),       // 26: service.v1.ListUploadedPartsResponse
+	(*CompleteMultipartUploadRequest)(nil),  // 27: service.v1.CompleteMultipartUploadRequest
+	(*CompleteMultipartUploadResponse)(nil), // 28: service.v1.CompleteMultipartUploadResponse
+	(*AbortMultipartUploadRequest)(nil),     // 29: service.v1.AbortMultipartUploadRequest
+	(*AbortMultipartUploadResponse)(nil),    // 30: service.v1.AbortMultipartUploadResponse
+	(*GetDirectoryStatsRequest)(nil),        // 31: service.v1.GetDirectoryStatsRequest
+	(*GetDirectoryStatsResponse)(nil),       // 32: service.v1.GetDirectoryStatsResponse
+	(*DeleteDirectoryRequest)(nil),          // 33: service.v1.DeleteDirectoryRequest
+	(*DeleteDirectoryResponse)(nil),         // 34: service.v1.DeleteDirectoryResponse
+	(*timestamppb.Timestamp)(nil),           // 35: google.protobuf.Timestamp
 }
 var file_service_v1_files_proto_depIdxs = []int32{
 	0,  // 0: service.v1.FilePreviewStatus.preview_status:type_name -> service.v1.PreviewStatus
 	2,  // 1: service.v1.GetFilePreviewStatusesResponse.statuses:type_name -> service.v1.FilePreviewStatus
 	5,  // 2: service.v1.GetDownloadURLResponse.download_urls:type_name -> service.v1.DownloadURLSpec
 	8,  // 3: service.v1.GetPreviewURLResponse.preview_urls:type_name -> service.v1.PreviewURLSpec
-	24, // 4: service.v1.FileInfo.created_at:type_name -> google.protobuf.Timestamp
-	24, // 5: service.v1.FileInfo.updated_at:type_name -> google.protobuf.Timestamp
+	35, // 4: service.v1.FileInfo.created_at:type_name -> google.protobuf.Timestamp
+	35, // 5: service.v1.FileInfo.updated_at:type_name -> google.protobuf.Timestamp
 	12, // 6: service.v1.FileInfo.exif:type_name -> service.v1.ExifMetadata
 	0,  // 7: service.v1.FileInfo.preview_status:type_name -> service.v1.PreviewStatus
-	24, // 8: service.v1.ExifMetadata.taken_at:type_name -> google.protobuf.Timestamp
-	24, // 9: service.v1.ExifMetadata.gps_at:type_name -> google.protobuf.Timestamp
-	24, // 10: service.v1.ExifMetadata.xmp_create_date:type_name -> google.protobuf.Timestamp
+	35, // 8: service.v1.ExifMetadata.taken_at:type_name -> google.protobuf.Timestamp
+	35, // 9: service.v1.ExifMetadata.gps_at:type_name -> google.protobuf.Timestamp
+	35, // 10: service.v1.ExifMetadata.xmp_create_date:type_name -> google.protobuf.Timestamp
 	11, // 11: service.v1.GetFileInfoResponse.file:type_name -> service.v1.FileInfo
 	11, // 12: service.v1.CommitUploadResponse.file:type_name -> service.v1.FileInfo
-	4,  // 13: service.v1.FilesService.GetDownloadURL:input_type -> service.v1.GetDownloadURLRequest
-	7,  // 14: service.v1.FilesService.GetPreviewURL:input_type -> service.v1.GetPreviewURLRequest
-	10, // 15: service.v1.FilesService.GetFileInfo:input_type -> service.v1.GetFileInfoRequest
-	14, // 16: service.v1.FilesService.DeleteFile:input_type -> service.v1.DeleteFileRequest
-	16, // 17: service.v1.FilesService.GetUploadURL:input_type -> service.v1.GetUploadURLRequest
-	18, // 18: service.v1.FilesService.CommitUpload:input_type -> service.v1.CommitUploadRequest
-	20, // 19: service.v1.FilesService.GetDirectoryStats:input_type -> service.v1.GetDirectoryStatsRequest
-	22, // 20: service.v1.FilesService.DeleteDirectory:input_type -> service.v1.DeleteDirectoryRequest
-	1,  // 21: service.v1.FilesService.GetFilePreviewStatuses:input_type -> service.v1.GetFilePreviewStatusesRequest
-	6,  // 22: service.v1.FilesService.GetDownloadURL:output_type -> service.v1.GetDownloadURLResponse
-	9,  // 23: service.v1.FilesService.GetPreviewURL:output_type -> service.v1.GetPreviewURLResponse
-	13, // 24: service.v1.FilesService.GetFileInfo:output_type -> service.v1.GetFileInfoResponse
-	15, // 25: service.v1.FilesService.DeleteFile:output_type -> service.v1.DeleteFileResponse
-	17, // 26: service.v1.FilesService.GetUploadURL:output_type -> service.v1.GetUploadURLResponse
-	19, // 27: service.v1.FilesService.CommitUpload:output_type -> service.v1.CommitUploadResponse
-	21, // 28: service.v1.FilesService.GetDirectoryStats:output_type -> service.v1.GetDirectoryStatsResponse
-	23, // 29: service.v1.FilesService.DeleteDirectory:output_type -> service.v1.DeleteDirectoryResponse
-	3,  // 30: service.v1.FilesService.GetFilePreviewStatuses:output_type -> service.v1.GetFilePreviewStatusesResponse
-	22, // [22:31] is the sub-list for method output_type
-	13, // [13:22] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	25, // 13: service.v1.ListUploadedPartsResponse.parts:type_name -> service.v1.UploadedPart
+	11, // 14: service.v1.CompleteMultipartUploadResponse.file:type_name -> service.v1.FileInfo
+	4,  // 15: service.v1.FilesService.GetDownloadURL:input_type -> service.v1.GetDownloadURLRequest
+	7,  // 16: service.v1.FilesService.GetPreviewURL:input_type -> service.v1.GetPreviewURLRequest
+	10, // 17: service.v1.FilesService.GetFileInfo:input_type -> service.v1.GetFileInfoRequest
+	14, // 18: service.v1.FilesService.DeleteFile:input_type -> service.v1.DeleteFileRequest
+	16, // 19: service.v1.FilesService.GetUploadURL:input_type -> service.v1.GetUploadURLRequest
+	18, // 20: service.v1.FilesService.CommitUpload:input_type -> service.v1.CommitUploadRequest
+	20, // 21: service.v1.FilesService.CreateMultipartUpload:input_type -> service.v1.CreateMultipartUploadRequest
+	22, // 22: service.v1.FilesService.GetUploadPartURL:input_type -> service.v1.GetUploadPartURLRequest
+	24, // 23: service.v1.FilesService.ListUploadedParts:input_type -> service.v1.ListUploadedPartsRequest
+	27, // 24: service.v1.FilesService.CompleteMultipartUpload:input_type -> service.v1.CompleteMultipartUploadRequest
+	29, // 25: service.v1.FilesService.AbortMultipartUpload:input_type -> service.v1.AbortMultipartUploadRequest
+	31, // 26: service.v1.FilesService.GetDirectoryStats:input_type -> service.v1.GetDirectoryStatsRequest
+	33, // 27: service.v1.FilesService.DeleteDirectory:input_type -> service.v1.DeleteDirectoryRequest
+	1,  // 28: service.v1.FilesService.GetFilePreviewStatuses:input_type -> service.v1.GetFilePreviewStatusesRequest
+	6,  // 29: service.v1.FilesService.GetDownloadURL:output_type -> service.v1.GetDownloadURLResponse
+	9,  // 30: service.v1.FilesService.GetPreviewURL:output_type -> service.v1.GetPreviewURLResponse
+	13, // 31: service.v1.FilesService.GetFileInfo:output_type -> service.v1.GetFileInfoResponse
+	15, // 32: service.v1.FilesService.DeleteFile:output_type -> service.v1.DeleteFileResponse
+	17, // 33: service.v1.FilesService.GetUploadURL:output_type -> service.v1.GetUploadURLResponse
+	19, // 34: service.v1.FilesService.CommitUpload:output_type -> service.v1.CommitUploadResponse
+	21, // 35: service.v1.FilesService.CreateMultipartUpload:output_type -> service.v1.CreateMultipartUploadResponse
+	23, // 36: service.v1.FilesService.GetUploadPartURL:output_type -> service.v1.GetUploadPartURLResponse
+	26, // 37: service.v1.FilesService.ListUploadedParts:output_type -> service.v1.ListUploadedPartsResponse
+	28, // 38: service.v1.FilesService.CompleteMultipartUpload:output_type -> service.v1.CompleteMultipartUploadResponse
+	30, // 39: service.v1.FilesService.AbortMultipartUpload:output_type -> service.v1.AbortMultipartUploadResponse
+	32, // 40: service.v1.FilesService.GetDirectoryStats:output_type -> service.v1.GetDirectoryStatsResponse
+	34, // 41: service.v1.FilesService.DeleteDirectory:output_type -> service.v1.DeleteDirectoryResponse
+	3,  // 42: service.v1.FilesService.GetFilePreviewStatuses:output_type -> service.v1.GetFilePreviewStatusesResponse
+	29, // [29:43] is the sub-list for method output_type
+	15, // [15:29] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_service_v1_files_proto_init() }
@@ -1792,7 +2400,7 @@ func file_service_v1_files_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_v1_files_proto_rawDesc), len(file_service_v1_files_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   23,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

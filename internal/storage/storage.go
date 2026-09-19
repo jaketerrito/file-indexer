@@ -68,4 +68,38 @@ type Storage interface {
 	// prefix of the objects may remain, retry or let the crawler reconcile
 	// the DB", not per-key granularity.
 	DeleteMany(ctx context.Context, keys []string) error
+
+	// CreateMultipartUpload starts a multipart upload and returns its S3
+	// upload ID. contentType is bound to the object now: S3's multipart API
+	// takes it at initiate time, unlike Put/PutURL's single-PUT path where
+	// the client's own header on the PUT is authoritative.
+	CreateMultipartUpload(ctx context.Context, key, contentType string) (uploadID string, err error)
+
+	// UploadPartURL returns a time-limited presigned URL a client can PUT
+	// one part's bytes to directly. partNumber is 1-indexed per the S3
+	// multipart API (valid range 1..10000).
+	UploadPartURL(ctx context.Context, key, uploadID string, partNumber int) (string, error)
+
+	// ListParts returns the parts S3 already has for an in-progress
+	// multipart upload, letting a resuming client skip parts it already
+	// landed.
+	ListParts(ctx context.Context, key, uploadID string) ([]PartInfo, error)
+
+	// CompleteMultipartUpload finalizes uploadID. It never trusts a
+	// client-supplied part list: it lists the landed parts (and their
+	// ETags) from S3 itself before issuing the S3 CompleteMultipartUpload
+	// call, mirroring how CommitUpload re-stats rather than trusting the
+	// client for the single-PUT path.
+	CompleteMultipartUpload(ctx context.Context, key, uploadID string) error
+
+	// AbortMultipartUpload cancels an in-progress multipart upload so S3
+	// releases its parts. Safe to call on an already-completed or
+	// already-aborted upload ID.
+	AbortMultipartUpload(ctx context.Context, key, uploadID string) error
+}
+
+// PartInfo describes one part of an in-progress multipart upload.
+type PartInfo struct {
+	PartNumber int
+	Size       int64
 }

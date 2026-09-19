@@ -20,9 +20,6 @@ history is the archive.
 - **Tagging and tag search** (DESIGN.md): no tags table, no tagging index
   type, no tag filter in search. DESIGN.md wants AI-based tagging (heavy-duty
   indexing, separate process) and "string match tags" search.
-- **Resumable large uploads** (DESIGN.md): upload is a single presigned PUT
-  followed by CommitUpload; an interrupted large upload restarts from zero.
-  Add presigned S3 multipart upload for per-part resumability.
 
 ## Frontend
 

@@ -1,12 +1,46 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { type FileFilters, isBrowsing, toBrowsePath } from '../lib/fileFilters'
+import {
+  MULTIPART_THRESHOLD_BYTES,
+  type MultipartUploadDeps,
+  uploadFileMultipart,
+} from '../lib/multipartUpload'
 import { normalizeUploadPath } from '../lib/uploadPath'
 import { visuallyHiddenStyle } from '../lib/visuallyHidden'
-import { commitUpload, getUploadUrl } from '../server/files'
+import {
+  abortMultipartUpload,
+  commitUpload,
+  completeMultipartUpload,
+  createMultipartUpload,
+  getUploadPartUrl,
+  getUploadUrl,
+  listUploadedParts,
+} from '../server/files'
 import { Breadcrumbs } from './Breadcrumbs'
 import { DirectoryList } from './DirectoryList'
 import { FileList } from './FileList'
+
+// Bridges the plain-object multipartUpload module to the TanStack Start
+// server functions, which wrap every input in { data }. Module-level: none
+// of this depends on component props or state.
+const multipartDeps: MultipartUploadDeps = {
+  createMultipartUpload: (input) => createMultipartUpload({ data: input }),
+  getUploadPartUrl: (input) => getUploadPartUrl({ data: input }),
+  listUploadedParts: (input) => listUploadedParts({ data: input }),
+  completeMultipartUpload: async (input) => {
+    await completeMultipartUpload({ data: input })
+  },
+  abortMultipartUpload: async (input) => {
+    await abortMultipartUpload({ data: input })
+  },
+  putPart: async (url, body, signal) => {
+    const res = await fetch(url, { method: 'PUT', body, signal })
+    if (!res.ok) {
+      throw new Error(`part upload failed: ${res.status}`)
+    }
+  },
+}
 
 interface BrowserProps {
   filters: FileFilters
@@ -35,24 +69,48 @@ export function Browser({ filters, onFiltersChange, onOpenFile }: BrowserProps) 
   const path = filters.path ?? ''
 
   const uploadInputRef = useRef<HTMLInputElement>(null)
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null)
+  // Mutable, not state: read inside the async mutation loop between parts,
+  // not something a re-render needs to observe.
+  const cancelControllerRef = useRef(new AbortController())
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
       // Always the current folder — no freeform override here (unlike
       // FileList's search-mode upload, which has no path to default to).
       // Browsing to the right folder first is the destination picker.
       const dir = normalizeUploadPath(path)
-      for (const file of files) {
-        const key = dir + file.name
-        const { url } = await getUploadUrl({ data: { key } })
-        const res = await fetch(url, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type || 'application/octet-stream' },
-        })
-        if (!res.ok) {
-          throw new Error(`upload failed for ${file.name}: ${res.status}`)
+      cancelControllerRef.current = new AbortController()
+      try {
+        for (const file of files) {
+          const key = dir + file.name
+          if (file.size >= MULTIPART_THRESHOLD_BYTES) {
+            setUploadStatus(`Uploading ${file.name}…`)
+            await uploadFileMultipart(
+              file,
+              key,
+              file.type || 'application/octet-stream',
+              multipartDeps,
+              {
+                signal: cancelControllerRef.current.signal,
+                onProgress: (completed, total) =>
+                  setUploadStatus(`Uploading ${file.name}: part ${completed}/${total}`),
+              },
+            )
+          } else {
+            const { url } = await getUploadUrl({ data: { key } })
+            const res = await fetch(url, {
+              method: 'PUT',
+              body: file,
+              headers: { 'Content-Type': file.type || 'application/octet-stream' },
+            })
+            if (!res.ok) {
+              throw new Error(`upload failed for ${file.name}: ${res.status}`)
+            }
+            await commitUpload({ data: { key } })
+          }
         }
-        await commitUpload({ data: { key } })
+      } finally {
+        setUploadStatus(null)
       }
     },
     onSuccess: () => {
@@ -131,6 +189,15 @@ export function Browser({ filters, onFiltersChange, onOpenFile }: BrowserProps) 
         >
           {uploadMutation.isPending ? 'Uploading…' : 'Upload'}
         </button>
+        {uploadStatus ? (
+          <>
+            {' '}
+            <span>{uploadStatus}</span>{' '}
+            <button type="button" onClick={() => cancelControllerRef.current.abort()}>
+              Cancel
+            </button>
+          </>
+        ) : null}
       </fieldset>
       {uploadMutation.isError ? (
         <p role="alert">Upload failed: {String(uploadMutation.error)}</p>

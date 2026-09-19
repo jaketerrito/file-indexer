@@ -363,6 +363,115 @@ export async function commitUploadImpl(
   return toFileDto(res.file)
 }
 
+export function validateCreateMultipartUploadInput(input: unknown): {
+  key: string
+  contentType: string
+} {
+  const data = (input ?? {}) as Record<string, unknown>
+  if (typeof data.key !== 'string' || data.key === '') {
+    throw new Error('key must be a non-empty string')
+  }
+  if (typeof data.contentType !== 'string' || data.contentType === '') {
+    throw new Error('contentType must be a non-empty string')
+  }
+  return { key: data.key, contentType: data.contentType }
+}
+
+/**
+ * Starts the resumable large-file upload path (see CreateMultipartUpload's
+ * doc comment in files.proto). The client must persist the returned
+ * uploadId itself to resume via listUploadedPartsImpl after a reload.
+ */
+export async function createMultipartUploadImpl(
+  client: Client<typeof FilesService>,
+  key: string,
+  contentType: string,
+): Promise<{ uploadId: string }> {
+  const res = await client.createMultipartUpload({ key, contentType })
+  return { uploadId: res.uploadId }
+}
+
+export function validateUploadPartUrlInput(input: unknown): {
+  key: string
+  uploadId: string
+  partNumber: number
+} {
+  const data = (input ?? {}) as Record<string, unknown>
+  if (typeof data.key !== 'string' || data.key === '') {
+    throw new Error('key must be a non-empty string')
+  }
+  if (typeof data.uploadId !== 'string' || data.uploadId === '') {
+    throw new Error('uploadId must be a non-empty string')
+  }
+  if (typeof data.partNumber !== 'number' || !Number.isInteger(data.partNumber)) {
+    throw new Error('partNumber must be an integer')
+  }
+  return { key: data.key, uploadId: data.uploadId, partNumber: data.partNumber }
+}
+
+export async function getUploadPartUrlImpl(
+  client: Client<typeof FilesService>,
+  key: string,
+  uploadId: string,
+  partNumber: number,
+): Promise<{ url: string }> {
+  const res = await client.getUploadPartURL({ key, uploadId, partNumber })
+  return { url: res.url }
+}
+
+export function validateUploadIdInput(input: unknown): { key: string; uploadId: string } {
+  const data = (input ?? {}) as Record<string, unknown>
+  if (typeof data.key !== 'string' || data.key === '') {
+    throw new Error('key must be a non-empty string')
+  }
+  if (typeof data.uploadId !== 'string' || data.uploadId === '') {
+    throw new Error('uploadId must be a non-empty string')
+  }
+  return { key: data.key, uploadId: data.uploadId }
+}
+
+export interface UploadedPartDto {
+  partNumber: number
+  size: number
+}
+
+/**
+ * Reports the parts S3 already has for uploadId, letting a resuming client
+ * skip re-uploading parts that already landed.
+ */
+export async function listUploadedPartsImpl(
+  client: Client<typeof FilesService>,
+  key: string,
+  uploadId: string,
+): Promise<{ parts: UploadedPartDto[] }> {
+  const res = await client.listUploadedParts({ key, uploadId })
+  return { parts: res.parts.map((p) => ({ partNumber: p.partNumber, size: Number(p.size) })) }
+}
+
+/**
+ * Finalizes a multipart upload and registers the object with the index —
+ * the multipart-path equivalent of commitUploadImpl.
+ */
+export async function completeMultipartUploadImpl(
+  client: Client<typeof FilesService>,
+  key: string,
+  uploadId: string,
+): Promise<FileDto> {
+  const res = await client.completeMultipartUpload({ key, uploadId })
+  if (!res.file) {
+    throw new Error(`no file returned completing multipart upload for key ${key}`)
+  }
+  return toFileDto(res.file)
+}
+
+export async function abortMultipartUploadImpl(
+  client: Client<typeof FilesService>,
+  key: string,
+  uploadId: string,
+): Promise<void> {
+  await client.abortMultipartUpload({ key, uploadId })
+}
+
 export interface ListDirectoryInput {
   /** Directory to list; "" is the bucket root. */
   path?: string

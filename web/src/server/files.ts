@@ -1,22 +1,30 @@
 import { createServerFn } from '@tanstack/react-start'
 import { getFilesClient, getSearchClient } from './clients'
 import {
+  abortMultipartUploadImpl,
   commitUploadImpl,
+  completeMultipartUploadImpl,
+  createMultipartUploadImpl,
   deleteDirectoryImpl,
   deleteFileImpl,
   getDirectoryStatsImpl,
   getDownloadUrlImpl,
   getFileMetadataImpl,
   getFilePreviewStatusesImpl,
+  getUploadPartUrlImpl,
   getUploadUrlImpl,
   listContentTypesImpl,
   listDirectoryImpl,
   listFilesImpl,
+  listUploadedPartsImpl,
+  validateCreateMultipartUploadInput,
   validateIdInput,
   validateKeyInput,
   validateListDirectoryInput,
   validateListFilesInput,
   validatePathInput,
+  validateUploadIdInput,
+  validateUploadPartUrlInput,
 } from './impl'
 
 // Thin server-function wrappers; all real logic lives in impl.ts where it is
@@ -49,6 +57,28 @@ export const getUploadUrl = createServerFn({ method: 'GET' })
 export const commitUpload = createServerFn({ method: 'POST' })
   .validator(validateKeyInput)
   .handler(({ data }) => commitUploadImpl(getFilesClient(), data.key))
+
+export const createMultipartUpload = createServerFn({ method: 'POST' })
+  .validator(validateCreateMultipartUploadInput)
+  .handler(({ data }) => createMultipartUploadImpl(getFilesClient(), data.key, data.contentType))
+
+export const getUploadPartUrl = createServerFn({ method: 'GET' })
+  .validator(validateUploadPartUrlInput)
+  .handler(({ data }) =>
+    getUploadPartUrlImpl(getFilesClient(), data.key, data.uploadId, data.partNumber),
+  )
+
+export const listUploadedParts = createServerFn({ method: 'GET' })
+  .validator(validateUploadIdInput)
+  .handler(({ data }) => listUploadedPartsImpl(getFilesClient(), data.key, data.uploadId))
+
+export const completeMultipartUpload = createServerFn({ method: 'POST' })
+  .validator(validateUploadIdInput)
+  .handler(({ data }) => completeMultipartUploadImpl(getFilesClient(), data.key, data.uploadId))
+
+export const abortMultipartUpload = createServerFn({ method: 'POST' })
+  .validator(validateUploadIdInput)
+  .handler(({ data }) => abortMultipartUploadImpl(getFilesClient(), data.key, data.uploadId))
 
 export const listDirectory = createServerFn({ method: 'GET' })
   .validator(validateListDirectoryInput)
