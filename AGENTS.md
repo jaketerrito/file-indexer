@@ -144,6 +144,11 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   it cannot run under a supervisor (the child is killed on teardown). To
   supervise tilt, launch `tilt up --namespace <ns> --port <tilt_port>`
   directly in the foreground.
+- `just tilt-down` returns before the namespace finishes terminating; a
+  `just up` started immediately after races the deletion — every apply fails
+  with "namespace ... is being terminated" and all resources wedge pending
+  with no pods. Wait for `kubectl get ns <ns>` to 404 (or pkill + restart
+  the wedged session once it has).
 - The files/search services serve gRPC (HTTP/2) only — no connect/JSON over
   HTTP/1.1, so curl seeding fails with "Received HTTP/0.9". To seed dev data:
   pipe files into the local-s3 pod (`kubectl exec -i ... -c minio -- sh -c

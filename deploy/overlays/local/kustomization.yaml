@@ -12,9 +12,12 @@ kind: Kustomization
 # because seeding is dev-only; base MinIO stays seed-free. Likewise the files
 # service's browser-facing S3_PUBLIC_ENDPOINT (files-public-endpoint.yaml
 # patch): presign targets are environment-specific, so base files.yaml stays
-# generic. Postgres and MinIO (and the db-secret/s3-secret whose values point
-# at them) live here too: they ARE the local environment — any other
-# environment supplies its own secrets against real infra.
+# generic. The web-writable-rootfs.yaml patch relaxes web's
+# readOnlyRootFilesystem for the `--webdev` vite dev loop (vite dev writes
+# node_modules/.vite and regenerates routeTree.gen.ts); base keeps the
+# read-only rootfs. Postgres and MinIO (and the db-secret/s3-secret whose
+# values point at them) live here too: they ARE the local environment — any
+# other environment supplies its own secrets against real infra.
 resources:
   - ../../base
   - postgres.yaml
@@ -22,6 +25,7 @@ resources:
 patches:
   - path: seed-sidecar.yaml
   - path: files-public-endpoint.yaml
+  - path: web-writable-rootfs.yaml
 
 # disableNameSuffixHash is load-bearing: the services reference these secrets
 # by fixed name via envFrom.

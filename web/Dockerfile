@@ -9,6 +9,21 @@ COPY . .
 RUN npm run build
 RUN npm prune --omit=dev
 
+# Dev stage for `tilt up -- --webdev` (live_update): vite dev server with full
+# node_modules; Tilt syncs source on top. Runs as UID 10001 like prod, with
+# /app chowned so vite can write node_modules/.vite and regenerate
+# src/routeTree.gen.ts (the local overlay relaxes readOnlyRootFilesystem).
+FROM node-base AS dev
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN chown -R 10001:10001 /app
+USER 10001:10001
+EXPOSE 3000
+# --host: vite binds localhost by default, unreachable from outside the pod.
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+
 FROM node-base
 # The pinned alpine3.24 base ships libcrypto3 3.5.7-r0 (CVE-2026-14456, fixed
 # in 3.5.8-r0) and node:24-alpine3.24 has no newer build yet; upgrade the

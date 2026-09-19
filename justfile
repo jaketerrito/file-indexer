@@ -79,6 +79,20 @@ tilt-up:
     @echo "tilt UI: http://localhost:{{tilt_port}}"
     @echo "web: http://web.{{ns}}.localhost (also: s3.{{ns}}.localhost, s3-console.{{ns}}.localhost)"
 
+# Like `just up`, but the web container runs a vite dev server with
+# live_update/HMR (the Tiltfile's --webdev flag): web/ source edits sync into
+# the pod and hot-reload at the usual http://web.<ns>.localhost URL instead
+# of triggering full image rebuilds; package.json/lock changes still rebuild
+# the image. Switching modes needs `just tilt-down` first (Tilt config args
+# are fixed at startup). After adding/renaming ROUTES, run
+# `npm --prefix web run dev` (or build) once on the host: vite regenerates
+# the committed src/routeTree.gen.ts in-container only, and the host's
+# committed copy must be refreshed before committing.
+up-webdev: cluster-up
+    tilt up --namespace {{ns}} --port {{tilt_port}} -- --webdev > /dev/null 2>&1 &
+    @echo "tilt UI: http://localhost:{{tilt_port}}"
+    @echo "web (vite dev, HMR): http://web.{{ns}}.localhost"
+
 # Stop this checkout's Tilt and delete its namespace (the shared cluster and
 # other checkouts survive). The pkill targets only this checkout's Tilt process
 # (matched by its namespace, not the UI port — cksum%100 ports can collide
