@@ -99,3 +99,17 @@ WHERE parent = sqlc.arg(parent)
   AND (NOT sqlc.arg(has_cursor)::bool OR path > sqlc.arg(after)::text)
 ORDER BY path
 LIMIT sqlc.arg(page_limit);
+
+-- name: SearchDirectories :many
+-- Text search over every directory path: the same two-branch match the
+-- ListFilesBy* key filter uses (case-insensitive ILIKE substring, or %>
+-- trigram word similarity for typo tolerance — plain % compares whole
+-- strings; see files.sql's comment above the ListFilesBy* queries),
+-- keyset-paged on path exactly like ListChildDirectories. Served by
+-- directories_path_trgm_idx (migrations/006_directories_trgm.sql) for the
+-- text branches and the path PK btree for the keyset range.
+SELECT path FROM directories
+WHERE (sqlc.arg(query)::text = '' OR path ILIKE sqlc.arg(query_pattern) OR path %> sqlc.arg(query))
+  AND (NOT sqlc.arg(has_cursor)::bool OR path > sqlc.arg(after)::text)
+ORDER BY path
+LIMIT sqlc.arg(page_limit);

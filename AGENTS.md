@@ -20,6 +20,12 @@ interfaces listed in `.mockery.yaml`, and commit the output.
  Run it as a whole, never the generators individually — mockery and sqlc
  compile against buf's Go output and fail with undefined `pb` types if run
  before `buf generate`.
+ One exception: `go generate ./...` runs the root package's mockery
+ directive BEFORE internal/db's sqlc, so when a hand-edited interface
+ references a brand-new sqlc params type (e.g. `db.SearchDirectoriesParams`),
+ `just generate` fails at mockery with "undefined: db.XParams". Run
+ `go tool sqlc generate` once to materialize the type, then `just generate`
+ as a whole.
 
 ## Test conventions
 
@@ -152,6 +158,13 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   Verify locally: `docker run --rm -v "$PWD:/src" -w /src aquasec/trivy:0.70.0
   fs --scanners misconfig --severity CRITICAL,HIGH --ignorefile
   .trivyignore.yaml .`
+- Playwright e2e against a `just up-webdev` session: SSR'd buttons are
+  visible before hydration attaches their handlers, and the vite dev
+  server's unbundled modules widen that gap to seconds — a first click can
+  silently no-op (the upload spec's file chooser timed out
+  deterministically). Click until the expected event fires, and register
+  `waitForEvent` listeners BEFORE the triggering click: the event fires
+  synchronously with it, so a late listener misses every retry.
 - `just tilt-down` returns before the namespace finishes terminating; a
   `just up` started immediately after races the deletion — every apply fails
   with "namespace ... is being terminated" and all resources wedge pending

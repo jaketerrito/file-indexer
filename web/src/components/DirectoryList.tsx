@@ -1,17 +1,10 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { PreviewStatus } from '../gen/service/v1/files_pb'
 import { useFileStatusPoller } from '../lib/useFileStatusPoller'
-import {
-  deleteDirectory,
-  deleteFile,
-  getDirectoryStats,
-  getDownloadUrl,
-  listDirectory,
-} from '../server/files'
+import { deleteDirectory, getDirectoryStats, listDirectory } from '../server/files'
 import type { SortFieldInput, SortOrderInput } from '../server/impl'
-import { DeleteFileConfirmation } from './DeleteFileConfirmation'
 import { DeleteFolderConfirmation } from './DeleteFolderConfirmation'
+import { FileTable } from './FileTable'
 
 const PAGE_SIZE = 50
 
@@ -26,12 +19,12 @@ interface DirectoryListProps {
 }
 
 /**
- * Lists a directory's immediate children: subdirectories (always
- * alphabetical, always first — see ListDirectory's two-phase design) then
- * files directly in it. Deleting a folder is a two-step confirm: clicking
- * Delete fetches GetDirectoryStats to show what's about to go before a
- * second click actually runs DeleteDirectory, since it is a non-atomic,
- * unrecoverable bulk operation.
+ * Lists a directory's immediate children in the shared FileTable:
+ * subdirectories as rows first (always alphabetical — see ListDirectory's
+ * two-phase design), then files directly in it. Deleting a folder is a
+ * two-step confirm: clicking Delete fetches GetDirectoryStats to show
+ * what's about to go before a second click actually runs DeleteDirectory,
+ * since it is a non-atomic, unrecoverable bulk operation.
  */
 export function DirectoryList({ path, sort, order, onNavigate, onOpenFile }: DirectoryListProps) {
   const queryClient = useQueryClient()
@@ -53,26 +46,11 @@ export function DirectoryList({ path, sort, order, onNavigate, onOpenFile }: Dir
       getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
     })
 
-  const deleteFileMutation = useMutation({
-    mutationFn: (id: string) => deleteFile({ data: { id } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['directory', path] })
-      // Deleting a folder's last file removes the folder itself (directories
-      // are derived from key structure), so the sidebar tree needs a refetch.
-      queryClient.invalidateQueries({ queryKey: ['folder-tree'] })
-      setFileToDelete(null)
-    },
-  })
-
   // Folder pending delete confirmation, or null when none. Stats are fetched
   // once a folder is selected so the confirm dialog can show what's about to
   // be removed (DeleteDirectory has no dry-run flag by design; this is the
   // client-side substitute).
   const [folderToDelete, setFolderToDelete] = useState<string | null>(null)
-
-  // File pending delete confirmation, or null when none. The Delete button
-  // only selects; the dialog's Confirm delete actually runs the mutation.
-  const [fileToDelete, setFileToDelete] = useState<{ id: string; key: string } | null>(null)
 
   useFileStatusPoller(data?.pages, ['directory', path, sort, order])
   const statsQuery = useQuery({
@@ -102,11 +80,6 @@ export function DirectoryList({ path, sort, order, onNavigate, onOpenFile }: Dir
     return () => observer.disconnect()
   }, [fetchNextPage, hasNextPage, isFetchingNextPage])
 
-  async function handleDownload(id: string) {
-    const { url } = await getDownloadUrl({ data: { id } })
-    window.open(url, '_blank', 'noopener')
-  }
-
   if (isPending) return <p>Loading…</p>
   if (isError) return <p role="alert">Failed to load directory: {String(error)}</p>
 
@@ -125,65 +98,18 @@ export function DirectoryList({ path, sort, order, onNavigate, onOpenFile }: Dir
       {directories.length === 0 && files.length === 0 ? (
         <p>No files yet — upload here, or navigate into a subfolder.</p>
       ) : (
-        <ul>
-          {directories.map((dir) => (
-            <li key={dir}>
-              📁{' '}
-              <button type="button" onClick={() => onNavigate(dir)}>
-                {dirName(dir)}
-              </button>{' '}
-              <button type="button" onClick={() => setFolderToDelete(dir)}>
-                Delete folder
-              </button>
-            </li>
-          ))}
-          {files.map((file) => (
-            <li key={file.id}>
-              {file.previewUrl ? (
-                <img
-                  src={file.previewUrl}
-                  alt=""
-                  width={file.previewWidth ?? undefined}
-                  height={file.previewHeight ?? undefined}
-                  loading="lazy"
-                />
-              ) : file.previewStatus === PreviewStatus.PENDING ||
-                file.previewStatus === PreviewStatus.PROCESSING ? (
-                file.contentType.startsWith('image/') ? (
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      width: '4em',
-                      height: '4em',
-                      border: '1px solid #ccc',
-                      background: '#f5f5f5',
-                    }}
-                  >
-                    Processing…
-                  </span>
-                ) : (
-                  <span>Indexing…</span>
-                )
-              ) : file.previewStatus === PreviewStatus.FAILED ? (
-                <span>Preview failed</span>
-              ) : null}{' '}
-              <span>{basename(file.key)}</span>{' '}
-              <button type="button" onClick={() => void handleDownload(file.id)}>
-                Download
-              </button>{' '}
-              <button type="button" onClick={() => onOpenFile(file.id)}>
-                Metadata
-              </button>{' '}
-              <button
-                type="button"
-                onClick={() => setFileToDelete({ id: file.id, key: basename(file.key) })}
-                disabled={deleteFileMutation.isPending}
-              >
-                Delete
-              </button>
-            </li>
-          ))}
-        </ul>
+        <FileTable
+          folders={directories.map((dir) => ({ path: dir, name: dirName(dir) }))}
+          files={files}
+          onOpenFile={onOpenFile}
+          onNavigateFolder={onNavigate}
+          onDeleteFolder={setFolderToDelete}
+          displayKey={basename}
+          // Deleting a folder's last file removes the folder itself
+          // (directories are derived from key structure), so the sidebar
+          // tree needs a refetch too.
+          invalidateKeys={[['directory', path], ['folder-tree']]}
+        />
       )}
       <div ref={sentinelRef} data-testid="scroll-sentinel" />
       {isFetchingNextPage ? <p>Loading more…</p> : null}
@@ -198,15 +124,6 @@ export function DirectoryList({ path, sort, order, onNavigate, onOpenFile }: Dir
           deleteError={deleteDirMutation.isError ? deleteDirMutation.error : null}
           onConfirm={() => deleteDirMutation.mutate(folderToDelete)}
           onCancel={() => setFolderToDelete(null)}
-        />
-      ) : null}
-      {fileToDelete !== null ? (
-        <DeleteFileConfirmation
-          fileKey={fileToDelete.key}
-          pending={deleteFileMutation.isPending}
-          error={deleteFileMutation.isError ? deleteFileMutation.error : null}
-          onConfirm={() => deleteFileMutation.mutate(fileToDelete.id)}
-          onCancel={() => setFileToDelete(null)}
         />
       ) : null}
     </div>

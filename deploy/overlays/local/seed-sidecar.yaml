@@ -39,6 +39,9 @@ spec:
               for f in /seed/*; do
                 mc cp "$f" "local/$S3_BUCKET/$(basename "$f")"
               done
+              # One nested object so a folder exists to browse/search (the
+              # ConfigMap mount is flat, so duplicate an existing seed file).
+              mc cp /seed/todo.txt "local/$S3_BUCKET/docs/todo.txt"
               echo "seeded bucket '$S3_BUCKET' from /seed"
               touch /tmp/seeded
               # Keep the sidecar alive so the pod stays Ready.

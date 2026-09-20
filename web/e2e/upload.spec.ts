@@ -1,5 +1,5 @@
 import { Buffer } from 'node:buffer'
-import { expect, test } from '@playwright/test'
+import { expect, type FileChooser, test } from '@playwright/test'
 import { expectAfterReload } from './helpers'
 
 // Full write-path round-trip against the deployed stack: presigned PUT to
@@ -14,10 +14,19 @@ test('upload, browse, and delete round-trip', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Upload', exact: true })).toBeVisible()
 
   // The file input is visually hidden; drive it through the chooser the
-  // Upload button opens.
-  const chooserPromise = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Upload', exact: true }).click()
-  const chooser = await chooserPromise
+  // Upload button opens. The SSR'd button is visible before hydration
+  // attaches its handler, so a click that lands too early is a no-op (the
+  // vite dev server's unbundled modules widen that window to seconds).
+  // Click until the chooser actually opens.
+  let chooser: FileChooser | undefined
+  for (let attempt = 0; attempt < 20 && chooser === undefined; attempt++) {
+    // The listener must register before the click: the event fires
+    // synchronously with it and a late listener misses it.
+    const opened = page.waitForEvent('filechooser', { timeout: 5_000 }).catch(() => undefined)
+    await page.getByRole('button', { name: 'Upload', exact: true }).click()
+    chooser = await opened
+  }
+  if (chooser === undefined) throw new Error('Upload file chooser never opened')
   await chooser.setFiles({
     name: key,
     mimeType: 'text/plain',
@@ -41,7 +50,7 @@ test('upload, browse, and delete round-trip', async ({ page }) => {
 
   // Open the file's page and delete it there (two-step confirm).
   await page
-    .getByRole('listitem')
+    .getByRole('row')
     .filter({ hasText: key })
     .getByRole('button', { name: 'Metadata' })
     .click()

@@ -36,8 +36,9 @@ function RootComponent() {
 
 /**
  * Everpresent top bar: app link plus the global file search. SearchBar is
- * navigation-agnostic (file page on select, "/search" on Enter); the wiring
- * lives here so the component stays testable without a router.
+ * navigation-agnostic (file page on file select, browse view on folder
+ * select, "/search" on Enter); the wiring lives here so the component stays
+ * testable without a router.
  */
 function Header() {
   const navigate = useNavigate()
@@ -56,6 +57,9 @@ function Header() {
       </Link>
       <SearchBar
         onSelect={(file) => void navigate({ to: '/file/$id', params: { id: file.id } })}
+        onSelectFolder={(path) =>
+          void navigate({ to: '/', search: { ...DEFAULT_BROWSE_FILTERS, path } })
+        }
         onSearch={(query) =>
           void navigate({ to: '/search', search: { ...DEFAULT_SEARCH_FILTERS, query } })
         }

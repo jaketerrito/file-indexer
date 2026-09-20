@@ -17,12 +17,14 @@ import {
   listDirectoryImpl,
   listFilesImpl,
   listUploadedPartsImpl,
+  searchDirectoriesImpl,
   validateCreateMultipartUploadInput,
   validateIdInput,
   validateKeyInput,
   validateListDirectoryInput,
   validateListFilesInput,
   validatePathInput,
+  validateSearchDirectoriesInput,
   validateUploadIdInput,
   validateUploadPartUrlInput,
 } from './impl'
@@ -37,6 +39,10 @@ export const listFiles = createServerFn({ method: 'GET' })
 export const listContentTypes = createServerFn({ method: 'GET' }).handler(() =>
   listContentTypesImpl(getSearchClient()),
 )
+
+export const searchDirectories = createServerFn({ method: 'GET' })
+  .validator(validateSearchDirectoriesInput)
+  .handler(({ data }) => searchDirectoriesImpl(getSearchClient(), data))
 
 export const getDownloadUrl = createServerFn({ method: 'GET' })
   .validator(validateIdInput)
