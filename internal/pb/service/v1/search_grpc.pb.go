@@ -19,9 +19,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	SearchService_ListFiles_FullMethodName        = "/service.v1.SearchService/ListFiles"
-	SearchService_ListDirectory_FullMethodName    = "/service.v1.SearchService/ListDirectory"
-	SearchService_ListContentTypes_FullMethodName = "/service.v1.SearchService/ListContentTypes"
+	SearchService_ListFiles_FullMethodName         = "/service.v1.SearchService/ListFiles"
+	SearchService_ListDirectory_FullMethodName     = "/service.v1.SearchService/ListDirectory"
+	SearchService_ListContentTypes_FullMethodName  = "/service.v1.SearchService/ListContentTypes"
+	SearchService_SearchDirectories_FullMethodName = "/service.v1.SearchService/SearchDirectories"
 )
 
 // SearchServiceClient is the client API for SearchService service.
@@ -31,6 +32,7 @@ type SearchServiceClient interface {
 	ListFiles(ctx context.Context, in *ListFilesRequest, opts ...grpc.CallOption) (*ListFilesResponse, error)
 	ListDirectory(ctx context.Context, in *ListDirectoryRequest, opts ...grpc.CallOption) (*ListDirectoryResponse, error)
 	ListContentTypes(ctx context.Context, in *ListContentTypesRequest, opts ...grpc.CallOption) (*ListContentTypesResponse, error)
+	SearchDirectories(ctx context.Context, in *SearchDirectoriesRequest, opts ...grpc.CallOption) (*SearchDirectoriesResponse, error)
 }
 
 type searchServiceClient struct {
@@ -71,6 +73,16 @@ func (c *searchServiceClient) ListContentTypes(ctx context.Context, in *ListCont
 	return out, nil
 }
 
+func (c *searchServiceClient) SearchDirectories(ctx context.Context, in *SearchDirectoriesRequest, opts ...grpc.CallOption) (*SearchDirectoriesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SearchDirectoriesResponse)
+	err := c.cc.Invoke(ctx, SearchService_SearchDirectories_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SearchServiceServer is the server API for SearchService service.
 // All implementations must embed UnimplementedSearchServiceServer
 // for forward compatibility.
@@ -78,6 +90,7 @@ type SearchServiceServer interface {
 	ListFiles(context.Context, *ListFilesRequest) (*ListFilesResponse, error)
 	ListDirectory(context.Context, *ListDirectoryRequest) (*ListDirectoryResponse, error)
 	ListContentTypes(context.Context, *ListContentTypesRequest) (*ListContentTypesResponse, error)
+	SearchDirectories(context.Context, *SearchDirectoriesRequest) (*SearchDirectoriesResponse, error)
 	mustEmbedUnimplementedSearchServiceServer()
 }
 
@@ -96,6 +109,9 @@ func (UnimplementedSearchServiceServer) ListDirectory(context.Context, *ListDire
 }
 func (UnimplementedSearchServiceServer) ListContentTypes(context.Context, *ListContentTypesRequest) (*ListContentTypesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListContentTypes not implemented")
+}
+func (UnimplementedSearchServiceServer) SearchDirectories(context.Context, *SearchDirectoriesRequest) (*SearchDirectoriesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SearchDirectories not implemented")
 }
 func (UnimplementedSearchServiceServer) mustEmbedUnimplementedSearchServiceServer() {}
 func (UnimplementedSearchServiceServer) testEmbeddedByValue()                       {}
@@ -172,6 +188,24 @@ func _SearchService_ListContentTypes_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SearchService_SearchDirectories_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchDirectoriesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SearchServiceServer).SearchDirectories(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SearchService_SearchDirectories_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SearchServiceServer).SearchDirectories(ctx, req.(*SearchDirectoriesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SearchService_ServiceDesc is the grpc.ServiceDesc for SearchService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +224,10 @@ var SearchService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListContentTypes",
 			Handler:    _SearchService_ListContentTypes_Handler,
+		},
+		{
+			MethodName: "SearchDirectories",
+			Handler:    _SearchService_SearchDirectories_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -106,7 +106,10 @@ type PageToken struct {
 	// directly usable as ListChildDirectories' `after` argument — a plain
 	// keyset comparison against the directories table); the FILES phase
 	// reuses sort_field/sort_order/last_id/key/last_modified/size above,
-	// exactly like ListFiles' cursor.
+	// exactly like ListFiles' cursor. SearchDirectories (no sort field, no
+	// phases) reuses query and last_dir for its page tokens: last_dir is the
+	// last directory path returned, directly usable as the SearchDirectories
+	// query's after argument.
 	Path          string    `protobuf:"bytes,9,opt,name=path,proto3" json:"path,omitempty"`
 	Phase         ListPhase `protobuf:"varint,10,opt,name=phase,proto3,enum=cursor.v1.ListPhase" json:"phase,omitempty"`
 	LastDir       string    `protobuf:"bytes,11,opt,name=last_dir,json=lastDir,proto3" json:"last_dir,omitempty"`
