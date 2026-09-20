@@ -1,10 +1,9 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
-import { PreviewStatus } from '../gen/service/v1/files_pb'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useEffect, useRef } from 'react'
 import type { FileFilters } from '../lib/fileFilters'
 import { useFileStatusPoller } from '../lib/useFileStatusPoller'
-import { deleteFile, getDownloadUrl, listContentTypes, listFiles } from '../server/files'
-import { DeleteFileConfirmation } from './DeleteFileConfirmation'
+import { listContentTypes, listFiles } from '../server/files'
+import { FileTable } from './FileTable'
 
 const PAGE_SIZE = 50
 
@@ -22,8 +21,6 @@ interface FileListProps {
 }
 
 export function FileList({ filters, onFiltersChange, onOpenFile }: FileListProps) {
-  const queryClient = useQueryClient()
-
   const { data, error, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
       // Filters are part of the key: changing them restarts pagination, which
@@ -61,14 +58,6 @@ export function FileList({ filters, onFiltersChange, onOpenFile }: FileListProps
       ? [filters.type, ...categories]
       : categories
 
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteFile({ data: { id } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['files'] })
-      setFileToDelete(null)
-    },
-  })
-
   // Infinite scroll: fetch the next page whenever the sentinel below the list
   // becomes visible.
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -84,18 +73,10 @@ export function FileList({ filters, onFiltersChange, onOpenFile }: FileListProps
     return () => observer.disconnect()
   }, [fetchNextPage, hasNextPage, isFetchingNextPage])
 
-  async function handleDownload(id: string) {
-    const { url } = await getDownloadUrl({ data: { id } })
-    window.open(url, '_blank', 'noopener')
-  }
-
-  // File pending delete confirmation, or null when none. The Delete button
-  // only selects; the dialog's Confirm delete actually runs the mutation.
-  const [fileToDelete, setFileToDelete] = useState<{ id: string; key: string } | null>(null)
-
   useFileStatusPoller(data?.pages, ['files', filters])
 
   const isFiltered = filters.query !== '' || filters.type !== ''
+  const files = data?.pages.flatMap((page) => page.files) ?? []
 
   return (
     <div>
@@ -143,73 +124,15 @@ export function FileList({ filters, onFiltersChange, onOpenFile }: FileListProps
         <p role="alert">Failed to load files: {String(error)}</p>
       ) : (
         <>
-          {data.pages.flatMap((page) => page.files).length === 0 ? (
+          {files.length === 0 ? (
             <p>{isFiltered ? 'No files match your filters.' : 'No files.'}</p>
           ) : (
-            <ul>
-              {data.pages
-                .flatMap((page) => page.files)
-                .map((file) => (
-                  <li key={file.id}>
-                    {file.previewUrl ? (
-                      <img
-                        src={file.previewUrl}
-                        alt=""
-                        width={file.previewWidth ?? undefined}
-                        height={file.previewHeight ?? undefined}
-                        loading="lazy"
-                      />
-                    ) : file.previewStatus === PreviewStatus.PENDING ||
-                      file.previewStatus === PreviewStatus.PROCESSING ? (
-                      file.contentType.startsWith('image/') ? (
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            width: '4em',
-                            height: '4em',
-                            border: '1px solid #ccc',
-                            background: '#f5f5f5',
-                          }}
-                        >
-                          Processing…
-                        </span>
-                      ) : (
-                        <span>Indexing…</span>
-                      )
-                    ) : file.previewStatus === PreviewStatus.FAILED ? (
-                      <span>Preview failed</span>
-                    ) : null}{' '}
-                    <span>{file.key}</span>{' '}
-                    <button type="button" onClick={() => void handleDownload(file.id)}>
-                      Download
-                    </button>{' '}
-                    <button type="button" onClick={() => onOpenFile(file.id)}>
-                      Metadata
-                    </button>{' '}
-                    <button
-                      type="button"
-                      onClick={() => setFileToDelete({ id: file.id, key: file.key })}
-                      disabled={deleteMutation.isPending}
-                    >
-                      Delete
-                    </button>
-                  </li>
-                ))}
-            </ul>
+            <FileTable files={files} onOpenFile={onOpenFile} invalidateKeys={[['files']]} />
           )}
           <div ref={sentinelRef} data-testid="scroll-sentinel" />
           {isFetchingNextPage ? <p>Loading more…</p> : null}
         </>
       )}
-      {fileToDelete !== null ? (
-        <DeleteFileConfirmation
-          fileKey={fileToDelete.key}
-          pending={deleteMutation.isPending}
-          error={deleteMutation.isError ? deleteMutation.error : null}
-          onConfirm={() => deleteMutation.mutate(fileToDelete.id)}
-          onCancel={() => setFileToDelete(null)}
-        />
-      ) : null}
     </div>
   )
 }
