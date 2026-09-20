@@ -20,6 +20,12 @@ interfaces listed in `.mockery.yaml`, and commit the output.
  Run it as a whole, never the generators individually — mockery and sqlc
  compile against buf's Go output and fail with undefined `pb` types if run
  before `buf generate`.
+ One exception: `go generate ./...` runs the root package's mockery
+ directive BEFORE internal/db's sqlc, so when a hand-edited interface
+ references a brand-new sqlc params type (e.g. `db.SearchDirectoriesParams`),
+ `just generate` fails at mockery with "undefined: db.XParams". Run
+ `go tool sqlc generate` once to materialize the type, then `just generate`
+ as a whole.
 
 ## Test conventions
 

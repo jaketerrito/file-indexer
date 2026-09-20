@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file service/v1/search.proto.
  */
 export const file_service_v1_search: GenFile = /*@__PURE__*/
-  fileDesc("ChdzZXJ2aWNlL3YxL3NlYXJjaC5wcm90bxIKc2VydmljZS52MSLRAQoQTGlzdEZpbGVzUmVxdWVzdBIaCglwYWdlX3NpemUYASABKAVCB7pIBBoCKAASEgoKcGFnZV90b2tlbhgCIAEoCRINCgVxdWVyeRgDIAEoCRIUCgxjb250ZW50X3R5cGUYBCABKAkSMwoKc29ydF9maWVsZBgFIAEoDjIVLnNlcnZpY2UudjEuU29ydEZpZWxkQgi6SAWCAQIQARIzCgpzb3J0X29yZGVyGAYgASgOMhUuc2VydmljZS52MS5Tb3J0T3JkZXJCCLpIBYIBAhABIlEKEUxpc3RGaWxlc1Jlc3BvbnNlEiMKBWZpbGVzGAEgAygLMhQuc2VydmljZS52MS5GaWxlSW5mbxIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkivgEKFExpc3REaXJlY3RvcnlSZXF1ZXN0EgwKBHBhdGgYASABKAkSGgoJcGFnZV9zaXplGAIgASgFQge6SAQaAigAEhIKCnBhZ2VfdG9rZW4YAyABKAkSMwoKc29ydF9maWVsZBgEIAEoDjIVLnNlcnZpY2UudjEuU29ydEZpZWxkQgi6SAWCAQIQARIzCgpzb3J0X29yZGVyGAUgASgOMhUuc2VydmljZS52MS5Tb3J0T3JkZXJCCLpIBYIBAhABImoKFUxpc3REaXJlY3RvcnlSZXNwb25zZRITCgtkaXJlY3RvcmllcxgBIAMoCRIjCgVmaWxlcxgCIAMoCzIULnNlcnZpY2UudjEuRmlsZUluZm8SFwoPbmV4dF9wYWdlX3Rva2VuGAMgASgJIhkKF0xpc3RDb250ZW50VHlwZXNSZXF1ZXN0Ii4KGExpc3RDb250ZW50VHlwZXNSZXNwb25zZRISCgpjYXRlZ29yaWVzGAEgAygJKm4KCVNvcnRGaWVsZBIaChZTT1JUX0ZJRUxEX1VOU1BFQ0lGSUVEEAASEgoOU09SVF9GSUVMRF9LRVkQARIcChhTT1JUX0ZJRUxEX0xBU1RfTU9ESUZJRUQQAhITCg9TT1JUX0ZJRUxEX1NJWkUQAypQCglTb3J0T3JkZXISGgoWU09SVF9PUkRFUl9VTlNQRUNJRklFRBAAEhIKDlNPUlRfT1JERVJfQVNDEAESEwoPU09SVF9PUkRFUl9ERVNDEAIyjgIKDVNlYXJjaFNlcnZpY2USSAoJTGlzdEZpbGVzEhwuc2VydmljZS52MS5MaXN0RmlsZXNSZXF1ZXN0Gh0uc2VydmljZS52MS5MaXN0RmlsZXNSZXNwb25zZRJUCg1MaXN0RGlyZWN0b3J5EiAuc2VydmljZS52MS5MaXN0RGlyZWN0b3J5UmVxdWVzdBohLnNlcnZpY2UudjEuTGlzdERpcmVjdG9yeVJlc3BvbnNlEl0KEExpc3RDb250ZW50VHlwZXMSIy5zZXJ2aWNlLnYxLkxpc3RDb250ZW50VHlwZXNSZXF1ZXN0GiQuc2VydmljZS52MS5MaXN0Q29udGVudFR5cGVzUmVzcG9uc2VCKFomZmlsZS1pbmRleGVyL2ludGVybmFsL3BiL3NlcnZpY2UvdjE7cGJiBnByb3RvMw", [file_buf_validate_validate, file_service_v1_files]);
+  fileDesc("ChdzZXJ2aWNlL3YxL3NlYXJjaC5wcm90bxIKc2VydmljZS52MSLRAQoQTGlzdEZpbGVzUmVxdWVzdBIaCglwYWdlX3NpemUYASABKAVCB7pIBBoCKAASEgoKcGFnZV90b2tlbhgCIAEoCRINCgVxdWVyeRgDIAEoCRIUCgxjb250ZW50X3R5cGUYBCABKAkSMwoKc29ydF9maWVsZBgFIAEoDjIVLnNlcnZpY2UudjEuU29ydEZpZWxkQgi6SAWCAQIQARIzCgpzb3J0X29yZGVyGAYgASgOMhUuc2VydmljZS52MS5Tb3J0T3JkZXJCCLpIBYIBAhABIlEKEUxpc3RGaWxlc1Jlc3BvbnNlEiMKBWZpbGVzGAEgAygLMhQuc2VydmljZS52MS5GaWxlSW5mbxIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkivgEKFExpc3REaXJlY3RvcnlSZXF1ZXN0EgwKBHBhdGgYASABKAkSGgoJcGFnZV9zaXplGAIgASgFQge6SAQaAigAEhIKCnBhZ2VfdG9rZW4YAyABKAkSMwoKc29ydF9maWVsZBgEIAEoDjIVLnNlcnZpY2UudjEuU29ydEZpZWxkQgi6SAWCAQIQARIzCgpzb3J0X29yZGVyGAUgASgOMhUuc2VydmljZS52MS5Tb3J0T3JkZXJCCLpIBYIBAhABImoKFUxpc3REaXJlY3RvcnlSZXNwb25zZRITCgtkaXJlY3RvcmllcxgBIAMoCRIjCgVmaWxlcxgCIAMoCzIULnNlcnZpY2UudjEuRmlsZUluZm8SFwoPbmV4dF9wYWdlX3Rva2VuGAMgASgJIhkKF0xpc3RDb250ZW50VHlwZXNSZXF1ZXN0Ii4KGExpc3RDb250ZW50VHlwZXNSZXNwb25zZRISCgpjYXRlZ29yaWVzGAEgAygJIlkKGFNlYXJjaERpcmVjdG9yaWVzUmVxdWVzdBINCgVxdWVyeRgBIAEoCRIaCglwYWdlX3NpemUYAiABKAVCB7pIBBoCKAASEgoKcGFnZV90b2tlbhgDIAEoCSJJChlTZWFyY2hEaXJlY3Rvcmllc1Jlc3BvbnNlEhMKC2RpcmVjdG9yaWVzGAEgAygJEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSpuCglTb3J0RmllbGQSGgoWU09SVF9GSUVMRF9VTlNQRUNJRklFRBAAEhIKDlNPUlRfRklFTERfS0VZEAESHAoYU09SVF9GSUVMRF9MQVNUX01PRElGSUVEEAISEwoPU09SVF9GSUVMRF9TSVpFEAMqUAoJU29ydE9yZGVyEhoKFlNPUlRfT1JERVJfVU5TUEVDSUZJRUQQABISCg5TT1JUX09SREVSX0FTQxABEhMKD1NPUlRfT1JERVJfREVTQxACMvACCg1TZWFyY2hTZXJ2aWNlEkgKCUxpc3RGaWxlcxIcLnNlcnZpY2UudjEuTGlzdEZpbGVzUmVxdWVzdBodLnNlcnZpY2UudjEuTGlzdEZpbGVzUmVzcG9uc2USVAoNTGlzdERpcmVjdG9yeRIgLnNlcnZpY2UudjEuTGlzdERpcmVjdG9yeVJlcXVlc3QaIS5zZXJ2aWNlLnYxLkxpc3REaXJlY3RvcnlSZXNwb25zZRJdChBMaXN0Q29udGVudFR5cGVzEiMuc2VydmljZS52MS5MaXN0Q29udGVudFR5cGVzUmVxdWVzdBokLnNlcnZpY2UudjEuTGlzdENvbnRlbnRUeXBlc1Jlc3BvbnNlEmAKEVNlYXJjaERpcmVjdG9yaWVzEiQuc2VydmljZS52MS5TZWFyY2hEaXJlY3Rvcmllc1JlcXVlc3QaJS5zZXJ2aWNlLnYxLlNlYXJjaERpcmVjdG9yaWVzUmVzcG9uc2VCKFomZmlsZS1pbmRleGVyL2ludGVybmFsL3BiL3NlcnZpY2UvdjE7cGJiBnByb3RvMw", [file_buf_validate_validate, file_service_v1_files]);
 
 /**
  * @generated from message service.v1.ListFilesRequest
@@ -222,6 +222,78 @@ export const ListContentTypesResponseSchema: GenMessage<ListContentTypesResponse
   messageDesc(file_service_v1_search, 5);
 
 /**
+ * SearchDirectories finds directories whose path matches a text query — the
+ * folder counterpart of ListFiles' key search, backed by the directories
+ * table (see ListDirectory's doc comment). Navigation UIs use it for folder
+ * suggestions (e.g. the header search dropdown); listing a directory's
+ * children stays ListDirectory's job.
+ *
+ * @generated from message service.v1.SearchDirectoriesRequest
+ */
+export type SearchDirectoriesRequest = Message<"service.v1.SearchDirectoriesRequest"> & {
+  /**
+   * Only return directories whose path contains this text (case-insensitive
+   * substring) or is a close spelling of it (trigram fuzzy match, same
+   * semantics as ListFiles' query). Empty disables the filter (matches every
+   * directory).
+   *
+   * @generated from field: string query = 1;
+   */
+  query: string;
+
+  /**
+   * Maximum number of directories to return. Defaults to 50, clamped to 200,
+   * same as ListFiles. Negative values are rejected (buf.validate).
+   *
+   * @generated from field: int32 page_size = 2;
+   */
+  pageSize: number;
+
+  /**
+   * A page token from a previous SearchDirectories call's next_page_token.
+   * All other arguments must match the call that produced the token (AIP-158),
+   * same as ListFiles.
+   *
+   * @generated from field: string page_token = 3;
+   */
+  pageToken: string;
+};
+
+/**
+ * Describes the message service.v1.SearchDirectoriesRequest.
+ * Use `create(SearchDirectoriesRequestSchema)` to create a new message.
+ */
+export const SearchDirectoriesRequestSchema: GenMessage<SearchDirectoriesRequest> = /*@__PURE__*/
+  messageDesc(file_service_v1_search, 6);
+
+/**
+ * @generated from message service.v1.SearchDirectoriesResponse
+ */
+export type SearchDirectoriesResponse = Message<"service.v1.SearchDirectoriesResponse"> & {
+  /**
+   * Matching directory paths: full path from the bucket root, each ending in
+   * "/", ordered by path ascending.
+   *
+   * @generated from field: repeated string directories = 1;
+   */
+  directories: string[];
+
+  /**
+   * Cursor for the next page; empty when there are no more results.
+   *
+   * @generated from field: string next_page_token = 2;
+   */
+  nextPageToken: string;
+};
+
+/**
+ * Describes the message service.v1.SearchDirectoriesResponse.
+ * Use `create(SearchDirectoriesResponseSchema)` to create a new message.
+ */
+export const SearchDirectoriesResponseSchema: GenMessage<SearchDirectoriesResponse> = /*@__PURE__*/
+  messageDesc(file_service_v1_search, 7);
+
+/**
  * SortField selects the column ListFiles orders results by.
  *
  * @generated from enum service.v1.SortField
@@ -316,6 +388,14 @@ export const SearchService: GenService<{
     methodKind: "unary";
     input: typeof ListContentTypesRequestSchema;
     output: typeof ListContentTypesResponseSchema;
+  },
+  /**
+   * @generated from rpc service.v1.SearchService.SearchDirectories
+   */
+  searchDirectories: {
+    methodKind: "unary";
+    input: typeof SearchDirectoriesRequestSchema;
+    output: typeof SearchDirectoriesResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_service_v1_search, 0);

@@ -116,6 +116,55 @@ func (q *Queries) PruneOrphanDirectories(ctx context.Context) error {
 	return err
 }
 
+const searchDirectories = `-- name: SearchDirectories :many
+SELECT path FROM directories
+WHERE ($1::text = '' OR path ILIKE $2 OR path %> $1)
+  AND (NOT $3::bool OR path > $4::text)
+ORDER BY path
+LIMIT $5
+`
+
+type SearchDirectoriesParams struct {
+	Query        string
+	QueryPattern string
+	HasCursor    bool
+	After        string
+	PageLimit    int32
+}
+
+// Text search over every directory path: the same two-branch match the
+// ListFilesBy* key filter uses (case-insensitive ILIKE substring, or %>
+// trigram word similarity for typo tolerance — plain % compares whole
+// strings; see files.sql's comment above the ListFilesBy* queries),
+// keyset-paged on path exactly like ListChildDirectories. Served by
+// directories_path_trgm_idx (migrations/006_directories_trgm.sql) for the
+// text branches and the path PK btree for the keyset range.
+func (q *Queries) SearchDirectories(ctx context.Context, arg SearchDirectoriesParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, searchDirectories,
+		arg.Query,
+		arg.QueryPattern,
+		arg.HasCursor,
+		arg.After,
+		arg.PageLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return nil, err
+		}
+		items = append(items, path)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertDirectoriesForKeys = `-- name: UpsertDirectoriesForKeys :exec
 
 INSERT INTO directories (path)

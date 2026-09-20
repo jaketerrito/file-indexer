@@ -2,15 +2,17 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
-import { listFiles } from '../server/files'
+import { listFiles, searchDirectories } from '../server/files'
 import type { FileDto } from '../server/impl'
 import { SearchBar } from './SearchBar'
 
 vi.mock('../server/files', () => ({
   listFiles: vi.fn(),
+  searchDirectories: vi.fn(),
 }))
 
 const listFilesMock = vi.mocked(listFiles)
+const searchDirectoriesMock = vi.mocked(searchDirectories)
 
 function file(id: string, key: string): FileDto {
   return {
@@ -26,20 +28,21 @@ function file(id: string, key: string): FileDto {
   }
 }
 
-function renderSearchBar(onSelect = vi.fn()) {
+function renderSearchBar(onSelect = vi.fn(), onSelectFolder = vi.fn()) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
   render(
     <QueryClientProvider client={queryClient}>
-      <SearchBar onSelect={onSelect} />
+      <SearchBar onSelect={onSelect} onSelectFolder={onSelectFolder} />
     </QueryClientProvider>,
   )
-  return onSelect
+  return { onSelect, onSelectFolder }
 }
 
 beforeEach(() => {
   listFilesMock.mockResolvedValue({ files: [], nextPageToken: '' })
+  searchDirectoriesMock.mockResolvedValue({ directories: [], nextPageToken: '' })
 })
 
 afterEach(() => {
@@ -54,7 +57,7 @@ describe('SearchBar', () => {
     })
     renderSearchBar()
 
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search files by path' }), {
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search files and folders' }), {
       target: { value: 'docs' },
     })
 
@@ -68,22 +71,53 @@ describe('SearchBar', () => {
   it('hands the selected file to onSelect and clears the box', async () => {
     const selected = file('1', 'docs/notes.txt')
     listFilesMock.mockResolvedValue({ files: [selected], nextPageToken: '' })
-    const onSelect = renderSearchBar()
+    const { onSelect } = renderSearchBar()
 
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search files by path' }), {
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search files and folders' }), {
       target: { value: 'docs' },
     })
     fireEvent.mouseDown(await screen.findByRole('button', { name: 'docs/notes.txt' }))
 
     expect(onSelect).toHaveBeenCalledWith(selected)
-    const input = screen.getByRole('searchbox', { name: 'Search files by path' })
+    const input = screen.getByRole('searchbox', { name: 'Search files and folders' })
+    expect((input as HTMLInputElement).value).toBe('')
+    expect(screen.queryByRole('list')).toBeNull()
+  })
+
+  it('shows matching folders above files and hands the path to onSelectFolder', async () => {
+    searchDirectoriesMock.mockResolvedValue({
+      directories: ['docs/', 'docs/sub/'],
+      nextPageToken: '',
+    })
+    listFilesMock.mockResolvedValue({ files: [file('1', 'docs/notes.txt')], nextPageToken: '' })
+    const { onSelectFolder } = renderSearchBar()
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search files and folders' }), {
+      target: { value: 'docs' },
+    })
+
+    expect(await screen.findByRole('button', { name: 'docs/' })).toBeTruthy()
+    expect(searchDirectoriesMock).toHaveBeenCalledWith({
+      data: { query: 'docs', pageSize: 5 },
+    })
+    // Folders precede files, mirroring ListDirectory's ordering.
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'docs/',
+      'docs/sub/',
+      'docs/notes.txt',
+    ])
+
+    fireEvent.mouseDown(screen.getByRole('button', { name: 'docs/' }))
+
+    expect(onSelectFolder).toHaveBeenCalledWith('docs/')
+    const input = screen.getByRole('searchbox', { name: 'Search files and folders' })
     expect((input as HTMLInputElement).value).toBe('')
     expect(screen.queryByRole('list')).toBeNull()
   })
 
   it('shows a no-matches row', async () => {
     renderSearchBar()
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Search files by path' }), {
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search files and folders' }), {
       target: { value: 'zzz' },
     })
     expect(await screen.findByText('No matches')).toBeTruthy()
@@ -91,7 +125,7 @@ describe('SearchBar', () => {
 
   it('does not search when the input is empty', async () => {
     renderSearchBar()
-    const input = screen.getByRole('searchbox', { name: 'Search files by path' })
+    const input = screen.getByRole('searchbox', { name: 'Search files and folders' })
     fireEvent.change(input, { target: { value: 'a' } })
     fireEvent.change(input, { target: { value: '' } })
     await waitFor(() => expect(listFilesMock).not.toHaveBeenCalled())

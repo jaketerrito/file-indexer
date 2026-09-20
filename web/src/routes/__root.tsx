@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-router'
 import { type ReactNode, useState } from 'react'
 import { SearchBar } from '../components/SearchBar'
-import { DEFAULT_FILTERS } from '../lib/fileFilters'
+import { DEFAULT_FILTERS, toBrowsePath } from '../lib/fileFilters'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -54,7 +54,12 @@ function Header() {
       <Link to="/" search={{ ...DEFAULT_FILTERS }} style={{ fontWeight: 'bold' }}>
         file-indexer
       </Link>
-      <SearchBar onSelect={(file) => void navigate({ to: '/file/$id', params: { id: file.id } })} />
+      <SearchBar
+        onSelect={(file) => void navigate({ to: '/file/$id', params: { id: file.id } })}
+        onSelectFolder={(path) =>
+          void navigate({ to: '/', search: toBrowsePath(DEFAULT_FILTERS, path) })
+        }
+      />
     </header>
   )
 }

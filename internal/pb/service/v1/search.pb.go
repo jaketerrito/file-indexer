@@ -516,6 +516,135 @@ func (x *ListContentTypesResponse) GetCategories() []string {
 	return nil
 }
 
+// SearchDirectories finds directories whose path matches a text query — the
+// folder counterpart of ListFiles' key search, backed by the directories
+// table (see ListDirectory's doc comment). Navigation UIs use it for folder
+// suggestions (e.g. the header search dropdown); listing a directory's
+// children stays ListDirectory's job.
+type SearchDirectoriesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Only return directories whose path contains this text (case-insensitive
+	// substring) or is a close spelling of it (trigram fuzzy match, same
+	// semantics as ListFiles' query). Empty disables the filter (matches every
+	// directory).
+	Query string `protobuf:"bytes,1,opt,name=query,proto3" json:"query,omitempty"`
+	// Maximum number of directories to return. Defaults to 50, clamped to 200,
+	// same as ListFiles. Negative values are rejected (buf.validate).
+	PageSize int32 `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// A page token from a previous SearchDirectories call's next_page_token.
+	// All other arguments must match the call that produced the token (AIP-158),
+	// same as ListFiles.
+	PageToken     string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchDirectoriesRequest) Reset() {
+	*x = SearchDirectoriesRequest{}
+	mi := &file_service_v1_search_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchDirectoriesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchDirectoriesRequest) ProtoMessage() {}
+
+func (x *SearchDirectoriesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_search_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchDirectoriesRequest.ProtoReflect.Descriptor instead.
+func (*SearchDirectoriesRequest) Descriptor() ([]byte, []int) {
+	return file_service_v1_search_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *SearchDirectoriesRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *SearchDirectoriesRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *SearchDirectoriesRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+type SearchDirectoriesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Matching directory paths: full path from the bucket root, each ending in
+	// "/", ordered by path ascending.
+	Directories []string `protobuf:"bytes,1,rep,name=directories,proto3" json:"directories,omitempty"`
+	// Cursor for the next page; empty when there are no more results.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SearchDirectoriesResponse) Reset() {
+	*x = SearchDirectoriesResponse{}
+	mi := &file_service_v1_search_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SearchDirectoriesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SearchDirectoriesResponse) ProtoMessage() {}
+
+func (x *SearchDirectoriesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_service_v1_search_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SearchDirectoriesResponse.ProtoReflect.Descriptor instead.
+func (*SearchDirectoriesResponse) Descriptor() ([]byte, []int) {
+	return file_service_v1_search_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SearchDirectoriesResponse) GetDirectories() []string {
+	if x != nil {
+		return x.Directories
+	}
+	return nil
+}
+
+func (x *SearchDirectoriesResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
 var File_service_v1_search_proto protoreflect.FileDescriptor
 
 const file_service_v1_search_proto_rawDesc = "" +
@@ -552,7 +681,15 @@ const file_service_v1_search_proto_rawDesc = "" +
 	"\x18ListContentTypesResponse\x12\x1e\n" +
 	"\n" +
 	"categories\x18\x01 \x03(\tR\n" +
-	"categories*n\n" +
+	"categories\"u\n" +
+	"\x18SearchDirectoriesRequest\x12\x14\n" +
+	"\x05query\x18\x01 \x01(\tR\x05query\x12$\n" +
+	"\tpage_size\x18\x02 \x01(\x05B\a\xbaH\x04\x1a\x02(\x00R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tR\tpageToken\"e\n" +
+	"\x19SearchDirectoriesResponse\x12 \n" +
+	"\vdirectories\x18\x01 \x03(\tR\vdirectories\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*n\n" +
 	"\tSortField\x12\x1a\n" +
 	"\x16SORT_FIELD_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSORT_FIELD_KEY\x10\x01\x12\x1c\n" +
@@ -561,11 +698,12 @@ const file_service_v1_search_proto_rawDesc = "" +
 	"\tSortOrder\x12\x1a\n" +
 	"\x16SORT_ORDER_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSORT_ORDER_ASC\x10\x01\x12\x13\n" +
-	"\x0fSORT_ORDER_DESC\x10\x022\x8e\x02\n" +
+	"\x0fSORT_ORDER_DESC\x10\x022\xf0\x02\n" +
 	"\rSearchService\x12H\n" +
 	"\tListFiles\x12\x1c.service.v1.ListFilesRequest\x1a\x1d.service.v1.ListFilesResponse\x12T\n" +
 	"\rListDirectory\x12 .service.v1.ListDirectoryRequest\x1a!.service.v1.ListDirectoryResponse\x12]\n" +
-	"\x10ListContentTypes\x12#.service.v1.ListContentTypesRequest\x1a$.service.v1.ListContentTypesResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
+	"\x10ListContentTypes\x12#.service.v1.ListContentTypesRequest\x1a$.service.v1.ListContentTypesResponse\x12`\n" +
+	"\x11SearchDirectories\x12$.service.v1.SearchDirectoriesRequest\x1a%.service.v1.SearchDirectoriesResponseB(Z&file-indexer/internal/pb/service/v1;pbb\x06proto3"
 
 var (
 	file_service_v1_search_proto_rawDescOnce sync.Once
@@ -580,36 +718,40 @@ func file_service_v1_search_proto_rawDescGZIP() []byte {
 }
 
 var file_service_v1_search_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_service_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_service_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_service_v1_search_proto_goTypes = []any{
-	(SortField)(0),                   // 0: service.v1.SortField
-	(SortOrder)(0),                   // 1: service.v1.SortOrder
-	(*ListFilesRequest)(nil),         // 2: service.v1.ListFilesRequest
-	(*ListFilesResponse)(nil),        // 3: service.v1.ListFilesResponse
-	(*ListDirectoryRequest)(nil),     // 4: service.v1.ListDirectoryRequest
-	(*ListDirectoryResponse)(nil),    // 5: service.v1.ListDirectoryResponse
-	(*ListContentTypesRequest)(nil),  // 6: service.v1.ListContentTypesRequest
-	(*ListContentTypesResponse)(nil), // 7: service.v1.ListContentTypesResponse
-	(*FileInfo)(nil),                 // 8: service.v1.FileInfo
+	(SortField)(0),                    // 0: service.v1.SortField
+	(SortOrder)(0),                    // 1: service.v1.SortOrder
+	(*ListFilesRequest)(nil),          // 2: service.v1.ListFilesRequest
+	(*ListFilesResponse)(nil),         // 3: service.v1.ListFilesResponse
+	(*ListDirectoryRequest)(nil),      // 4: service.v1.ListDirectoryRequest
+	(*ListDirectoryResponse)(nil),     // 5: service.v1.ListDirectoryResponse
+	(*ListContentTypesRequest)(nil),   // 6: service.v1.ListContentTypesRequest
+	(*ListContentTypesResponse)(nil),  // 7: service.v1.ListContentTypesResponse
+	(*SearchDirectoriesRequest)(nil),  // 8: service.v1.SearchDirectoriesRequest
+	(*SearchDirectoriesResponse)(nil), // 9: service.v1.SearchDirectoriesResponse
+	(*FileInfo)(nil),                  // 10: service.v1.FileInfo
 }
 var file_service_v1_search_proto_depIdxs = []int32{
-	0, // 0: service.v1.ListFilesRequest.sort_field:type_name -> service.v1.SortField
-	1, // 1: service.v1.ListFilesRequest.sort_order:type_name -> service.v1.SortOrder
-	8, // 2: service.v1.ListFilesResponse.files:type_name -> service.v1.FileInfo
-	0, // 3: service.v1.ListDirectoryRequest.sort_field:type_name -> service.v1.SortField
-	1, // 4: service.v1.ListDirectoryRequest.sort_order:type_name -> service.v1.SortOrder
-	8, // 5: service.v1.ListDirectoryResponse.files:type_name -> service.v1.FileInfo
-	2, // 6: service.v1.SearchService.ListFiles:input_type -> service.v1.ListFilesRequest
-	4, // 7: service.v1.SearchService.ListDirectory:input_type -> service.v1.ListDirectoryRequest
-	6, // 8: service.v1.SearchService.ListContentTypes:input_type -> service.v1.ListContentTypesRequest
-	3, // 9: service.v1.SearchService.ListFiles:output_type -> service.v1.ListFilesResponse
-	5, // 10: service.v1.SearchService.ListDirectory:output_type -> service.v1.ListDirectoryResponse
-	7, // 11: service.v1.SearchService.ListContentTypes:output_type -> service.v1.ListContentTypesResponse
-	9, // [9:12] is the sub-list for method output_type
-	6, // [6:9] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	0,  // 0: service.v1.ListFilesRequest.sort_field:type_name -> service.v1.SortField
+	1,  // 1: service.v1.ListFilesRequest.sort_order:type_name -> service.v1.SortOrder
+	10, // 2: service.v1.ListFilesResponse.files:type_name -> service.v1.FileInfo
+	0,  // 3: service.v1.ListDirectoryRequest.sort_field:type_name -> service.v1.SortField
+	1,  // 4: service.v1.ListDirectoryRequest.sort_order:type_name -> service.v1.SortOrder
+	10, // 5: service.v1.ListDirectoryResponse.files:type_name -> service.v1.FileInfo
+	2,  // 6: service.v1.SearchService.ListFiles:input_type -> service.v1.ListFilesRequest
+	4,  // 7: service.v1.SearchService.ListDirectory:input_type -> service.v1.ListDirectoryRequest
+	6,  // 8: service.v1.SearchService.ListContentTypes:input_type -> service.v1.ListContentTypesRequest
+	8,  // 9: service.v1.SearchService.SearchDirectories:input_type -> service.v1.SearchDirectoriesRequest
+	3,  // 10: service.v1.SearchService.ListFiles:output_type -> service.v1.ListFilesResponse
+	5,  // 11: service.v1.SearchService.ListDirectory:output_type -> service.v1.ListDirectoryResponse
+	7,  // 12: service.v1.SearchService.ListContentTypes:output_type -> service.v1.ListContentTypesResponse
+	9,  // 13: service.v1.SearchService.SearchDirectories:output_type -> service.v1.SearchDirectoriesResponse
+	10, // [10:14] is the sub-list for method output_type
+	6,  // [6:10] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_service_v1_search_proto_init() }
@@ -624,7 +766,7 @@ func file_service_v1_search_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_service_v1_search_proto_rawDesc), len(file_service_v1_search_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
