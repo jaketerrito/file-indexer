@@ -28,16 +28,16 @@ function file(id: string, key: string): FileDto {
   }
 }
 
-function renderSearchBar(onSelect = vi.fn(), onSelectFolder = vi.fn()) {
+function renderSearchBar(onSelect = vi.fn(), onSelectFolder = vi.fn(), onSearch = vi.fn()) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })
   render(
     <QueryClientProvider client={queryClient}>
-      <SearchBar onSelect={onSelect} onSelectFolder={onSelectFolder} />
+      <SearchBar onSelect={onSelect} onSelectFolder={onSelectFolder} onSearch={onSearch} />
     </QueryClientProvider>,
   )
-  return { onSelect, onSelectFolder }
+  return { onSelect, onSelectFolder, onSearch }
 }
 
 beforeEach(() => {
@@ -130,5 +130,31 @@ describe('SearchBar', () => {
     fireEvent.change(input, { target: { value: '' } })
     await waitFor(() => expect(listFilesMock).not.toHaveBeenCalled())
     expect(screen.queryByRole('list')).toBeNull()
+  })
+
+  it('calls onSearch with the trimmed query on Enter and closes the dropdown', async () => {
+    listFilesMock.mockResolvedValue({ files: [file('1', 'notes.txt')], nextPageToken: '' })
+    const { onSearch } = renderSearchBar()
+
+    const input = screen.getByRole('searchbox', { name: 'Search files and folders' })
+    fireEvent.change(input, { target: { value: '  notes  ' } })
+    // Wait for the debounced dropdown to open with a result.
+    await screen.findByRole('button', { name: 'notes.txt' })
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(onSearch).toHaveBeenCalledWith('notes')
+    expect(screen.queryByRole('list')).toBeNull()
+    // The input keeps its text so the box still shows what was searched.
+    expect((input as HTMLInputElement).value).toBe('  notes  ')
+  })
+
+  it('does nothing on Enter with an empty query', () => {
+    const { onSearch } = renderSearchBar()
+    const input = screen.getByRole('searchbox', { name: 'Search files and folders' })
+
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(onSearch).not.toHaveBeenCalled()
   })
 })

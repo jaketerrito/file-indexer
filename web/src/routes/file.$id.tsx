@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { DeleteFileConfirmation } from '../components/DeleteFileConfirmation'
 import { FileMetadataTable } from '../components/FileMetadataTable'
+import { DEFAULT_BROWSE_FILTERS } from '../lib/fileFilters'
 import { deleteFile, getDownloadUrl, getFileMetadata } from '../server/files'
 
 export const Route = createFileRoute('/file/$id')({
@@ -38,11 +39,8 @@ function FilePage() {
         void navigate({
           to: '/',
           search: {
+            ...DEFAULT_BROWSE_FILTERS,
             path: data.key.slice(0, data.key.lastIndexOf('/') + 1),
-            query: '',
-            type: '',
-            sort: 'key',
-            order: 'asc',
           },
         })
       }
@@ -76,7 +74,7 @@ function FilePage() {
   return (
     <main style={{ padding: '0 1rem' }}>
       <p>
-        <Link to="/" search={{ path: parentPath, query: '', type: '', sort: 'key', order: 'asc' }}>
+        <Link to="/" search={{ ...DEFAULT_BROWSE_FILTERS, path: parentPath }}>
           📁 {parentPath === '' ? '/' : parentPath}
         </Link>
       </p>

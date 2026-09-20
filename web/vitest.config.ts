@@ -10,6 +10,7 @@ export default defineConfig({
     exclude: [...defaultExclude, 'e2e/**'],
     environment: 'jsdom',
     globals: true,
+    setupFiles: ['src/testSetup.ts'],
     coverage: {
       provider: 'v8',
       // Mirrors .testcoverage.yml for Go: exclude generated code and thin

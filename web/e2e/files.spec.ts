@@ -27,6 +27,9 @@ test('seeded files are indexed and listed', async ({ page }) => {
 })
 
 test('type filter narrows the list to one content-type category', async ({ page }) => {
+  // The Type filter lives on the search results page; an empty query lists
+  // every indexed file there.
+  await page.goto('/search')
   // The category options come from the indexed content types, so wait for
   // the full seed set first.
   await expectAfterReload(page, async () => {
@@ -43,6 +46,19 @@ test('type filter narrows the list to one content-type category', async ({ page 
   for (const key of SEED_TEXT_KEYS) {
     await expect(page.getByText(key, { exact: true })).toHaveCount(0)
   }
+})
+
+test('Enter in the header search opens the full results page', async ({ page }) => {
+  const box = page.getByRole('searchbox', { name: 'Search files by path' })
+  await box.fill('notes')
+  await box.press('Enter')
+
+  await expect(page).toHaveURL(/\/search\?query=notes/)
+  await expect(page.getByRole('heading', { name: 'Search results' })).toBeVisible()
+  await expectAfterReload(page, async () => {
+    await expect(page.getByText('notes.txt', { exact: true })).toBeVisible()
+    await expect(page.getByText('lorem.txt', { exact: true })).toHaveCount(0)
+  })
 })
 
 test('header search finds a file and opens its metadata page', async ({ page }) => {

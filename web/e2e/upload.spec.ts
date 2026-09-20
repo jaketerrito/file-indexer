@@ -9,8 +9,8 @@ import { expectAfterReload } from './helpers'
 test('upload, browse, and delete round-trip', async ({ page }) => {
   const key = `e2e-upload-${Date.now()}.txt`
 
-  // path= (empty) is browse mode at the bucket root.
-  await page.goto('/?path=')
+  // "/" is browse mode at the bucket root by default.
+  await page.goto('/')
   await expect(page.getByRole('button', { name: 'Upload', exact: true })).toBeVisible()
 
   // The file input is visually hidden; drive it through the chooser the
@@ -62,7 +62,7 @@ test('upload, browse, and delete round-trip', async ({ page }) => {
     .click()
 
   // Delete navigates back to the parent folder (bucket root); the file is gone.
-  await expect(page).toHaveURL(/\?path=&?$/)
+  await expect(page).toHaveURL(/\/$/)
   await expectAfterReload(page, async () => {
     await expect(page.getByText(key, { exact: true })).toHaveCount(0)
   })
