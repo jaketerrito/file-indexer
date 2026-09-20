@@ -50,11 +50,26 @@ test('header search finds a file and opens its metadata page', async ({ page }) 
     await expect(page.getByText('notes.txt', { exact: true })).toBeVisible()
   })
 
-  await page.getByRole('searchbox', { name: 'Search files by path' }).fill('notes')
+  await page.getByRole('searchbox', { name: 'Search files and folders' }).fill('notes')
   await page.getByRole('button', { name: 'notes.txt' }).click()
 
   await expect(page).toHaveURL(/\/file\/[^/]+$/)
   await expect(page.getByRole('heading', { name: 'notes.txt' })).toBeVisible()
   // Base stat row from the metadata table (stat indexing must have completed).
   await expect(page.getByRole('row', { name: 'Content type text/plain' })).toBeVisible()
+})
+
+test('header search finds a folder and opens its browse view', async ({ page }) => {
+  // docs/todo.txt is seeded nested, so a docs/ directory exists once indexed.
+  await expectAfterReload(page, async () => {
+    await expect(page.getByText('docs/todo.txt', { exact: true })).toBeVisible()
+  })
+
+  await page.getByRole('searchbox', { name: 'Search files and folders' }).fill('docs')
+  // exact: 'docs/todo.txt' also contains 'docs/'.
+  await page.getByRole('button', { name: 'docs/', exact: true }).click()
+
+  await expect(page).toHaveURL(/\?path=docs/)
+  // Browse mode lists the folder's direct children by basename.
+  await expect(page.getByText('todo.txt', { exact: true })).toBeVisible()
 })

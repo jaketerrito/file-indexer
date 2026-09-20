@@ -534,3 +534,102 @@ func assertDirectorySet(t *testing.T, got []string, want map[string]bool) {
 		t.Logf("want: %v", wantSorted)
 	}
 }
+
+func TestSearchDirectories(t *testing.T) {
+	conn := testConn(t)
+	q := New(conn)
+	ctx := context.Background()
+	prefix := uniqueKey(t) + "/"
+
+	err := q.UpsertDirectoriesForKeys(ctx, []string{prefix + "quarterly-reports/q1.pdf", prefix + "other/x.txt"})
+	if err != nil {
+		t.Fatalf("UpsertDirectoriesForKeys: %v", err)
+	}
+
+	tests := []struct {
+		name  string
+		query string
+		want  []string
+	}{
+		{"substring", "quarterly-reports", []string{prefix + "quarterly-reports/"}},
+		// ILIKE branch is case-insensitive.
+		{"case-insensitive", "QUARTERLY-REPORTS", []string{prefix + "quarterly-reports/"}},
+		// Transposition: ILIKE cannot match; only the %> word-similarity
+		// branch can (fuzzy typo tolerance).
+		{"fuzzy transposition", "quarterly-reprts", []string{prefix + "quarterly-reports/"}},
+		// Shares no trigrams with any seeded path (see the pg_trgm %>
+		// gotcha in AGENTS.md): neither branch can match.
+		{"no match", "zzqxwv", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := q.SearchDirectories(ctx, SearchDirectoriesParams{
+				Query:        tt.query,
+				QueryPattern: "%" + tt.query + "%",
+				PageLimit:    10,
+			})
+			if err != nil {
+				t.Fatalf("SearchDirectories: %v", err)
+			}
+			// Exact-set assertions are safe: only this test seeds the
+			// quarterly-reports segment, and every other row in the
+			// throwaway dbtest database lives under a unique
+			// it/<TestName>/<nano>/ root whose words share no trigram
+			// similarity >= 0.6 with these queries.
+			if len(got) != len(tt.want) {
+				t.Fatalf("SearchDirectories(%q) = %v, want %v", tt.query, got, tt.want)
+			}
+			for i := range tt.want {
+				if got[i] != tt.want[i] {
+					t.Fatalf("SearchDirectories(%q) = %v, want %v", tt.query, got, tt.want)
+				}
+			}
+		})
+	}
+}
+
+func TestSearchDirectoriesKeyset(t *testing.T) {
+	conn := testConn(t)
+	q := New(conn)
+	ctx := context.Background()
+	prefix := uniqueKey(t) + "/"
+
+	err := q.UpsertDirectoriesForKeys(ctx, []string{prefix + "b/2.txt", prefix + "a/1.txt", prefix + "c/3.txt"})
+	if err != nil {
+		t.Fatalf("UpsertDirectoriesForKeys: %v", err)
+	}
+
+	// Query the unique nanosecond segment so exactly the prefix directory
+	// and its three children match (byte order: a path sorts before its
+	// children).
+	parts := strings.Split(strings.TrimSuffix(prefix, "/"), "/")
+	nano := parts[len(parts)-1]
+	want := []string{prefix, prefix + "a/", prefix + "b/", prefix + "c/"}
+
+	page := func(after string, hasCursor bool) []string {
+		t.Helper()
+		got, err := q.SearchDirectories(ctx, SearchDirectoriesParams{
+			Query:        nano,
+			QueryPattern: "%" + nano + "%",
+			HasCursor:    hasCursor,
+			After:        after,
+			PageLimit:    2,
+		})
+		if err != nil {
+			t.Fatalf("SearchDirectories(after=%q): %v", after, err)
+		}
+		return got
+	}
+
+	page1 := page("", false)
+	if len(page1) != 2 || page1[0] != want[0] || page1[1] != want[1] {
+		t.Fatalf("page 1 = %v, want %v", page1, want[:2])
+	}
+	page2 := page(page1[1], true)
+	if len(page2) != 2 || page2[0] != want[2] || page2[1] != want[3] {
+		t.Fatalf("page 2 = %v, want %v", page2, want[2:])
+	}
+	if page3 := page(page2[1], true); len(page3) != 0 {
+		t.Fatalf("page 3 = %v, want empty", page3)
+	}
+}

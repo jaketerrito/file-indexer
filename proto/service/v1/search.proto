@@ -11,6 +11,7 @@ service SearchService {
   rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
   rpc ListDirectory(ListDirectoryRequest) returns (ListDirectoryResponse);
   rpc ListContentTypes(ListContentTypesRequest) returns (ListContentTypesResponse);
+  rpc SearchDirectories(SearchDirectoriesRequest) returns (SearchDirectoriesResponse);
 }
 
 // SortField selects the column ListFiles orders results by.
@@ -99,4 +100,32 @@ message ListContentTypesResponse {
   // filter UI can offer exactly the categories that match at least one
   // indexed file.
   repeated string categories = 1;
+}
+
+// SearchDirectories finds directories whose path matches a text query — the
+// folder counterpart of ListFiles' key search, backed by the directories
+// table (see ListDirectory's doc comment). Navigation UIs use it for folder
+// suggestions (e.g. the header search dropdown); listing a directory's
+// children stays ListDirectory's job.
+message SearchDirectoriesRequest {
+  // Only return directories whose path contains this text (case-insensitive
+  // substring) or is a close spelling of it (trigram fuzzy match, same
+  // semantics as ListFiles' query). Empty disables the filter (matches every
+  // directory).
+  string query = 1;
+  // Maximum number of directories to return. Defaults to 50, clamped to 200,
+  // same as ListFiles. Negative values are rejected (buf.validate).
+  int32 page_size = 2 [(buf.validate.field).int32.gte = 0];
+  // A page token from a previous SearchDirectories call's next_page_token.
+  // All other arguments must match the call that produced the token (AIP-158),
+  // same as ListFiles.
+  string page_token = 3;
+}
+
+message SearchDirectoriesResponse {
+  // Matching directory paths: full path from the bucket root, each ending in
+  // "/", ordered by path ascending.
+  repeated string directories = 1;
+  // Cursor for the next page; empty when there are no more results.
+  string next_page_token = 2;
 }

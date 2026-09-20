@@ -65,6 +65,14 @@ func newDirCursor(sortField pb.SortField, sortOrder pb.SortOrder, path, lastDir 
 	}
 }
 
+// newSearchDirsCursor records a SearchDirectories page: the query (so the
+// server can reject changed-query pagination, per AIP-158) and the keyset
+// position in last_dir — directory paths are their own keyset, exactly like
+// ListDirectory's DIRECTORIES phase.
+func newSearchDirsCursor(query, lastDir string) *cursor {
+	return &cursor{Query: query, LastDir: lastDir}
+}
+
 // setSortValue sets the cursor field matching sortField to last's value in
 // that sort order, shared by newCursor and newDirFilesCursor.
 func setSortValue(c *cursor, sortField pb.SortField, last db.FileInfo) {
