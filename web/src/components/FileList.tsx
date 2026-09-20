@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
-import type { FileFilters } from '../lib/fileFilters'
+import type { SearchFilters } from '../lib/fileFilters'
 import { useFileStatusPoller } from '../lib/useFileStatusPoller'
 import { deleteFile, getDownloadUrl, listContentTypes, listFiles } from '../server/files'
 import { DeleteFileConfirmation } from './DeleteFileConfirmation'
@@ -15,8 +15,8 @@ function categoryLabel(category: string): string {
 }
 
 interface FileListProps {
-  filters: FileFilters
-  onFiltersChange: (filters: FileFilters) => void
+  filters: SearchFilters
+  onFiltersChange: (filters: SearchFilters) => void
   /** Opens a file's standalone page (what the metadata modal used to show). */
   onOpenFile: (id: string) => void
 }
@@ -119,7 +119,7 @@ export function FileList({ filters, onFiltersChange, onOpenFile }: FileListProps
           <select
             value={filters.sort}
             onChange={(e) =>
-              onFiltersChange({ ...filters, sort: e.target.value as FileFilters['sort'] })
+              onFiltersChange({ ...filters, sort: e.target.value as SearchFilters['sort'] })
             }
           >
             <option value="key">Key</option>

@@ -2,7 +2,7 @@ import type { RegisteredRouter } from '@tanstack/react-router'
 import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { FileFilters } from '../lib/fileFilters'
+import { type BrowseFilters, normalizeBrowseFilters } from '../lib/fileFilters'
 import { routeTree } from '../routeTree.gen'
 import type { ListDirectoryInput } from '../server/impl'
 
@@ -43,11 +43,13 @@ function renderRoute(initialUrl = '/') {
   return router
 }
 
-// Names the location-search read + cast used across every navigation
-// assertion; RegisteredRouter is the route-tree-registered router type
-// (augmented in routeTree.gen.ts).
-function currentFilters(router: RegisteredRouter): FileFilters {
-  return router.state.location.search as FileFilters
+// Names the location-search read used across every navigation assertion.
+// location.search is the raw (stripped) URL search — defaults the route's
+// validateSearch fills in never reach the URL — so run it through the same
+// normalizer to assert on what the route actually sees. RegisteredRouter is
+// the route-tree-registered router type (augmented in routeTree.gen.ts).
+function currentFilters(router: RegisteredRouter): BrowseFilters {
+  return normalizeBrowseFilters(router.state.location.search)
 }
 
 beforeEach(() => {
@@ -84,12 +86,22 @@ function docsListButton(): HTMLElement {
   return button
 }
 
-describe('folder navigation history', () => {
-  it('folder navigation pushes; Back/Forward move between folders', async () => {
+describe('root directory landing', () => {
+  it('renders the root directory listing at /', async () => {
     const router = renderRoute()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Home' }))
-    await waitFor(() => expect(currentFilters(router).path).toBe(''))
+    // The mock root has one child folder: seeing its button in the listing
+    // (not just the tree) proves ListDirectory ran with path ''. The parsed
+    // default path is ''.
+    expect(await waitFor(() => docsListButton())).toBeDefined()
+    expect(currentFilters(router).path).toBe('')
+    expect(listDirectoryMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ path: '' }) }),
+    )
+  })
+
+  it('folder navigation pushes; Back/Forward move between folders', async () => {
+    const router = renderRoute()
 
     fireEvent.click(await waitFor(() => docsListButton()))
     await waitFor(() => expect(currentFilters(router).path).toBe('docs/'))
@@ -99,18 +111,11 @@ describe('folder navigation history', () => {
 
     router.history.forward()
     await waitFor(() => expect(currentFilters(router).path).toBe('docs/'))
-
-    router.history.back()
-    await waitFor(() => expect(currentFilters(router).path).toBe(''))
-    router.history.back()
-    await waitFor(() => expect(currentFilters(router).path).toBeUndefined())
   })
 
   it('sort change replaces — no history entry', async () => {
     const router = renderRoute()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Home' }))
-    await waitFor(() => expect(currentFilters(router).path).toBe(''))
     fireEvent.click(await waitFor(() => docsListButton()))
     await waitFor(() => expect(currentFilters(router).path).toBe('docs/'))
 
@@ -121,24 +126,20 @@ describe('folder navigation history', () => {
     })
 
     // The pre-sort docs/ entry was replaced, so Back skips straight past it
-    // to the root browse entry — a push would have landed back on docs/.
+    // to the root entry — a push would have landed back on docs/.
     router.history.back()
     await waitFor(() => expect(currentFilters(router).path).toBe(''))
   })
 
-  it('leaving browse mode via the app link pushes', async () => {
+  it('the app link resets to the root folder and pushes', async () => {
     const router = renderRoute('/?path=docs%2F')
     await screen.findByRole('button', { name: 'New folder' })
     await waitFor(() => expect(currentFilters(router).path).toBe('docs/'))
 
-    // The header app link resets to the default filters — search mode with
-    // no query seeding (toSearchFromPath is gone with the old button).
+    // The header app link resets to the default browse filters — the bucket
+    // root — and that reset is a navigation, so Back returns to docs/.
     fireEvent.click(screen.getByRole('link', { name: 'file-indexer' }))
-    await waitFor(() => {
-      expect(currentFilters(router).path).toBeUndefined()
-      // stripSearchParams drops default values, so '' never reaches the URL.
-      expect(currentFilters(router).query ?? '').toBe('')
-    })
+    await waitFor(() => expect(currentFilters(router).path).toBe(''))
 
     router.history.back()
     await waitFor(() => expect(currentFilters(router).path).toBe('docs/'))

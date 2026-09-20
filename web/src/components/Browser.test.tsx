@@ -3,11 +3,10 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
-import { DEFAULT_FILTERS, type FileFilters, normalizeFilters } from '../lib/fileFilters'
+import { type BrowseFilters, DEFAULT_BROWSE_FILTERS } from '../lib/fileFilters'
 import { Browser } from './Browser'
 
 vi.mock('../server/files', () => ({
-  listFiles: vi.fn(),
   listDirectory: vi.fn(),
   getDirectoryStats: vi.fn(),
   deleteDirectory: vi.fn(),
@@ -30,10 +29,8 @@ import {
   getUploadPartUrl,
   getUploadUrl,
   listDirectory,
-  listFiles,
 } from '../server/files'
 
-const listFilesMock = vi.mocked(listFiles)
 const listDirectoryMock = vi.mocked(listDirectory)
 const getUploadUrlMock = vi.mocked(getUploadUrl)
 const commitUploadMock = vi.mocked(commitUpload)
@@ -55,7 +52,7 @@ class FakeIntersectionObserver implements IntersectionObserver {
   }
 }
 
-function Harness({ initial }: { initial: FileFilters }) {
+function Harness({ initial }: { initial: BrowseFilters }) {
   const [filters, setFilters] = useState(initial)
   return (
     <>
@@ -65,7 +62,7 @@ function Harness({ initial }: { initial: FileFilters }) {
   )
 }
 
-function renderBrowser(initial: FileFilters = DEFAULT_FILTERS) {
+function renderBrowser(initial: BrowseFilters = DEFAULT_BROWSE_FILTERS) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -76,13 +73,12 @@ function renderBrowser(initial: FileFilters = DEFAULT_FILTERS) {
   )
 }
 
-function currentFilters(): FileFilters {
+function currentFilters(): BrowseFilters {
   return JSON.parse(screen.getByTestId('filters').textContent as string)
 }
 
 beforeEach(() => {
   vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
-  listFilesMock.mockResolvedValue({ files: [], nextPageToken: '' })
   listDirectoryMock.mockResolvedValue({ directories: [], files: [], nextPageToken: '' })
   localStorage.clear()
 })
@@ -93,19 +89,13 @@ afterEach(() => {
 })
 
 describe('Browser', () => {
-  it('defaults to search mode', async () => {
-    renderBrowser()
-
-    expect(await screen.findByText('No files.')).toBeDefined()
-  })
-
   it('renders breadcrumbs and directory contents in browse mode', async () => {
     listDirectoryMock.mockResolvedValue({
       directories: ['docs/sub/'],
       files: [],
       nextPageToken: '',
     })
-    renderBrowser(normalizeFilters({ path: 'docs/' }))
+    renderBrowser({ ...DEFAULT_BROWSE_FILTERS, path: 'docs/' })
 
     expect(await screen.findByRole('button', { name: 'sub' })).toBeDefined()
     // "docs" is the current (last) breadcrumb segment, not a link.
@@ -121,7 +111,7 @@ describe('Browser', () => {
       files: [],
       nextPageToken: '',
     })
-    renderBrowser(normalizeFilters({ path: 'docs/sub/' }))
+    renderBrowser({ ...DEFAULT_BROWSE_FILTERS, path: 'docs/sub/' })
 
     fireEvent.click(await screen.findByRole('button', { name: 'Home' }))
     await waitFor(() => expect(currentFilters().path).toBe(''))
@@ -132,7 +122,7 @@ describe('Browser', () => {
       'prompt',
       vi.fn(() => 'photos'),
     )
-    renderBrowser(normalizeFilters({ path: 'docs/' }))
+    renderBrowser({ ...DEFAULT_BROWSE_FILTERS, path: 'docs/' })
     await screen.findByRole('button', { name: 'New folder' })
 
     fireEvent.click(screen.getByRole('button', { name: 'New folder' }))
@@ -147,7 +137,7 @@ describe('Browser', () => {
       vi.fn(() => 'a/b'),
     )
     vi.stubGlobal('alert', alertSpy)
-    renderBrowser(normalizeFilters({ path: 'docs/' }))
+    renderBrowser({ ...DEFAULT_BROWSE_FILTERS, path: 'docs/' })
     await screen.findByRole('button', { name: 'New folder' })
 
     fireEvent.click(screen.getByRole('button', { name: 'New folder' }))
@@ -171,7 +161,7 @@ describe('Browser', () => {
     })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
 
-    renderBrowser(normalizeFilters({ path: 'docs/' }))
+    renderBrowser({ ...DEFAULT_BROWSE_FILTERS, path: 'docs/' })
     await screen.findByRole('button', { name: 'Upload' })
 
     const file = new File(['abc'], 'new.txt', { type: 'text/plain' })
@@ -202,13 +192,12 @@ describe('Browser', () => {
       files: [],
       nextPageToken: '',
     })
-    renderBrowser(normalizeFilters({ path: 'docs/' }))
+    renderBrowser({ ...DEFAULT_BROWSE_FILTERS, path: 'docs/' })
     fireEvent.click(await screen.findByRole('button', { name: 'sub' }))
     await waitFor(() => expect(currentFilters().path).toBe('docs/sub/'))
 
-    // No freeform "Upload to" override in browse mode (unlike FileList's
-    // search-mode upload) — navigating is the only way to change the
-    // destination, and it's already been done above.
+    // No freeform "Upload to" override — navigating is the only way to
+    // change the destination, and it's already been done above.
     expect(screen.queryByLabelText('Upload to')).toBeNull()
 
     const file = new File(['abc'], 'new.txt', { type: 'text/plain' })
@@ -223,7 +212,7 @@ describe('Browser', () => {
     'keeps the upload input clickable in every browser (not display:none, which WebKit ' +
       'silently refuses to open via a programmatic click)',
     async () => {
-      renderBrowser(normalizeFilters({ path: 'docs/' }))
+      renderBrowser({ ...DEFAULT_BROWSE_FILTERS, path: 'docs/' })
       const input = (await screen.findByLabelText('Upload files')) as HTMLInputElement
 
       expect(input.style.display).not.toBe('none')
@@ -232,7 +221,7 @@ describe('Browser', () => {
   )
 
   it('refetches sort/order for the directory listing', async () => {
-    renderBrowser(normalizeFilters({ path: 'docs/' }))
+    renderBrowser({ ...DEFAULT_BROWSE_FILTERS, path: 'docs/' })
     await screen.findByRole('button', { name: 'New folder' })
 
     fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'size' } })
@@ -259,7 +248,7 @@ describe('Browser', () => {
     })
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }))
 
-    renderBrowser(normalizeFilters({ path: 'docs/' }))
+    renderBrowser({ ...DEFAULT_BROWSE_FILTERS, path: 'docs/' })
     await screen.findByRole('button', { name: 'Upload' })
 
     const bigFile = new File([new ArrayBuffer(40 << 20)], 'big.bin', {
@@ -295,7 +284,7 @@ describe('Browser', () => {
       }),
     )
 
-    renderBrowser(normalizeFilters({ path: 'docs/' }))
+    renderBrowser({ ...DEFAULT_BROWSE_FILTERS, path: 'docs/' })
     await screen.findByRole('button', { name: 'Upload' })
 
     const bigFile = new File([new ArrayBuffer(40 << 20)], 'big.bin', {

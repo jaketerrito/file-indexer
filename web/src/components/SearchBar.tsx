@@ -9,15 +9,18 @@ const RESULT_LIMIT = 10
 interface SearchBarProps {
   /** Called with the chosen file; the parent owns what happens next (navigation). */
   onSelect: (file: FileDto) => void
+  /** Called with the trimmed query on Enter; the parent owns navigation to the results page. */
+  onSearch: (query: string) => void
 }
 
 /**
  * Everpresent header search: debounced text query against ListFiles
  * (case-insensitive substring + trigram fuzzy match), showing a dropdown of
- * matching file keys (path + name).
- * Selecting one hands the file to onSelect and clears the box.
+ * matching file keys (path + name). The dropdown is a quick preview into
+ * individual files — selecting one hands the file to onSelect and clears the
+ * box; Enter hands the trimmed query to onSearch for the full results page.
  */
-export function SearchBar({ onSelect }: SearchBarProps) {
+export function SearchBar({ onSelect, onSearch }: SearchBarProps) {
   const [input, setInput] = useState('')
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
@@ -58,6 +61,18 @@ export function SearchBar({ onSelect }: SearchBarProps) {
         onBlur={() => setOpen(false)}
         onKeyDown={(e) => {
           if (e.key === 'Escape') setOpen(false)
+          if (e.key === 'Enter') {
+            const trimmed = input.trim()
+            if (trimmed !== '') {
+              // Enter goes to the full results page. The input keeps its text
+              // so the box still shows what was searched after navigation;
+              // empty input is a no-op — there is no useful "everything"
+              // destination.
+              e.preventDefault()
+              onSearch(trimmed)
+              setOpen(false)
+            }
+          }
         }}
         style={{ width: '24rem', maxWidth: '50vw' }}
       />

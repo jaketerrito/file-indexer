@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { type FileFilters, isBrowsing, toBrowsePath } from '../lib/fileFilters'
+import type { BrowseFilters } from '../lib/fileFilters'
 import {
   MULTIPART_THRESHOLD_BYTES,
   type MultipartUploadDeps,
@@ -19,7 +19,6 @@ import {
 } from '../server/files'
 import { Breadcrumbs } from './Breadcrumbs'
 import { DirectoryList } from './DirectoryList'
-import { FileList } from './FileList'
 
 // Bridges the plain-object multipartUpload module to the TanStack Start
 // server functions, which wrap every input in { data }. Module-level: none
@@ -43,20 +42,17 @@ const multipartDeps: MultipartUploadDeps = {
 }
 
 interface BrowserProps {
-  filters: FileFilters
-  onFiltersChange: (filters: FileFilters) => void
-  /** Opens a file's standalone page; threaded through to both lists. */
+  filters: BrowseFilters
+  onFiltersChange: (filters: BrowseFilters) => void
+  /** Opens a file's standalone page; threaded through to the list. */
   onOpenFile: (id: string) => void
 }
 
 /**
- * Top-level switch between the two ways of finding a file:
- * search (flat, recursive, filterable — FileList, unchanged from before
- * directory browsing existed) and browse (breadcrumb navigation over
- * directories derived purely from key structure — DirectoryList). Browse
- * mode is entered from the sidebar FolderTree; search mode is the default,
- * re-entered via the top bar's app link or global search: folders are for
- * navigation, filtering is search's job.
+ * The browse body of "/": breadcrumbs, new-folder, sort, upload, and the
+ * DirectoryList over the current folder. Full-text search results live at
+ * "/search" (FileList) — folders are for navigation, filtering is search's
+ * job.
  *
  * Directories are virtual: there is no CreateDirectory call. "New folder"
  * just navigates to a path nothing lives under yet; DirectoryList shows it
@@ -65,8 +61,7 @@ interface BrowserProps {
  */
 export function Browser({ filters, onFiltersChange, onOpenFile }: BrowserProps) {
   const queryClient = useQueryClient()
-  const browsing = isBrowsing(filters)
-  const path = filters.path ?? ''
+  const path = filters.path
 
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
@@ -75,9 +70,8 @@ export function Browser({ filters, onFiltersChange, onOpenFile }: BrowserProps) 
   const cancelControllerRef = useRef(new AbortController())
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
-      // Always the current folder — no freeform override here (unlike
-      // FileList's search-mode upload, which has no path to default to).
-      // Browsing to the right folder first is the destination picker.
+      // Always the current folder — no freeform override. Browsing to the
+      // right folder first is the destination picker.
       const dir = normalizeUploadPath(path)
       cancelControllerRef.current = new AbortController()
       try {
@@ -129,7 +123,7 @@ export function Browser({ filters, onFiltersChange, onOpenFile }: BrowserProps) 
   }
 
   function handleNavigate(next: string) {
-    onFiltersChange(toBrowsePath(filters, next))
+    onFiltersChange({ ...filters, path: next })
   }
 
   function handleNewFolder() {
@@ -140,10 +134,6 @@ export function Browser({ filters, onFiltersChange, onOpenFile }: BrowserProps) 
       return
     }
     handleNavigate(`${path}${name}/`)
-  }
-
-  if (!browsing) {
-    return <FileList filters={filters} onFiltersChange={onFiltersChange} onOpenFile={onOpenFile} />
   }
 
   return (
@@ -158,7 +148,7 @@ export function Browser({ filters, onFiltersChange, onOpenFile }: BrowserProps) 
           <select
             value={filters.sort}
             onChange={(e) =>
-              onFiltersChange({ ...filters, sort: e.target.value as FileFilters['sort'] })
+              onFiltersChange({ ...filters, sort: e.target.value as BrowseFilters['sort'] })
             }
           >
             <option value="key">Key</option>
