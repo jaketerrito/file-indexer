@@ -188,6 +188,27 @@ func TestLoadExifConfigDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadS3Secure(t *testing.T) {
+	cases := []struct {
+		name string
+		env  string
+		want bool
+	}{
+		{"unset", "", false},
+		{"true", "true", true},
+		{"false", "false", false},
+		{"malformed", "not-a-bool", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv("S3_SECURE", c.env)
+			if got := Load().S3.Secure; got != c.want {
+				t.Errorf("S3.Secure = %v, want %v", got, c.want)
+			}
+		})
+	}
+}
+
 func TestLoadDefaultGRPCAddr(t *testing.T) {
 	t.Setenv("DB_HOST", "h")
 	t.Setenv("DB_PORT", "1")

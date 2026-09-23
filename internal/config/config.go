@@ -34,6 +34,9 @@ type S3Config struct {
 	// Region is used for SigV4 request signing. When empty, the minio
 	// client falls back to its default ("us-east-1").
 	Region string
+	// Secure selects HTTPS when true; plaintext HTTP when false. Default
+	// false preserves local-dev behavior against MinIO.
+	Secure bool
 }
 
 // PreviewConfig tunes the preview index type's image processing. Every limit
@@ -154,6 +157,20 @@ func getEnvInt64(key string, def int64) int64 {
 	return n
 }
 
+// getEnvBool parses key as a bool. Unset or malformed returns def.
+func getEnvBool(key string, def bool) bool {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		slog.Warn("invalid bool in environment, using default", "key", key, "value", v)
+		return def
+	}
+	return b
+}
+
 // normalizeIndexPrefix trims surrounding slashes and re-adds exactly one
 // trailing slash, so strings.HasPrefix matching is unambiguous (".index"
 // and "/.index/" both become ".index/"). A slash-only or empty value
@@ -184,6 +201,7 @@ func Load() *Config {
 			SecretAccessKey: os.Getenv("S3_SECRET"),
 			Bucket:          os.Getenv("S3_BUCKET"),
 			Region:          os.Getenv("S3_REGION"),
+			Secure:          getEnvBool("S3_SECURE", false),
 		},
 		Indexer: IndexerConfig{
 			PollInterval: getEnvDuration("INDEXER_POLL_INTERVAL", 5*time.Second),
