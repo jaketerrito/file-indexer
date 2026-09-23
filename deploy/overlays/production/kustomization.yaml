@@ -37,3 +37,16 @@ images:
 
 patches:
   - path: patch-migrate.yaml
+
+# Environment config overrides merged into base's app-config (S3_SECURE=true
+# for the hosted provider). disableNameSuffixHash must be restated here:
+# generatorOptions are per-kustomization, and the merge target's name must
+# match base's hash-free name.
+configMapGenerator:
+  - name: app-config
+    behavior: merge
+    envs:
+      - app.env
+
+generatorOptions:
+  disableNameSuffixHash: true

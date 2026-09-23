@@ -40,6 +40,8 @@ spec:
                 name: db-secret
             - secretRef:
                 name: s3-secret
+            - configMapRef:
+                name: app-config
           resources:
             requests:
               memory: 128Mi
