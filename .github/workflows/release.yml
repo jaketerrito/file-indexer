@@ -139,4 +139,9 @@ jobs:
             exit 0
           fi
 
-          gh pr create --fill --repo "${{ github.repository }}" --base "${{ github.event.repository.default_branch }}"
+          # Explicit title/body: --fill computes defaults from a local
+          # origin/<default>...branch rev range, but this job runs on a tag
+          # checkout where origin/main does not exist (v0.1.1 failure).
+          gh pr create --repo "${{ github.repository }}" --base "${{ github.event.repository.default_branch }}" \
+            --title "chore(release): bump overlay image tag to ${{ github.ref_name }}" \
+            --body "Automated production overlay tag bump for release ${{ github.ref_name }}. Merge to deploy."
