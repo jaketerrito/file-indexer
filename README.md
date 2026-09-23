@@ -26,6 +26,12 @@ Postgres Database
 Migrations live in `internal/db/migrations/` as SQL files and are handled by [goose](https://github.com/pressly/goose).
 SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) into type-safe Go code in `internal/db/`.
 
+## Production deployment
+
+See [`docs/production-quickstart.md`](docs/production-quickstart.md) for
+deploying the stack to your own Kubernetes cluster with your own Postgres and
+S3-compatible storage.
+
 ## Dev
 ### Dependencies
 - [just](https://just.systems/man/en/)
