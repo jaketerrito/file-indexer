@@ -592,25 +592,30 @@ func TestSearchDirectoriesKeyset(t *testing.T) {
 	conn := testConn(t)
 	q := New(conn)
 	ctx := context.Background()
-	prefix := uniqueKey(t) + "/"
+	// The keyset assertions are order- and count-sensitive over the whole
+	// match set; a nanosecond query can be word-similar (%>) to another
+	// test's nearby-timestamp segment (pg_trgm gotcha documented in
+	// AGENTS.md), letting foreign rows sort into page 1. "vqjxkf" shares
+	// no trigram with any seeded path (including the "zzqxwv" no-match
+	// query in TestSearchDirectories above); dbtest gives each run a
+	// throwaway database so no uniqueness is needed.
+	prefix := "it/vqjxkf-keyset/"
 
 	err := q.UpsertDirectoriesForKeys(ctx, []string{prefix + "b/2.txt", prefix + "a/1.txt", prefix + "c/3.txt"})
 	if err != nil {
 		t.Fatalf("UpsertDirectoriesForKeys: %v", err)
 	}
 
-	// Query the unique nanosecond segment so exactly the prefix directory
-	// and its three children match (byte order: a path sorts before its
-	// children).
-	parts := strings.Split(strings.TrimSuffix(prefix, "/"), "/")
-	nano := parts[len(parts)-1]
+	// Querying the gibberish segment matches exactly the prefix directory
+	// and its three children (byte order: a path sorts before its children).
+	query := "vqjxkf-keyset"
 	want := []string{prefix, prefix + "a/", prefix + "b/", prefix + "c/"}
 
 	page := func(after string, hasCursor bool) []string {
 		t.Helper()
 		got, err := q.SearchDirectories(ctx, SearchDirectoriesParams{
-			Query:        nano,
-			QueryPattern: "%" + nano + "%",
+			Query:        query,
+			QueryPattern: "%" + query + "%",
 			HasCursor:    hasCursor,
 			After:        after,
 			PageLimit:    2,
