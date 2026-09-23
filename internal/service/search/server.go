@@ -34,8 +34,9 @@ const previewIndexType = "preview"
 
 // FileIndex is the database surface the search service depends on: one list
 // query per (sort field, direction), all keyset-paginated on (value, id),
-// plus ListChildDirectories for directory browsing and
-// ListContentTypeCategories for the content-type filter's option list.
+// plus ListChildDirectories for directory browsing, SearchDirectories for
+// folder text search, and ListContentTypeCategories for the content-type
+// filter's option list.
 type FileIndex interface {
 	ListFilesByKeyAsc(ctx context.Context, arg db.ListFilesByKeyAscParams) ([]db.FileInfo, error)
 	ListFilesByKeyDesc(ctx context.Context, arg db.ListFilesByKeyDescParams) ([]db.FileInfo, error)
@@ -44,6 +45,7 @@ type FileIndex interface {
 	ListFilesBySizeAsc(ctx context.Context, arg db.ListFilesBySizeAscParams) ([]db.FileInfo, error)
 	ListFilesBySizeDesc(ctx context.Context, arg db.ListFilesBySizeDescParams) ([]db.FileInfo, error)
 	ListChildDirectories(ctx context.Context, arg db.ListChildDirectoriesParams) ([]string, error)
+	SearchDirectories(ctx context.Context, arg db.SearchDirectoriesParams) ([]string, error)
 	GetIndexQueueStatuses(ctx context.Context, arg db.GetIndexQueueStatusesParams) ([]db.GetIndexQueueStatusesRow, error)
 	// sqlc scans the query's computed category expression as interface{};
 	// pgx delivers text as string.
@@ -375,6 +377,47 @@ func (s *SearchServer) ListDirectory(ctx context.Context, req *pb.ListDirectoryR
 		return nil, err
 	}
 	return &pb.ListDirectoryResponse{Directories: dirs, Files: infos, NextPageToken: nextToken}, nil
+}
+
+// SearchDirectories is ListFiles' folder counterpart: a text search over the
+// directories table (case-insensitive substring + trigram word similarity,
+// same semantics as file keys), ordered by path ascending and keyset-paged on
+// path.
+func (s *SearchServer) SearchDirectories(ctx context.Context, req *pb.SearchDirectoriesRequest) (*pb.SearchDirectoriesResponse, error) {
+	limit := normalizePageSize(req.GetPageSize())
+
+	var cur *cursor
+	if req.GetPageToken() != "" {
+		c, err := decodeCursor(req.GetPageToken())
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "invalid page_token")
+		}
+		// AIP-158: all arguments other than page_size and page_token must
+		// match the call that produced the token.
+		if c.GetQuery() != req.GetQuery() {
+			return nil, status.Error(codes.InvalidArgument, "page_token was issued for a different query")
+		}
+		cur = c
+	}
+
+	// Fetch one extra row to detect whether another page exists.
+	paths, err := s.queries.SearchDirectories(ctx, db.SearchDirectoriesParams{
+		Query:        req.GetQuery(),
+		QueryPattern: "%" + escapeLike(req.GetQuery()) + "%",
+		HasCursor:    cur != nil,
+		After:        cur.GetLastDir(),
+		PageLimit:    int32(limit + 1),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var nextPageToken string
+	if len(paths) > limit {
+		paths = paths[:limit]
+		nextPageToken = encodeCursor(newSearchDirsCursor(req.GetQuery(), paths[len(paths)-1]))
+	}
+	return &pb.SearchDirectoriesResponse{Directories: paths, NextPageToken: nextPageToken}, nil
 }
 
 // normalizeDirPath validates and normalizes a ListDirectory path: "" means

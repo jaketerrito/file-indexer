@@ -27,6 +27,9 @@ test('seeded files are indexed and listed', async ({ page }) => {
 })
 
 test('type filter narrows the list to one content-type category', async ({ page }) => {
+  // The Type filter lives on the search results page; an empty query lists
+  // every indexed file there.
+  await page.goto('/search')
   // The category options come from the indexed content types, so wait for
   // the full seed set first.
   await expectAfterReload(page, async () => {
@@ -45,16 +48,44 @@ test('type filter narrows the list to one content-type category', async ({ page 
   }
 })
 
+test('Enter in the header search opens the full results page', async ({ page }) => {
+  const box = page.getByRole('searchbox', { name: 'Search files by path' })
+  await box.fill('notes')
+  await box.press('Enter')
+
+  await expect(page).toHaveURL(/\/search\?query=notes/)
+  await expect(page.getByRole('heading', { name: 'Search results' })).toBeVisible()
+  await expectAfterReload(page, async () => {
+    await expect(page.getByText('notes.txt', { exact: true })).toBeVisible()
+    await expect(page.getByText('lorem.txt', { exact: true })).toHaveCount(0)
+  })
+})
+
 test('header search finds a file and opens its metadata page', async ({ page }) => {
   await expectAfterReload(page, async () => {
     await expect(page.getByText('notes.txt', { exact: true })).toBeVisible()
   })
 
-  await page.getByRole('searchbox', { name: 'Search files by path' }).fill('notes')
+  await page.getByRole('searchbox', { name: 'Search files and folders' }).fill('notes')
   await page.getByRole('button', { name: 'notes.txt' }).click()
 
   await expect(page).toHaveURL(/\/file\/[^/]+$/)
   await expect(page.getByRole('heading', { name: 'notes.txt' })).toBeVisible()
   // Base stat row from the metadata table (stat indexing must have completed).
   await expect(page.getByRole('row', { name: 'Content type text/plain' })).toBeVisible()
+})
+
+test('header search finds a folder and opens its browse view', async ({ page }) => {
+  // docs/todo.txt is seeded nested, so a docs/ directory exists once indexed.
+  await expectAfterReload(page, async () => {
+    await expect(page.getByText('docs/todo.txt', { exact: true })).toBeVisible()
+  })
+
+  await page.getByRole('searchbox', { name: 'Search files and folders' }).fill('docs')
+  // exact: 'docs/todo.txt' also contains 'docs/'.
+  await page.getByRole('button', { name: 'docs/', exact: true }).click()
+
+  await expect(page).toHaveURL(/\?path=docs/)
+  // Browse mode lists the folder's direct children by basename.
+  await expect(page.getByText('todo.txt', { exact: true })).toBeVisible()
 })

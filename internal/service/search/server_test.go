@@ -876,3 +876,96 @@ func TestHealthCheckNotServingWhenStopped(t *testing.T) {
 		t.Fatal("Health/Check: expected error for stopped server, got nil")
 	}
 }
+
+func TestSearchDirectories(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().SearchDirectories(mock.Anything, db.SearchDirectoriesParams{
+		Query:        "docs",
+		QueryPattern: "%docs%",
+		PageLimit:    defaultPageSize + 1,
+	}).Return([]string{"docs/", "other/docs/"}, nil)
+
+	srv := SearchServer{queries: queries}
+
+	resp, err := srv.SearchDirectories(context.Background(), &pb.SearchDirectoriesRequest{Query: "docs"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := resp.GetDirectories()
+	if len(got) != 2 || got[0] != "docs/" || got[1] != "other/docs/" {
+		t.Errorf("directories = %v, want [docs/ other/docs/]", got)
+	}
+	if resp.GetNextPageToken() != "" {
+		t.Errorf("next_page_token = %q, want empty", resp.GetNextPageToken())
+	}
+}
+
+func TestSearchDirectoriesEscapesLike(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().SearchDirectories(mock.Anything, db.SearchDirectoriesParams{
+		Query:        "a_b%",
+		QueryPattern: `%a\_b\%%`,
+		PageLimit:    defaultPageSize + 1,
+	}).Return(nil, nil)
+
+	srv := SearchServer{queries: queries}
+
+	if _, err := srv.SearchDirectories(context.Background(), &pb.SearchDirectoriesRequest{Query: "a_b%"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSearchDirectoriesPagination(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	page1 := []string{"a/", "b/", "c/"}
+	queries.EXPECT().SearchDirectories(mock.Anything, db.SearchDirectoriesParams{
+		Query:        "q",
+		QueryPattern: "%q%",
+		PageLimit:    3,
+	}).Return(page1, nil).Once()
+
+	srv := SearchServer{queries: queries}
+
+	resp, err := srv.SearchDirectories(context.Background(), &pb.SearchDirectoriesRequest{Query: "q", PageSize: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resp.GetDirectories(); len(got) != 2 || got[0] != "a/" || got[1] != "b/" {
+		t.Fatalf("page 1 directories = %v, want [a/ b/]", got)
+	}
+	token := resp.GetNextPageToken()
+	if token == "" {
+		t.Fatal("page 1 next_page_token empty, want non-empty")
+	}
+
+	queries.EXPECT().SearchDirectories(mock.Anything, db.SearchDirectoriesParams{
+		Query:        "q",
+		QueryPattern: "%q%",
+		HasCursor:    true,
+		After:        "b/",
+		PageLimit:    3,
+	}).Return([]string{"c/"}, nil).Once()
+
+	resp2, err := srv.SearchDirectories(context.Background(), &pb.SearchDirectoriesRequest{Query: "q", PageSize: 2, PageToken: token})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resp2.GetDirectories(); len(got) != 1 || got[0] != "c/" {
+		t.Errorf("page 2 directories = %v, want [c/]", got)
+	}
+
+	// A token is bound to the query it was issued for (AIP-158).
+	if _, err := srv.SearchDirectories(context.Background(), &pb.SearchDirectoriesRequest{Query: "other", PageSize: 2, PageToken: token}); status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("changed-query error = %v, want InvalidArgument", err)
+	}
+}
+
+func TestSearchDirectoriesInvalidToken(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	srv := SearchServer{queries: queries}
+
+	_, err := srv.SearchDirectories(context.Background(), &pb.SearchDirectoriesRequest{PageToken: "garbage"})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("error = %v, want InvalidArgument", err)
+	}
+}

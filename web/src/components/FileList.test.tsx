@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
-import { DEFAULT_FILTERS, type FileFilters } from '../lib/fileFilters'
+import { DEFAULT_SEARCH_FILTERS, type SearchFilters } from '../lib/fileFilters'
 import type { ListFilesResult } from '../server/impl'
 import { FileList } from './FileList'
 
@@ -86,17 +86,17 @@ function triggerIntersection() {
 // Stateful harness standing in for the URL-backed filter state owned by the
 // index route: onFiltersChange feeds back into the filters prop.
 function Harness({
-  initial = DEFAULT_FILTERS,
+  initial = DEFAULT_SEARCH_FILTERS,
   onOpenFile,
 }: {
-  initial?: FileFilters
+  initial?: SearchFilters
   onOpenFile: (id: string) => void
 }) {
   const [filters, setFilters] = useState(initial)
   return <FileList filters={filters} onFiltersChange={setFilters} onOpenFile={onOpenFile} />
 }
 
-function renderFileList(initial?: FileFilters, onOpenFile: (id: string) => void = () => {}) {
+function renderFileList(initial?: SearchFilters, onOpenFile: (id: string) => void = () => {}) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -142,7 +142,7 @@ describe('FileList', () => {
 
   it('shows a filtered empty state when filters are active', async () => {
     listFilesMock.mockResolvedValue(page([], 0))
-    renderFileList({ ...DEFAULT_FILTERS, query: 'zzz' })
+    renderFileList({ ...DEFAULT_SEARCH_FILTERS, query: 'zzz' })
     expect(await screen.findByText('No files match your filters.')).toBeDefined()
   })
 
@@ -213,7 +213,7 @@ describe('FileList', () => {
     listFilesMock.mockResolvedValue(page([], 0))
     listContentTypesMock.mockResolvedValue({ categories: ['text/'] })
 
-    renderFileList({ ...DEFAULT_FILTERS, type: 'image/' })
+    renderFileList({ ...DEFAULT_SEARCH_FILTERS, type: 'image/' })
     await screen.findByText('No files match your filters.')
 
     expect((screen.getByLabelText(/Type/) as HTMLSelectElement).value).toBe('image/')

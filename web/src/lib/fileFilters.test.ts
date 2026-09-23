@@ -1,14 +1,47 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_FILTERS, isBrowsing, normalizeFilters, toBrowsePath } from './fileFilters'
+import {
+  DEFAULT_BROWSE_FILTERS,
+  DEFAULT_SEARCH_FILTERS,
+  normalizeBrowseFilters,
+  normalizeSearchFilters,
+} from './fileFilters'
 
-describe('normalizeFilters', () => {
+describe('normalizeBrowseFilters', () => {
   it('returns defaults for empty search params', () => {
-    expect(normalizeFilters({})).toEqual(DEFAULT_FILTERS)
+    expect(normalizeBrowseFilters({})).toEqual(DEFAULT_BROWSE_FILTERS)
+  })
+
+  it('keeps an explicit path, including the root ("")', () => {
+    expect(normalizeBrowseFilters({ path: '' }).path).toBe('')
+    expect(normalizeBrowseFilters({ path: 'docs/sub/' }).path).toBe('docs/sub/')
+  })
+
+  it('drops invalid values back to defaults', () => {
+    expect(normalizeBrowseFilters({ path: 42, sort: 'bogus', order: 'up' })).toEqual(
+      DEFAULT_BROWSE_FILTERS,
+    )
+  })
+
+  it('ignores search-route params', () => {
+    expect(normalizeBrowseFilters({ query: 'notes', type: 'image/' })).toEqual(
+      DEFAULT_BROWSE_FILTERS,
+    )
+  })
+
+  it('is stable when re-parsing its own output', () => {
+    const filters = normalizeBrowseFilters({ path: 'docs/', sort: 'size', order: 'desc' })
+    expect(normalizeBrowseFilters({ ...filters })).toEqual(filters)
+  })
+})
+
+describe('normalizeSearchFilters', () => {
+  it('returns defaults for empty search params', () => {
+    expect(normalizeSearchFilters({})).toEqual(DEFAULT_SEARCH_FILTERS)
   })
 
   it('keeps valid values', () => {
     expect(
-      normalizeFilters({ query: 'docs/', type: 'image/', sort: 'size', order: 'desc' }),
+      normalizeSearchFilters({ query: 'docs/', type: 'image/', sort: 'size', order: 'desc' }),
     ).toEqual({
       query: 'docs/',
       type: 'image/',
@@ -17,56 +50,19 @@ describe('normalizeFilters', () => {
     })
   })
 
-  it('drops invalid values back to defaults', () => {
-    expect(normalizeFilters({ query: 42, type: ['image/'], sort: 'bogus', order: 'up' })).toEqual(
-      DEFAULT_FILTERS,
-    )
+  it('drops non-string and unknown values back to defaults', () => {
+    expect(
+      normalizeSearchFilters({ query: 42, type: ['image/'], sort: 'bogus', order: 'up' }),
+    ).toEqual(DEFAULT_SEARCH_FILTERS)
   })
-})
 
-describe('normalizeFilters round-trip', () => {
   it('is stable when re-parsing its own output', () => {
-    const filters = normalizeFilters({
+    const filters = normalizeSearchFilters({
       query: 'a',
       type: 'text/',
       sort: 'lastModified',
       order: 'desc',
     })
-    expect(normalizeFilters({ ...filters })).toEqual(filters)
-  })
-
-  it('is stable for a browse-mode path, including the root ("")', () => {
-    const filters = normalizeFilters({ path: '' })
-    expect(filters.path).toBe('')
-    expect(normalizeFilters({ ...filters })).toEqual(filters)
-
-    const nested = normalizeFilters({ path: 'docs/sub/' })
-    expect(nested.path).toBe('docs/sub/')
-    expect(normalizeFilters({ ...nested })).toEqual(nested)
-  })
-})
-
-describe('isBrowsing', () => {
-  it('is false when path is absent (search mode)', () => {
-    expect(isBrowsing(normalizeFilters({}))).toBe(false)
-    expect(isBrowsing(normalizeFilters({ query: 'docs/' }))).toBe(false)
-  })
-
-  it('is true when path is present, even at the root', () => {
-    expect(isBrowsing(normalizeFilters({ path: '' }))).toBe(true)
-    expect(isBrowsing(normalizeFilters({ path: 'docs/' }))).toBe(true)
-  })
-})
-
-describe('toBrowsePath', () => {
-  it('sets path and clears query/type', () => {
-    const filters = normalizeFilters({ query: 'old/', type: 'image/' })
-    const next = toBrowsePath(filters, 'docs/')
-    expect(next.path).toBe('docs/')
-    expect(next.query).toBe('')
-    expect(next.type).toBe('')
-    // Sort/order are preserved across the navigation.
-    expect(next.sort).toBe(filters.sort)
-    expect(next.order).toBe(filters.order)
+    expect(normalizeSearchFilters({ ...filters })).toEqual(filters)
   })
 })

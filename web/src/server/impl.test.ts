@@ -26,6 +26,7 @@ import {
   ListContentTypesResponseSchema,
   ListDirectoryResponseSchema,
   ListFilesResponseSchema,
+  SearchDirectoriesResponseSchema,
   type SearchService,
   SortField,
   SortOrder,
@@ -46,6 +47,7 @@ import {
   listDirectoryImpl,
   listFilesImpl,
   listUploadedPartsImpl,
+  searchDirectoriesImpl,
   toFileDto,
   toFileMetadataDto,
   validateCreateMultipartUploadInput,
@@ -54,6 +56,7 @@ import {
   validateListDirectoryInput,
   validateListFilesInput,
   validatePathInput,
+  validateSearchDirectoriesInput,
   validateUploadIdInput,
   validateUploadPartUrlInput,
 } from './impl'
@@ -177,6 +180,34 @@ describe('validateListFilesInput', () => {
 
   it('rejects a non-string pageToken', () => {
     expect(() => validateListFilesInput({ pageToken: 42 })).toThrow(/pageToken/)
+  })
+})
+
+describe('validateSearchDirectoriesInput', () => {
+  it('accepts empty input', () => {
+    expect(validateSearchDirectoriesInput(undefined)).toEqual({})
+    expect(validateSearchDirectoriesInput({})).toEqual({})
+  })
+
+  it('accepts query, pageSize, and pageToken', () => {
+    expect(
+      validateSearchDirectoriesInput({ query: 'docs', pageSize: 5, pageToken: 'abc' }),
+    ).toEqual({ query: 'docs', pageSize: 5, pageToken: 'abc' })
+  })
+
+  it.each([[{ pageSize: 0 }], [{ pageSize: -1 }], [{ pageSize: 1.5 }], [{ pageSize: '10' }]])(
+    'rejects invalid pageSize %j',
+    (input) => {
+      expect(() => validateSearchDirectoriesInput(input)).toThrow(/pageSize/)
+    },
+  )
+
+  it('rejects a non-string query', () => {
+    expect(() => validateSearchDirectoriesInput({ query: 42 })).toThrow(/query/)
+  })
+
+  it('rejects a non-string pageToken', () => {
+    expect(() => validateSearchDirectoriesInput({ pageToken: 42 })).toThrow(/pageToken/)
   })
 })
 
@@ -834,5 +865,22 @@ describe('listContentTypesImpl', () => {
       listContentTypes: vi.fn().mockRejectedValue(new Error('unavailable')),
     } as unknown as Client<typeof SearchService>
     await expect(listContentTypesImpl(search)).rejects.toThrow('unavailable')
+  })
+})
+
+describe('searchDirectoriesImpl', () => {
+  it('maps the RPC response to the DTO shape', async () => {
+    const searchDirectories = vi.fn().mockResolvedValue(
+      create(SearchDirectoriesResponseSchema, {
+        directories: ['docs/'],
+        nextPageToken: 'tok',
+      }),
+    )
+    const search = { searchDirectories } as unknown as Client<typeof SearchService>
+
+    const result = await searchDirectoriesImpl(search, { query: 'docs' })
+
+    expect(searchDirectories).toHaveBeenCalledWith({ query: 'docs', pageSize: 0, pageToken: '' })
+    expect(result).toEqual({ directories: ['docs/'], nextPageToken: 'tok' })
   })
 })

@@ -300,6 +300,59 @@ export async function listContentTypesImpl(
   return { categories: res.categories }
 }
 
+export interface SearchDirectoriesInput {
+  pageSize?: number
+  pageToken?: string
+  /** Only return directories whose path contains this text (case-insensitive
+   * substring) or is a close spelling of it (trigram fuzzy match). */
+  query?: string
+}
+
+export interface SearchDirectoriesResult {
+  directories: string[]
+  nextPageToken: string
+}
+
+export function validateSearchDirectoriesInput(input: unknown): SearchDirectoriesInput {
+  const data = (input ?? {}) as Record<string, unknown>
+  const out: SearchDirectoriesInput = {}
+  if (data.pageSize !== undefined) {
+    if (
+      typeof data.pageSize !== 'number' ||
+      !Number.isInteger(data.pageSize) ||
+      data.pageSize < 1
+    ) {
+      throw new Error('pageSize must be a positive integer')
+    }
+    out.pageSize = data.pageSize
+  }
+  if (data.pageToken !== undefined) {
+    if (typeof data.pageToken !== 'string') {
+      throw new Error('pageToken must be a string')
+    }
+    out.pageToken = data.pageToken
+  }
+  if (data.query !== undefined) {
+    if (typeof data.query !== 'string') {
+      throw new Error('query must be a string')
+    }
+    out.query = data.query
+  }
+  return out
+}
+
+export async function searchDirectoriesImpl(
+  search: Client<typeof SearchService>,
+  input: SearchDirectoriesInput,
+): Promise<SearchDirectoriesResult> {
+  const res = await search.searchDirectories({
+    pageSize: input.pageSize ?? 0,
+    pageToken: input.pageToken ?? '',
+    query: input.query ?? '',
+  })
+  return { directories: res.directories, nextPageToken: res.nextPageToken }
+}
+
 export async function getDownloadUrlImpl(
   client: Client<typeof FilesService>,
   id: string,

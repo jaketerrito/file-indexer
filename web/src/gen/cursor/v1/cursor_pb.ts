@@ -86,7 +86,10 @@ export type PageToken = Message<"cursor.v1.PageToken"> & {
    * directly usable as ListChildDirectories' `after` argument — a plain
    * keyset comparison against the directories table); the FILES phase
    * reuses sort_field/sort_order/last_id/key/last_modified/size above,
-   * exactly like ListFiles' cursor.
+   * exactly like ListFiles' cursor. SearchDirectories (no sort field, no
+   * phases) reuses query and last_dir for its page tokens: last_dir is the
+   * last directory path returned, directly usable as the SearchDirectories
+   * query's after argument.
    *
    * @generated from field: string path = 9;
    */

@@ -9,7 +9,7 @@ import {
 } from '@tanstack/react-router'
 import { type ReactNode, useState } from 'react'
 import { SearchBar } from '../components/SearchBar'
-import { DEFAULT_FILTERS } from '../lib/fileFilters'
+import { DEFAULT_BROWSE_FILTERS, DEFAULT_SEARCH_FILTERS } from '../lib/fileFilters'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -36,8 +36,9 @@ function RootComponent() {
 
 /**
  * Everpresent top bar: app link plus the global file search. SearchBar is
- * navigation-agnostic; wiring to the file route lives here so the component
- * stays testable without a router.
+ * navigation-agnostic (file page on file select, browse view on folder
+ * select, "/search" on Enter); the wiring lives here so the component stays
+ * testable without a router.
  */
 function Header() {
   const navigate = useNavigate()
@@ -51,10 +52,18 @@ function Header() {
         borderBottom: '1px solid #ddd',
       }}
     >
-      <Link to="/" search={{ ...DEFAULT_FILTERS }} style={{ fontWeight: 'bold' }}>
+      <Link to="/" search={{ ...DEFAULT_BROWSE_FILTERS }} style={{ fontWeight: 'bold' }}>
         file-indexer
       </Link>
-      <SearchBar onSelect={(file) => void navigate({ to: '/file/$id', params: { id: file.id } })} />
+      <SearchBar
+        onSelect={(file) => void navigate({ to: '/file/$id', params: { id: file.id } })}
+        onSelectFolder={(path) =>
+          void navigate({ to: '/', search: { ...DEFAULT_BROWSE_FILTERS, path } })
+        }
+        onSearch={(query) =>
+          void navigate({ to: '/search', search: { ...DEFAULT_SEARCH_FILTERS, query } })
+        }
+      />
     </header>
   )
 }
