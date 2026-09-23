@@ -30,6 +30,7 @@ FROM scratch AS build-release-stage
 WORKDIR /
 
 COPY --from=build-stage /main /main
+COPY --from=ghcr.io/grpc-ecosystem/grpc-health-probe@sha256:55a379bb4a7ef1c779e4e123ff31dd0046d1014eab083a89f4ac196a97548bec /ko-app/grpc-health-probe /bin/grpc_health_probe
 
 # NON ROOT
 USER 10001:10001

@@ -17,4 +17,3 @@ misconfigurations:
     paths:
       - deploy/overlays/local/web-writable-rootfs.yaml
 
-

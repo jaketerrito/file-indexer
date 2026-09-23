@@ -57,7 +57,7 @@ The rendered output contains:
 
 - Nine workloads pinned to `ghcr.io/jaketerrito/file-indexer/<name>:v0.1.0`.
 - A shared `file-indexer` ServiceAccount referenced by every pod.
-- `grpc-health-probe` sidecars and exec probes for `files` and `search`.
+- A `grpc-health-probe` binary shipped in the release image, with exec readiness/liveness probes on the `files` and `search` app containers.
 - HTTP probes for `web`.
 - PodDisruptionBudgets for `files`, `search`, and `web`.
 - A `migrate` Job annotated with ArgoCD sync-wave `-1`.
