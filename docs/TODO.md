@@ -44,3 +44,24 @@ history is the archive.
   across page loads. If thumbnail bandwidth becomes a problem, swap
   GetPreviewURL for a cacheable BFF route serving bytes with immutable cache
   headers.
+
+## Production deployment (noted 9/23/26)
+
+Omissions from the initial production overlay work (deploy/overlays/production),
+recorded here after the quickstart doc was trimmed from the repo:
+
+- **No index-worker health checks**: index-stat, index-preview and index-exif
+  have no probes — the images are FROM scratch (no shell, no listener) and
+  restart policy only covers crashes, not a worker that is alive but stuck.
+  Tracked in #117 (shared indexer.Run heartbeat + tiny /healthz per worker).
+- **No NetworkPolicies**: nothing segments in-cluster traffic; every pod can
+  reach every pod. Tracked in #115.
+- **No committed ingress/gateway manifest**: only the web Service ships;
+  exposure (Ingress, Gateway API HTTPRoute, LoadBalancer) is the user's
+  choice. files/search gRPC stay cluster-internal.
+- **BYO Postgres and S3 only**: no embedded database, no HA/backup story for
+  Postgres, no secret-management operator integration — users supply
+  db-secret/s3-secret and operate their own infrastructure.
+- **Conservative single-replica defaults**: replicas stay 1, no HPA/VPA, and
+  resource requests/limits are starting points users should tune in their
+  own overlay.
