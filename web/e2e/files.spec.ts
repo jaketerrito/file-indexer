@@ -49,7 +49,7 @@ test('type filter narrows the list to one content-type category', async ({ page 
 })
 
 test('Enter in the header search opens the full results page', async ({ page }) => {
-  const box = page.getByRole('searchbox', { name: 'Search files by path' })
+  const box = page.getByRole('searchbox', { name: 'Search files and folders' })
   await box.fill('notes')
   await box.press('Enter')
 
@@ -77,9 +77,13 @@ test('header search finds a file and opens its metadata page', async ({ page }) 
 
 test('header search finds a folder and opens its browse view', async ({ page }) => {
   // docs/todo.txt is seeded nested, so a docs/ directory exists once indexed.
+  // / is browse-only, so the full key is only listed on the /search results
+  // page — wait there for indexing to complete before going back to /.
+  await page.goto('/search')
   await expectAfterReload(page, async () => {
     await expect(page.getByText('docs/todo.txt', { exact: true })).toBeVisible()
   })
+  await page.goto('/')
 
   await page.getByRole('searchbox', { name: 'Search files and folders' }).fill('docs')
   // exact: 'docs/todo.txt' also contains 'docs/'.
