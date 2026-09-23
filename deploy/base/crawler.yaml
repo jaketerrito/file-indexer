@@ -7,6 +7,7 @@ spec:
   template:
     spec:
       restartPolicy: OnFailure
+      serviceAccountName: file-indexer
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -36,6 +37,12 @@ spec:
                 name: s3-secret
             - configMapRef:
                 name: index-config
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 256Mi
       volumes:
         - name: tmp
           emptyDir: {}

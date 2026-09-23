@@ -16,3 +16,4 @@ misconfigurations:
   - id: AVD-KSV-0118
     paths:
       - deploy/overlays/local/web-writable-rootfs.yaml
+

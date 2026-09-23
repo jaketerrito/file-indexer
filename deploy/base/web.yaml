@@ -12,6 +12,7 @@ spec:
       labels:
         app: web
     spec:
+      serviceAccountName: file-indexer
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -29,6 +30,28 @@ spec:
               value: search:50051
             - name: FILES_ADDR
               value: files:50051
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 100m
+            limits:
+              memory: 384Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

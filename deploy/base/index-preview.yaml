@@ -12,6 +12,7 @@ spec:
       labels:
         app: index-preview
     spec:
+      serviceAccountName: file-indexer
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001

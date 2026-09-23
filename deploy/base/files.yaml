@@ -12,6 +12,7 @@ spec:
       labels:
         app: files
     spec:
+      serviceAccountName: file-indexer
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -42,6 +43,26 @@ spec:
                 name: db-secret
             - secretRef:
                 name: s3-secret
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 256Mi
+          readinessProbe:
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=localhost:50051"]
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=localhost:50051"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
       volumes:
         - name: tmp
           emptyDir: {}

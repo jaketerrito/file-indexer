@@ -17,6 +17,8 @@ import (
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/test/bufconn"
 )
 
 func TestNew(t *testing.T) {
@@ -1136,5 +1138,62 @@ func TestServeBadAddr(t *testing.T) {
 	srv := New("256.256.256.256:0", NewMockObjectStore(t), NewMockFileIndex(t), ".index/")
 	if err := srv.Serve(); err == nil {
 		t.Fatal("Serve with bad addr: want error, got nil")
+	}
+}
+
+func TestHealthCheckServing(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	store := NewMockObjectStore(t)
+	srv := New("bufnet", store, queries, ".index/")
+
+	lis := bufconn.Listen(1024 * 1024)
+	errCh := make(chan error, 1)
+	go func() { errCh <- srv.serveOn(lis) }()
+	t.Cleanup(func() {
+		_ = lis.Close()
+		select {
+		case <-errCh:
+		case <-time.After(2 * time.Second):
+		}
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn, err := grpc.NewClient("passthrough:///bufnet",
+		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) { return lis.DialContext(ctx) }),
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("grpc.NewClient: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	resp, err := healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{})
+	if err != nil {
+		t.Fatalf("Health/Check: %v", err)
+	}
+	if resp.Status != healthpb.HealthCheckResponse_SERVING {
+		t.Errorf("status = %v, want SERVING", resp.Status)
+	}
+}
+
+func TestHealthCheckNotServingWhenStopped(t *testing.T) {
+	lis := bufconn.Listen(1024 * 1024)
+	_ = lis.Close() // never served
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	conn, err := grpc.NewClient("passthrough:///bufnet",
+		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) { return lis.DialContext(ctx) }),
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Fatalf("grpc.NewClient: %v", err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	_, err = healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{})
+	if err == nil {
+		t.Fatal("Health/Check: expected error for stopped server, got nil")
 	}
 }

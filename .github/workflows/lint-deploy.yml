@@ -36,3 +36,7 @@ jobs:
         run: go tool kustomize build deploy/base > manifests.yaml
       - name: Validate manifests
         run: go tool kubeconform -strict -summary manifests.yaml
+      - name: Build production overlay
+        run: go tool kustomize build deploy/overlays/production > manifests-production.yaml
+      - name: Validate production overlay
+        run: go tool kubeconform -strict -summary manifests-production.yaml

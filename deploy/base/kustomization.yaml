@@ -11,6 +11,8 @@ resources:
   - crawler.yaml
   - web.yaml
   - preview-gc.yaml
+  - pdb.yaml
+  - serviceaccount.yaml
 
 configMapGenerator:
   - name: index-config
