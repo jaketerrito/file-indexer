@@ -12,6 +12,7 @@ spec:
       labels:
         app: files
     spec:
+      serviceAccountName: file-indexer
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -42,6 +43,44 @@ spec:
                 name: db-secret
             - secretRef:
                 name: s3-secret
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 256Mi
+        - name: grpc-health-probe
+          image: ghcr.io/grpc-ecosystem/grpc-health-probe@sha256:55a379bb4a7ef1c779e4e123ff31dd0046d1014eab083a89f4ac196a97548bec
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          resources:
+            requests:
+              memory: 16Mi
+              cpu: 10m
+            limits:
+              memory: 32Mi
+          readinessProbe:
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=localhost:50051"]
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command: ["/bin/grpc_health_probe", "-addr=localhost:50051"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
       volumes:
         - name: tmp
           emptyDir: {}

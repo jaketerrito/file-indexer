@@ -12,6 +12,7 @@ spec:
       labels:
         app: index-stat
     spec:
+      serviceAccountName: file-indexer
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -39,6 +40,12 @@ spec:
                 name: db-secret
             - secretRef:
                 name: s3-secret
+          resources:
+            requests:
+              memory: 128Mi
+              cpu: 100m
+            limits:
+              memory: 256Mi
       volumes:
         - name: tmp
           emptyDir: {}

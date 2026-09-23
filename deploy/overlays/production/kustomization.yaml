@@ -3,8 +3,6 @@ kind: Kustomization
 
 resources:
   - ../../base
-  - serviceaccount.yaml
-  - pdb.yaml
 
 # All images share one tag because this is a monorepo with single-version
 # releases. The release workflow's sed depends on this invariant.
@@ -38,22 +36,4 @@ images:
     newTag: v0.1.0
 
 patches:
-  - target:
-      kind: Deployment
-    patch: |-
-      - op: add
-        path: /spec/template/spec/serviceAccountName
-        value: file-indexer
-  - target:
-      kind: Job
-    patch: |-
-      - op: add
-        path: /spec/template/spec/serviceAccountName
-        value: file-indexer
-  - path: patch-files.yaml
-  - path: patch-search.yaml
-  - path: patch-web.yaml
   - path: patch-migrate.yaml
-  - path: patch-index-stat.yaml
-  - path: patch-crawler.yaml
-  - path: patch-preview-gc.yaml

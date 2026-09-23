@@ -17,28 +17,4 @@ misconfigurations:
     paths:
       - deploy/overlays/local/web-writable-rootfs.yaml
 
-  # deploy/overlays/production/patch-*.yaml are strategic-merge patches,
-  # not standalone workloads: scanned alone they lack securityContext, but
-  # merged over deploy/base every container keeps readOnlyRootFilesystem,
-  # runAsNonRoot, allowPrivilegeEscalation:false and dropped capabilities
-  # (the grpc-health-probe sidecar sets its own full securityContext in the
-  # patch). The merged render is what kubeconform/just lint-k8s validates.
-  # Do NOT widen these ignores beyond the patch files.
-  - id: AVD-KSV-0014
-    paths:
-      - deploy/overlays/production/patch-crawler.yaml
-      - deploy/overlays/production/patch-files.yaml
-      - deploy/overlays/production/patch-index-stat.yaml
-      - deploy/overlays/production/patch-migrate.yaml
-      - deploy/overlays/production/patch-preview-gc.yaml
-      - deploy/overlays/production/patch-search.yaml
-      - deploy/overlays/production/patch-web.yaml
-  - id: AVD-KSV-0118
-    paths:
-      - deploy/overlays/production/patch-crawler.yaml
-      - deploy/overlays/production/patch-files.yaml
-      - deploy/overlays/production/patch-index-stat.yaml
-      - deploy/overlays/production/patch-migrate.yaml
-      - deploy/overlays/production/patch-preview-gc.yaml
-      - deploy/overlays/production/patch-search.yaml
-      - deploy/overlays/production/patch-web.yaml
+
