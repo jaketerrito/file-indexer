@@ -32,6 +32,7 @@ lint-go:
 # Validate Kubernetes manifests with kubeconform (builds kustomize output first)
 lint-k8s:
     go tool kustomize build deploy/base | go tool kubeconform -strict -summary
+    go tool kustomize build deploy/overlays/production | go tool kubeconform -strict -summary
 
 # Lint protobuf files with buf
 lint-proto:

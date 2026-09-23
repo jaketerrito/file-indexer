@@ -1,0 +1,59 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - serviceaccount.yaml
+  - pdb.yaml
+
+# All images share one tag because this is a monorepo with single-version
+# releases. The release workflow's sed depends on this invariant.
+images:
+  - name: migrate
+    newName: ghcr.io/jaketerrito/file-indexer/migrate
+    newTag: v0.1.0
+  - name: index-stat
+    newName: ghcr.io/jaketerrito/file-indexer/index-stat
+    newTag: v0.1.0
+  - name: index-preview
+    newName: ghcr.io/jaketerrito/file-indexer/index-preview
+    newTag: v0.1.0
+  - name: index-exif
+    newName: ghcr.io/jaketerrito/file-indexer/index-exif
+    newTag: v0.1.0
+  - name: files
+    newName: ghcr.io/jaketerrito/file-indexer/files
+    newTag: v0.1.0
+  - name: search
+    newName: ghcr.io/jaketerrito/file-indexer/search
+    newTag: v0.1.0
+  - name: crawler
+    newName: ghcr.io/jaketerrito/file-indexer/crawler
+    newTag: v0.1.0
+  - name: preview-gc
+    newName: ghcr.io/jaketerrito/file-indexer/preview-gc
+    newTag: v0.1.0
+  - name: web
+    newName: ghcr.io/jaketerrito/file-indexer/web
+    newTag: v0.1.0
+
+patches:
+  - target:
+      kind: Deployment
+    patch: |-
+      - op: add
+        path: /spec/template/spec/serviceAccountName
+        value: file-indexer
+  - target:
+      kind: Job
+    patch: |-
+      - op: add
+        path: /spec/template/spec/serviceAccountName
+        value: file-indexer
+  - path: patch-files.yaml
+  - path: patch-search.yaml
+  - path: patch-web.yaml
+  - path: patch-migrate.yaml
+  - path: patch-index-stat.yaml
+  - path: patch-crawler.yaml
+  - path: patch-preview-gc.yaml
