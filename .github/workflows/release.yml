@@ -1,0 +1,142 @@
+name: release
+on:
+  release:
+    types: [published]
+
+# Minimal permissions: built-in GITHUB_TOKEN only. No PATs or deploy keys.
+permissions:
+  packages: write
+  contents: write
+
+# Bootstrap note: the production overlay ships pinned at v0.1.0. The first
+# GitHub Release must therefore be v0.1.0. The commit-back job below will
+# compute an empty diff for that release and open no PR; subsequent releases
+# open a mechanical tag PR that a human must merge.
+
+jobs:
+  build:
+    name: Build and push images
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: migrate
+            context: .
+            dockerfile: Dockerfile
+            target: build-release-stage
+            build_arg: BUILD_TARGET=./cmd/migrate
+          - name: index-stat
+            context: .
+            dockerfile: Dockerfile
+            target: build-release-stage
+            build_arg: BUILD_TARGET=./cmd/index-stat
+          - name: index-preview
+            context: .
+            dockerfile: Dockerfile
+            target: build-release-stage
+            build_arg: BUILD_TARGET=./cmd/index-preview
+          - name: index-exif
+            context: .
+            dockerfile: Dockerfile
+            target: build-release-stage
+            build_arg: BUILD_TARGET=./cmd/index-exif
+          - name: files
+            context: .
+            dockerfile: Dockerfile
+            target: build-release-stage
+            build_arg: BUILD_TARGET=./cmd/files
+          - name: search
+            context: .
+            dockerfile: Dockerfile
+            target: build-release-stage
+            build_arg: BUILD_TARGET=./cmd/search
+          - name: crawler
+            context: .
+            dockerfile: Dockerfile
+            target: build-release-stage
+            build_arg: BUILD_TARGET=./cmd/crawler
+          - name: preview-gc
+            context: .
+            dockerfile: Dockerfile
+            target: build-release-stage
+            build_arg: BUILD_TARGET=./cmd/preview-gc
+          - name: web
+            context: web
+            dockerfile: Dockerfile
+            target: ""
+            build_arg: ""
+
+    steps:
+      - name: Guard semver release tag
+        run: |
+          if [[ ! "${{ github.ref_name }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tag must match vX.Y.Z; got ${{ github.ref_name }}" >&2
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+
+      - uses: docker/login-action@c99871dec2022cc055c062a10cc1a1310835ceb4 # v4.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.name }}
+        id: build
+        uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1 # v6.16.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
+          target: ${{ matrix.target }}
+          build-args: ${{ matrix.build_arg }}
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/jaketerrito/file-indexer/${{ matrix.name }}:${{ github.ref_name }}
+            ghcr.io/jaketerrito/file-indexer/${{ matrix.name }}:latest
+
+      - name: Record image digest
+        run: |
+          echo "${{ matrix.name }}: ${{ steps.build.outputs.digest }}" >> "$GITHUB_STEP_SUMMARY"
+
+  tag-pr:
+    name: Open overlay tag PR
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Update overlay image tag
+        run: |
+          sed -i 's/newTag: .*/newTag: ${{ github.ref_name }}/' deploy/overlays/production/kustomization.yaml
+
+      - name: Create tag PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git diff --quiet; then
+            echo "Overlay tag already at ${{ github.ref_name }} (first-release bootstrap or rerun); no PR needed."
+            exit 0
+          fi
+
+          branch="release/${{ github.ref_name }}"
+          git checkout -b "$branch"
+          git add deploy/overlays/production/kustomization.yaml
+          git commit -m "chore(release): bump overlay image tag to ${{ github.ref_name }}"
+          git push origin "$branch"
+
+          if gh pr view "$branch" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "PR already exists for $branch"
+            exit 0
+          fi
+
+          gh pr create --fill --repo "${{ github.repository }}" --base "${{ github.event.repository.default_branch }}"
