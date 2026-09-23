@@ -63,6 +63,11 @@ The rendered output contains:
 - A `migrate` Job annotated with ArgoCD sync-wave `-1`.
 - No Postgres, MinIO, Secret, or `.localhost` resources.
 
+All of the hardening items (ServiceAccount, probes, resource requests/limits,
+and PodDisruptionBudgets) live in `deploy/base` and apply to every
+environment; the production overlay only pins the registry image tags and
+adds the ArgoCD sync-wave annotation for `migrate` ordering.
+
 ## 4. Deploy with ArgoCD
 
 Apply the example Application. It points at the production overlay and uses
@@ -191,10 +196,9 @@ argocd app rollback file-indexer <revision-id>
 
 ## 9. Known omissions in this slice
 
-- **Worker and Job probes:** `index-stat`, `index-preview`, `index-exif`,
-  `crawler`, `migrate`, and `preview-gc` intentionally do not have probes in
-  this slice. Their workloads are crash-on-failure daemons or one-shot Jobs;
-  Kubernetes restart and Job semantics handle failures.
+- **Worker and Job health checks:** Probes for `index-stat`, `index-preview`,
+  `index-exif`, `crawler`, `migrate`, and `preview-gc` are deferred to
+  [issue #117](https://github.com/jaketerrito/file-indexer/issues/117).
 - **NetworkPolicies:** A default-deny ingress/egress policy plus allow rules
   for `web`→`files`/`search`, all workloads→Postgres, and all workloads→S3
   are deferred. Track progress in
