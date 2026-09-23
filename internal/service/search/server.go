@@ -15,6 +15,8 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -412,12 +414,19 @@ func (s *SearchServer) Serve() error {
 	if err != nil {
 		return err
 	}
+	return s.serveOn(lis)
+}
+
+func (s *SearchServer) serveOn(lis net.Listener) error {
 	interceptor, err := validate.UnaryInterceptor()
 	if err != nil {
 		return err
 	}
 	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(interceptor))
 	pb.RegisterSearchServiceServer(grpcServer, s)
+	healthServer := health.NewServer()
+	healthpb.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 	slog.Info("listening", "addr", s.addr)
 	return grpcServer.Serve(lis)
 }
