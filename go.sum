@@ -938,6 +938,7 @@ github.com/uudashr/iface v1.5.1 h1:BS3yrgaT55s3dAtJoxuTnsZNbsejq/mVuzp49YDyfBA=
 github.com/uudashr/iface v1.5.1/go.mod h1:5UWoT6SvTdTww/KToRj6clO+n4Kg3/NrAQvgOB+5Ggw=
 github.com/vektra/mockery/v3 v3.7.4 h1:t2qElHpzlKKJA63nrEmnkdwy+OaBV1t6uAf/YpHu4EU=
 github.com/vektra/mockery/v3 v3.7.4/go.mod h1:K+L72OoFVizA9eWtO4L+kU65oylgreiJEJ57Gu8g9Ew=
+github.com/vektra/mockery/v3 v3.8.0/go.mod h1:K+L72OoFVizA9eWtO4L+kU65oylgreiJEJ57Gu8g9Ew=
 github.com/vladopajic/go-test-coverage/v2 v2.19.0 h1:vnyCJVoAOxY5xJtsRrUpdR+6BgEA5vT0WTFcWL/CgPg=
 github.com/vladopajic/go-test-coverage/v2 v2.19.0/go.mod h1:3h/41AsjeJYpAlHV24eIXITUNyoG05JrTRbu8a3EJfo=
 github.com/wasilibs/go-pgquery v0.0.0-20250409022910-10ac41983c07 h1:mJdDDPblDfPe7z7go8Dvv1AJQDI3eQ/5xith3q2mFlo=
