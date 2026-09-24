@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"strings"
+	"sync"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -104,6 +105,10 @@ type FilesServer struct {
 	storage     ObjectStore
 	queries     FileIndex
 	indexPrefix string
+	// moveMu serializes MoveFile's copy-vs-commit critical section within
+	// one files-service pod. The DB unique constraint remains the cross-pod
+	// backstop; moves are rare user actions, so a single mutex is fine.
+	moveMu sync.Mutex
 }
 
 // New constructs a FilesServer with its dependencies already built by the
@@ -291,32 +296,19 @@ func (s *FilesServer) MoveFile(ctx context.Context, req *pb.MoveFileRequest) (*p
 		return nil, status.Errorf(codes.InvalidArgument, "destination_key %q is reserved for derived objects", newKey)
 	}
 
+	// Friendly fast-path check: if the destination is already occupied, fail
+	// before doing any work. The same check is repeated inside moveMu so a
+	// key that appears while we are waiting for the lock is caught before
+	// any Copy.
 	if _, err := s.queries.GetFileByKey(ctx, newKey); err == nil {
 		return nil, status.Errorf(codes.AlreadyExists, "file with key %q already exists", newKey)
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
 
-	if err := s.storage.Copy(ctx, file.Key, newKey); err != nil {
-		return nil, status.Errorf(codes.Internal, "copy object: %v", err)
-	}
-
-	moved, err := s.queries.MoveFileWithDirectories(ctx, db.MoveFileWithDirectoriesParams{
-		ID:     req.GetId(),
-		NewKey: newKey,
-	})
+	moved, err := s.moveFileLocked(ctx, req.GetId(), file.Key, newKey)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			// Another concurrent request won the race and owns newKey.
-			// Do NOT delete the destination object: the winner's DB row now
-			// references it, and removing it would leave that row orphaned.
-			return nil, status.Errorf(codes.AlreadyExists, "file with key %q already exists", newKey)
-		}
-		if delErr := s.storage.Delete(ctx, newKey); delErr != nil {
-			slog.Warn("rollback copied object after move failed", "key", newKey, "error", delErr)
-		}
-		return nil, status.Errorf(codes.Internal, "move file: %v", err)
+		return nil, err
 	}
 
 	// Best-effort cleanup of the old object. If this fails, the file has
@@ -331,6 +323,47 @@ func (s *FilesServer) MoveFile(ctx context.Context, req *pb.MoveFileRequest) (*p
 		return nil, err
 	}
 	return &pb.MoveFileResponse{File: dbFileToProto(updated)}, nil
+}
+
+// moveFileLocked serializes the MoveFile copy-vs-commit critical section.
+// It must be called after the caller has validated the source file and the
+// destination key. The mutex is held from the in-lock destination check
+// through the DB update and released on return; callers delete the old
+// object outside the lock.
+func (s *FilesServer) moveFileLocked(ctx context.Context, id int64, oldKey, newKey string) (db.File, error) {
+	s.moveMu.Lock()
+	defer s.moveMu.Unlock()
+
+	// Re-validate the destination under the lock. A destination that
+	// appeared while we were waiting must be rejected before any Copy.
+	if _, err := s.queries.GetFileByKey(ctx, newKey); err == nil {
+		return db.File{}, status.Errorf(codes.AlreadyExists, "file with key %q already exists", newKey)
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return db.File{}, err
+	}
+
+	if err := s.storage.Copy(ctx, oldKey, newKey); err != nil {
+		return db.File{}, status.Errorf(codes.Internal, "copy object: %v", err)
+	}
+
+	moved, err := s.queries.MoveFileWithDirectories(ctx, db.MoveFileWithDirectoriesParams{
+		ID:     id,
+		NewKey: newKey,
+	})
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			// Another concurrent request won the race and owns newKey.
+			// Do NOT delete the destination object: the winner's DB row now
+			// references it, and removing it would leave that row orphaned.
+			return db.File{}, status.Errorf(codes.AlreadyExists, "file with key %q already exists", newKey)
+		}
+		if delErr := s.storage.Delete(ctx, newKey); delErr != nil {
+			slog.Warn("rollback copied object after move failed", "key", newKey, "error", delErr)
+		}
+		return db.File{}, status.Errorf(codes.Internal, "move file: %v", err)
+	}
+	return moved, nil
 }
 
 // GetUploadURL returns a presigned URL the caller can PUT an object's bytes
