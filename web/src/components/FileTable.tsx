@@ -1,10 +1,12 @@
+import { Code, ConnectError } from '@connectrpc/connect'
 import { type QueryKey, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
-import { deleteFile, getDownloadUrl, getOpenUrl } from '../server/files'
+import { deleteFile, getDownloadUrl, getOpenUrl, moveFile } from '../server/files'
 import type { FileDto } from '../server/impl'
 import { DeleteFileConfirmation } from './DeleteFileConfirmation'
 import { formatBytes } from './FileMetadataTable'
+import { MoveFileDialog } from './MoveFileDialog'
 
 /** A subdirectory row of the table (browse mode only). */
 export interface FolderRow {
@@ -72,9 +74,32 @@ export function FileTable({
     },
   })
 
-  // File pending delete confirmation, or null when none. The Delete button
-  // only selects; the dialog's Confirm delete actually runs the mutation.
+  const [moveError, setMoveError] = useState<string | null>(null)
+  const moveMutation = useMutation({
+    mutationFn: ({ id, destinationKey }: { id: string; destinationKey: string }) =>
+      moveFile({ data: { id, destinationKey } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['files'] })
+      queryClient.invalidateQueries({ queryKey: ['directory'] })
+      queryClient.invalidateQueries({ queryKey: ['folder-tree'] })
+      setFileToMove(null)
+      setMoveError(null)
+    },
+    onError: (err) => {
+      const connectErr = ConnectError.from(err)
+      if (connectErr.code === Code.AlreadyExists) {
+        setMoveError('A file with this name already exists there')
+      } else {
+        setMoveError(connectErr.message)
+      }
+    },
+  })
+
+  // File pending delete/move confirmation, or null when none. The row
+  // buttons only select; the dialog's confirm button actually runs the
+  // mutation.
   const [fileToDelete, setFileToDelete] = useState<{ id: string; key: string } | null>(null)
+  const [fileToMove, setFileToMove] = useState<{ id: string; key: string } | null>(null)
 
   async function handleDownload(id: string) {
     const { url } = await getDownloadUrl({ data: { id } })
@@ -170,6 +195,13 @@ export function FileTable({
                 </button>{' '}
                 <button
                   type="button"
+                  onClick={() => setFileToMove({ id: file.id, key: file.key })}
+                  disabled={moveMutation.isPending}
+                >
+                  Move
+                </button>{' '}
+                <button
+                  type="button"
                   onClick={() => setFileToDelete({ id: file.id, key: displayKey(file.key) })}
                   disabled={deleteMutation.isPending}
                 >
@@ -187,6 +219,22 @@ export function FileTable({
           error={deleteMutation.isError ? deleteMutation.error : null}
           onConfirm={() => deleteMutation.mutate(fileToDelete.id)}
           onCancel={() => setFileToDelete(null)}
+        />
+      ) : null}
+      {fileToMove !== null ? (
+        <MoveFileDialog
+          fileKey={fileToMove.key}
+          moving={moveMutation.isPending}
+          error={moveError}
+          onConfirm={(destinationPath) => {
+            const destinationKey =
+              destinationPath + fileToMove.key.slice(fileToMove.key.lastIndexOf('/') + 1)
+            moveMutation.mutate({ id: fileToMove.id, destinationKey })
+          }}
+          onCancel={() => {
+            setFileToMove(null)
+            setMoveError(null)
+          }}
         />
       ) : null}
     </>

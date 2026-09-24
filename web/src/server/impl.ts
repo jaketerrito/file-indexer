@@ -403,6 +403,30 @@ export function validateKeyInput(input: unknown): { key: string } {
   return { key: data.key }
 }
 
+export interface MoveFileInput {
+  id: string
+  destinationKey: string
+}
+
+export function validateMoveFileInput(input: unknown): MoveFileInput {
+  const data = (input ?? {}) as Record<string, unknown>
+  if (typeof data.id !== 'string' || !/^\d+$/.test(data.id)) {
+    throw new Error('id must be a numeric string')
+  }
+  if (typeof data.destinationKey !== 'string' || data.destinationKey === '') {
+    throw new Error('destinationKey must be a non-empty string')
+  }
+  return { id: data.id, destinationKey: data.destinationKey }
+}
+
+export async function moveFileImpl(
+  client: Client<typeof FilesService>,
+  id: string,
+  destinationKey: string,
+): Promise<void> {
+  await client.moveFile({ id: BigInt(id), destinationKey })
+}
+
 export async function getUploadUrlImpl(
   client: Client<typeof FilesService>,
   key: string,

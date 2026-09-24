@@ -18,12 +18,14 @@ import {
   listDirectoryImpl,
   listFilesImpl,
   listUploadedPartsImpl,
+  moveFileImpl,
   searchDirectoriesImpl,
   validateCreateMultipartUploadInput,
   validateIdInput,
   validateKeyInput,
   validateListDirectoryInput,
   validateListFilesInput,
+  validateMoveFileInput,
   validatePathInput,
   validateSearchDirectoriesInput,
   validateUploadIdInput,
@@ -56,6 +58,10 @@ export const getOpenUrl = createServerFn({ method: 'GET' })
 export const deleteFile = createServerFn({ method: 'POST' })
   .validator(validateIdInput)
   .handler(({ data }) => deleteFileImpl(getFilesClient(), data.id))
+
+export const moveFile = createServerFn({ method: 'POST' })
+  .validator(validateMoveFileInput)
+  .handler(({ data }) => moveFileImpl(getFilesClient(), data.id, data.destinationKey))
 
 export const getFileMetadata = createServerFn({ method: 'GET' })
   .validator(validateIdInput)

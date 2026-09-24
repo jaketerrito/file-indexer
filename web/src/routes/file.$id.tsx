@@ -1,10 +1,12 @@
+import { Code, ConnectError } from '@connectrpc/connect'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { DeleteFileConfirmation } from '../components/DeleteFileConfirmation'
 import { FileMetadataTable } from '../components/FileMetadataTable'
+import { MoveFileDialog } from '../components/MoveFileDialog'
 import { DEFAULT_BROWSE_FILTERS } from '../lib/fileFilters'
-import { deleteFile, getDownloadUrl, getFileMetadata } from '../server/files'
+import { deleteFile, getDownloadUrl, getFileMetadata, moveFile } from '../server/files'
 
 export const Route = createFileRoute('/file/$id')({
   component: FilePage,
@@ -47,6 +49,28 @@ function FilePage() {
     },
   })
 
+  const [moveOpen, setMoveOpen] = useState(false)
+  const [moveError, setMoveError] = useState<string | null>(null)
+  const moveMutation = useMutation({
+    mutationFn: (destinationKey: string) => moveFile({ data: { id, destinationKey } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['files'] })
+      queryClient.invalidateQueries({ queryKey: ['directory'] })
+      queryClient.invalidateQueries({ queryKey: ['folder-tree'] })
+      queryClient.invalidateQueries({ queryKey: ['file-metadata', id] })
+      setMoveOpen(false)
+      setMoveError(null)
+    },
+    onError: (err) => {
+      const connectErr = ConnectError.from(err)
+      if (connectErr.code === Code.AlreadyExists) {
+        setMoveError('A file with this name already exists there')
+      } else {
+        setMoveError(connectErr.message)
+      }
+    },
+  })
+
   async function handleDownload() {
     const { url } = await getDownloadUrl({ data: { id } })
     window.open(url, '_blank', 'noopener')
@@ -83,6 +107,9 @@ function FilePage() {
         <button type="button" onClick={() => void handleDownload()}>
           Download
         </button>{' '}
+        <button type="button" onClick={() => setMoveOpen(true)}>
+          Move
+        </button>{' '}
         <button type="button" onClick={() => setConfirmDelete(true)}>
           Delete
         </button>
@@ -95,6 +122,21 @@ function FilePage() {
           error={deleteMutation.isError ? deleteMutation.error : null}
           onConfirm={() => deleteMutation.mutate()}
           onCancel={() => setConfirmDelete(false)}
+        />
+      ) : null}
+      {moveOpen ? (
+        <MoveFileDialog
+          fileKey={data.key}
+          moving={moveMutation.isPending}
+          error={moveError}
+          onConfirm={(destinationPath) => {
+            const destinationKey = destinationPath + data.key.slice(data.key.lastIndexOf('/') + 1)
+            moveMutation.mutate(destinationKey)
+          }}
+          onCancel={() => {
+            setMoveOpen(false)
+            setMoveError(null)
+          }}
         />
       ) : null}
     </main>

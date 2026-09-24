@@ -10,6 +10,7 @@ vi.mock('../server/files', () => ({
   getDirectoryStats: vi.fn(),
   deleteDirectory: vi.fn(),
   deleteFile: vi.fn(),
+  moveFile: vi.fn(),
   getDownloadUrl: vi.fn(),
   getOpenUrl: vi.fn(),
 }))
@@ -20,12 +21,14 @@ import {
   getDirectoryStats,
   getDownloadUrl,
   listDirectory,
+  moveFile,
 } from '../server/files'
 
 const listDirectoryMock = vi.mocked(listDirectory)
 const getDirectoryStatsMock = vi.mocked(getDirectoryStats)
 const deleteDirectoryMock = vi.mocked(deleteDirectory)
 const deleteFileMock = vi.mocked(deleteFile)
+const moveFileMock = vi.mocked(moveFile)
 const getDownloadUrlMock = vi.mocked(getDownloadUrl)
 
 function page(
@@ -195,6 +198,57 @@ describe('DirectoryList', () => {
 
     expect(screen.queryByRole('alertdialog')).toBeNull()
     expect(deleteFileMock).not.toHaveBeenCalled()
+  })
+
+  it('moves a file after destination selection and refetches the directory', async () => {
+    listDirectoryMock
+      .mockResolvedValueOnce(page([], [{ id: '1', key: 'docs/a.txt' }]))
+      .mockResolvedValueOnce(page([], []))
+    moveFileMock.mockResolvedValue(undefined)
+
+    renderDirectoryList()
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move' }))
+    await screen.findByRole('alertdialog')
+
+    // Current folder is selected by default; confirm is disabled until the
+    // user picks a different destination.
+    expect((screen.getByRole('button', { name: 'Move here' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+    await waitFor(() => expect(screen.getByText(/Destination:/).textContent).toContain('a.txt'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move here' }))
+
+    await waitFor(() => {
+      expect(moveFileMock).toHaveBeenCalledWith({ data: { id: '1', destinationKey: 'a.txt' } })
+      expect(listDirectoryMock).toHaveBeenCalledTimes(4)
+    })
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+  })
+
+  it('shows a move collision error inside the dialog', async () => {
+    const { ConnectError } = await import('@connectrpc/connect')
+    const { Code } = await import('@connectrpc/connect')
+    listDirectoryMock.mockResolvedValueOnce(page([], [{ id: '1', key: 'docs/a.txt' }]))
+    moveFileMock.mockRejectedValue(new ConnectError('occupied', Code.AlreadyExists))
+
+    renderDirectoryList()
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move' }))
+    await screen.findByRole('alertdialog')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+    await waitFor(() => expect(screen.getByText(/Destination:/).textContent).toContain('a.txt'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move here' }))
+
+    expect(await screen.findByRole('alert')).toBeDefined()
+    expect(screen.getByRole('alertdialog')).toBeDefined()
   })
 
   it('opens the presigned URL when Download is clicked', async () => {
