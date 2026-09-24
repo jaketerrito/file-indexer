@@ -377,7 +377,7 @@ func TestMoveFile(t *testing.T) {
 			wantCode: codes.Internal,
 		},
 		{
-			name: "database unique violation returns already exists and rolls back copied object",
+			name: "database unique violation returns already exists and does not roll back copied object",
 			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse)) {
 				queries := NewMockFileIndex(t)
 				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil)
@@ -391,9 +391,10 @@ func TestMoveFile(t *testing.T) {
 				storage := NewMockObjectStore(t)
 				storage.EXPECT().Copy(mock.Anything, "old/key.txt", "new/key.txt").Return(nil)
 				storage.EXPECT().Stat(mock.Anything, "new/key.txt").Return(objstore.ObjectInfo{Key: "new/key.txt", LastModified: now}, nil)
-				storage.EXPECT().Delete(mock.Anything, "new/key.txt").Return(nil)
 
-				return queries, storage, nil
+				return queries, storage, func(t *testing.T, resp *pb.MoveFileResponse) {
+					storage.AssertNotCalled(t, "Delete", mock.Anything, mock.Anything)
+				}
 			},
 			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
 			wantCode: codes.AlreadyExists,

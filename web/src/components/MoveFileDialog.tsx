@@ -9,14 +9,15 @@ import { listDirectory } from '../server/files'
 async function fetchChildDirectories(path: string): Promise<string[]> {
   const directories: string[] = []
   let pageToken: string | undefined
-  do {
+  const maxPages = 100
+  for (let i = 0; i < maxPages; i++) {
     const page = await listDirectory({
       data: { path, pageToken, sortField: 'key', sortOrder: 'asc' },
     })
     directories.push(...page.directories)
-    if (page.files.length > 0) break
-    pageToken = page.nextPageToken === '' ? undefined : page.nextPageToken
-  } while (pageToken !== undefined)
+    if (page.nextPageToken === '' || page.nextPageToken == null) break
+    pageToken = page.nextPageToken
+  }
   return directories
 }
 
