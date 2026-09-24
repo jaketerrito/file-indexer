@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -30,6 +31,9 @@ type ObjectStore interface {
 	// S3 (and read its size/content-type/mtime) before it is upserted into
 	// the index — never trust an unverified client claim.
 	Stat(ctx context.Context, key string) (storage.ObjectInfo, error)
+	// Copy duplicates an object within the same bucket, used by MoveFile to
+	// land the object at its new key before updating the database row.
+	Copy(ctx context.Context, srcKey, dstKey string) error
 	Delete(ctx context.Context, key string) error
 	// DeleteMany is used by DeleteDirectory to batch-remove a subtree's
 	// objects. See its doc comment on the not-atomic contract this implies.
@@ -54,6 +58,7 @@ type FileIndex interface {
 	GetFilesByIDs(ctx context.Context, ids []int64) ([]db.FileInfo, error)
 	GetFileByKey(ctx context.Context, key string) (db.FileInfo, error)
 	DeleteFileWithDirectories(ctx context.Context, id int64) (db.File, error)
+	MoveFileWithDirectories(ctx context.Context, arg db.MoveFileWithDirectoriesParams) (db.File, error)
 	UpsertFilesWithDirectories(ctx context.Context, arg db.UpsertFilesParams) (int64, error)
 	// GetIndexExifResult returns pgx.ErrNoRows when the file has neither EXIF
 	// nor XMP data (or hasn't reached the exif indexer yet).
@@ -259,6 +264,72 @@ func (s *FilesServer) DeleteFile(ctx context.Context, req *pb.DeleteFileRequest)
 		return nil, err
 	}
 	return &pb.DeleteFileResponse{}, nil
+}
+
+// MoveFile relocates a file to a new S3 key. It copies the object, updates
+// the files row and directories index, then deletes the old object. The old
+// object's deletion is best-effort: if it fails, the move is still considered
+// successful because the crawler reconciles orphaned source objects out of
+// band.
+func (s *FilesServer) MoveFile(ctx context.Context, req *pb.MoveFileRequest) (*pb.MoveFileResponse, error) {
+	file, err := s.queries.GetFile(ctx, req.GetId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.NotFound, "file %d not found", req.GetId())
+		}
+		return nil, err
+	}
+
+	newKey := req.GetDestinationKey()
+	if newKey == "" {
+		return nil, status.Error(codes.InvalidArgument, "destination_key must not be empty")
+	}
+	if newKey == file.Key {
+		return nil, status.Error(codes.InvalidArgument, "destination_key must differ from current key")
+	}
+	if s.indexPrefix != "" && strings.HasPrefix(newKey, s.indexPrefix) {
+		return nil, status.Errorf(codes.InvalidArgument, "destination_key %q is reserved for derived objects", newKey)
+	}
+
+	if _, err := s.queries.GetFileByKey(ctx, newKey); err == nil {
+		return nil, status.Errorf(codes.AlreadyExists, "file with key %q already exists", newKey)
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, err
+	}
+
+	if err := s.storage.Copy(ctx, file.Key, newKey); err != nil {
+		return nil, status.Errorf(codes.Internal, "copy object: %v", err)
+	}
+
+	markedAt := time.Now()
+	if info, err := s.storage.Stat(ctx, newKey); err == nil {
+		markedAt = info.LastModified
+	}
+
+	moved, err := s.queries.MoveFileWithDirectories(ctx, db.MoveFileWithDirectoriesParams{
+		ID:       req.GetId(),
+		NewKey:   newKey,
+		MarkedAt: pgtype.Timestamptz{Time: markedAt, Valid: true},
+	})
+	if err != nil {
+		if delErr := s.storage.Delete(ctx, newKey); delErr != nil {
+			slog.Warn("rollback copied object after move failed", "key", newKey, "error", delErr)
+		}
+		return nil, status.Errorf(codes.Internal, "move file: %v", err)
+	}
+
+	// Best-effort cleanup of the old object. If this fails, the file has
+	// already been moved successfully in the DB; the crawler's reconciliation
+	// will eventually remove the orphaned source object.
+	if err := s.storage.Delete(ctx, file.Key); err != nil {
+		slog.Warn("delete old object after move", "key", file.Key, "error", err)
+	}
+
+	updated, err := s.queries.GetFile(ctx, moved.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.MoveFileResponse{File: dbFileToProto(updated)}, nil
 }
 
 // GetUploadURL returns a presigned URL the caller can PUT an object's bytes
