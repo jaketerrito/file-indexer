@@ -4,9 +4,13 @@ on:
     types: [published]
 
 # Minimal permissions: built-in GITHUB_TOKEN only. No PATs or deploy keys.
+# pull-requests: the commit-back job opens the overlay tag-bump PR (also
+# requires repo setting "Allow GitHub Actions to create and approve pull
+# requests" — v0.1.2's run failed without it).
 permissions:
   packages: write
   contents: write
+  pull-requests: write
 
 # Bootstrap note: the production overlay ships pinned at v0.1.0. The first
 # GitHub Release must therefore be v0.1.0. The commit-back job below will
