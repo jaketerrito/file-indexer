@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -314,6 +315,10 @@ func (s *FilesServer) MoveFile(ctx context.Context, req *pb.MoveFileRequest) (*p
 	if err != nil {
 		if delErr := s.storage.Delete(ctx, newKey); delErr != nil {
 			slog.Warn("rollback copied object after move failed", "key", newKey, "error", delErr)
+		}
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, status.Errorf(codes.AlreadyExists, "file with key %q already exists", newKey)
 		}
 		return nil, status.Errorf(codes.Internal, "move file: %v", err)
 	}
