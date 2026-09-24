@@ -462,7 +462,8 @@ describe('FileList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Move' }))
     await screen.findByRole('alertdialog')
 
-    fireEvent.change(screen.getByPlaceholderText('folder name'), { target: { value: 'archive' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
+    fireEvent.change(screen.getByLabelText('New folder name'), { target: { value: 'archive' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     await waitFor(() =>
       expect(screen.getByText(/Destination:/).textContent).toContain('archive/a.txt'),
@@ -491,7 +492,8 @@ describe('FileList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Move' }))
     await screen.findByRole('alertdialog')
 
-    fireEvent.change(screen.getByPlaceholderText('folder name'), { target: { value: 'archive' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
+    fireEvent.change(screen.getByLabelText('New folder name'), { target: { value: 'archive' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     await waitFor(() =>
       expect(screen.getByText(/Destination:/).textContent).toContain('archive/a.txt'),

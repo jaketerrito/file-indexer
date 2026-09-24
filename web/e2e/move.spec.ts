@@ -51,6 +51,19 @@ async function deleteFileRow(page: Page, fileName: string) {
   throw new Error('Delete confirmation did not open')
 }
 
+async function addFolderAndNavigate(dialog: Locator, name: string) {
+  // Ensure we are at the root and the directory list has loaded.
+  await dialog.getByRole('button', { name: 'Bucket root' }).click()
+  await expect(dialog.getByText('Loading…')).toHaveCount(0)
+
+  await dialog.getByRole('button', { name: 'Add folder' }).click()
+  await dialog.getByLabel('New folder name').fill(name)
+  await dialog.getByRole('button', { name: 'Create' }).click()
+
+  const targetPath = `${name}/`
+  await expect(dialog.locator('code')).toContainText(targetPath)
+}
+
 test('move file to another folder round-trip', async ({ page }) => {
   const runId = Date.now().toString()
   const fileName = `e2e-move-${runId}.txt`
@@ -71,11 +84,7 @@ test('move file to another folder round-trip', async ({ page }) => {
 
   // Move it to a fresh destination folder created via the dialog.
   let dialog = await openMoveDialog(page, fileName)
-  await dialog.getByRole('button', { name: 'Home' }).click()
-  await expect(dialog.getByText('Loading…')).toHaveCount(0)
-  await dialog.getByPlaceholder('folder name').fill(destFolderName)
-  await dialog.getByRole('button', { name: 'Create' }).click()
-  await expect(dialog.locator('code')).toContainText(`${destPath}${fileName}`)
+  await addFolderAndNavigate(dialog, destFolderName)
   await dialog.getByRole('button', { name: 'Move here' }).click()
   await expect(page.getByRole('alertdialog', { name: 'Move file' })).toHaveCount(0, {
     timeout: 60_000,
@@ -101,11 +110,7 @@ test('move file to another folder round-trip', async ({ page }) => {
   })
 
   dialog = await openMoveDialog(page, fileName)
-  await dialog.getByRole('button', { name: 'Home' }).click()
-  await expect(dialog.getByText('Loading…')).toHaveCount(0)
-  await dialog.getByPlaceholder('folder name').fill(destFolderName)
-  await dialog.getByRole('button', { name: 'Create' }).click()
-  await expect(dialog.locator('code')).toContainText(`${destPath}${fileName}`)
+  await addFolderAndNavigate(dialog, destFolderName)
   await dialog.getByRole('button', { name: 'Move here' }).click()
 
   await expect(dialog.getByRole('alert')).toContainText(/already exists/i, {
