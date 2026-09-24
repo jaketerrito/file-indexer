@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"net"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -302,15 +301,9 @@ func (s *FilesServer) MoveFile(ctx context.Context, req *pb.MoveFileRequest) (*p
 		return nil, status.Errorf(codes.Internal, "copy object: %v", err)
 	}
 
-	markedAt := time.Now()
-	if info, err := s.storage.Stat(ctx, newKey); err == nil {
-		markedAt = info.LastModified
-	}
-
 	moved, err := s.queries.MoveFileWithDirectories(ctx, db.MoveFileWithDirectoriesParams{
-		ID:       req.GetId(),
-		NewKey:   newKey,
-		MarkedAt: pgtype.Timestamptz{Time: markedAt, Valid: true},
+		ID:     req.GetId(),
+		NewKey: newKey,
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError

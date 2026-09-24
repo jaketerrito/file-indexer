@@ -25,7 +25,7 @@ func TestMoveFileWithDirectoriesMovesKeyAndMaintainsDirectories(t *testing.T) {
 	// Seed through the store wrapper so directories are created.
 	oldKey := prefix + "a/file.txt"
 	otherKey := prefix + "b/other.txt"
-	now := pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true}
+	now := pgtype.Timestamptz{Time: time.Now().UTC().Add(-time.Hour), Valid: true}
 	if _, err := store.UpsertFilesWithDirectories(ctx, UpsertFilesParams{
 		Keys:      []string{oldKey, otherKey},
 		MarkedAts: []pgtype.Timestamptz{now, now},
@@ -33,15 +33,15 @@ func TestMoveFileWithDirectoriesMovesKeyAndMaintainsDirectories(t *testing.T) {
 		t.Fatalf("UpsertFilesWithDirectories: %v", err)
 	}
 	var id int64
-	if err := conn.QueryRow(ctx, `SELECT id FROM files WHERE key = $1`, oldKey).Scan(&id); err != nil {
+	var originalMarkedAt time.Time
+	if err := conn.QueryRow(ctx, `SELECT id, marked_at FROM files WHERE key = $1`, oldKey).Scan(&id, &originalMarkedAt); err != nil {
 		t.Fatalf("lookup source id: %v", err)
 	}
 
 	newKey := prefix + "b/file.txt"
 	moved, err := store.MoveFileWithDirectories(ctx, MoveFileWithDirectoriesParams{
-		ID:       id,
-		NewKey:   newKey,
-		MarkedAt: now,
+		ID:     id,
+		NewKey: newKey,
 	})
 	if err != nil {
 		t.Fatalf("MoveFileWithDirectories: %v", err)
@@ -56,6 +56,16 @@ func TestMoveFileWithDirectoriesMovesKeyAndMaintainsDirectories(t *testing.T) {
 	}
 	if got.ID != id {
 		t.Errorf("GetFileByKey id = %d, want %d", got.ID, id)
+	}
+
+	// A move is a pure path change; marked_at must NOT be bumped so the
+	// index queue staleness rule does not re-enqueue stat/preview/exif work.
+	var movedMarkedAt time.Time
+	if err := conn.QueryRow(ctx, `SELECT marked_at FROM files WHERE id = $1`, id).Scan(&movedMarkedAt); err != nil {
+		t.Fatalf("lookup moved marked_at: %v", err)
+	}
+	if !movedMarkedAt.Equal(originalMarkedAt) {
+		t.Errorf("marked_at changed: got %v, want %v", movedMarkedAt, originalMarkedAt)
 	}
 
 	if _, err := store.GetFileByKey(ctx, oldKey); !errors.Is(err, pgx.ErrNoRows) {
@@ -86,9 +96,8 @@ func TestMoveFileWithDirectoriesCreatesNewFolderTree(t *testing.T) {
 
 	newKey := prefix + "x/y/z/file.txt"
 	if _, err := store.MoveFileWithDirectories(ctx, MoveFileWithDirectoriesParams{
-		ID:       id,
-		NewKey:   newKey,
-		MarkedAt: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+		ID:     id,
+		NewKey: newKey,
 	}); err != nil {
 		t.Fatalf("MoveFileWithDirectories: %v", err)
 	}
@@ -133,9 +142,8 @@ func TestMoveFileWithDirectoriesRenameWithinSameFolder(t *testing.T) {
 
 	newKey := prefix + "dir/new.txt"
 	if _, err := store.MoveFileWithDirectories(ctx, MoveFileWithDirectoriesParams{
-		ID:       id,
-		NewKey:   newKey,
-		MarkedAt: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+		ID:     id,
+		NewKey: newKey,
 	}); err != nil {
 		t.Fatalf("MoveFileWithDirectories: %v", err)
 	}
@@ -189,9 +197,8 @@ func TestMoveFileWithDirectoriesUniqueViolation(t *testing.T) {
 	}
 
 	_, err := store.MoveFileWithDirectories(ctx, MoveFileWithDirectoriesParams{
-		ID:       id,
-		NewKey:   existingKey,
-		MarkedAt: now,
+		ID:     id,
+		NewKey: existingKey,
 	})
 	if err == nil {
 		t.Fatal("MoveFileWithDirectories onto existing key: want error, got nil")
@@ -234,9 +241,8 @@ func TestMoveFileWithDirectoriesNotFound(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := store.MoveFileWithDirectories(ctx, MoveFileWithDirectoriesParams{
-		ID:       -1,
-		NewKey:   "does/not/matter.txt",
-		MarkedAt: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+		ID:     -1,
+		NewKey: "does/not/matter.txt",
 	})
 	if !errors.Is(err, pgx.ErrNoRows) {
 		t.Errorf("error = %v, want pgx.ErrNoRows", err)

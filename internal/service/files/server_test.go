@@ -241,8 +241,6 @@ func TestDeleteFileDBDeleteError(t *testing.T) {
 }
 
 func TestMoveFile(t *testing.T) {
-	now := time.Now()
-
 	tests := []struct {
 		name     string
 		setup    func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse))
@@ -262,11 +260,9 @@ func TestMoveFile(t *testing.T) {
 				storage.EXPECT().Copy(mock.Anything, "old/key.txt", "new/key.txt").Return(nil).Run(func(context.Context, string, string) {
 					callOrder = append(callOrder, "Copy")
 				})
-				storage.EXPECT().Stat(mock.Anything, "new/key.txt").Return(objstore.ObjectInfo{Key: "new/key.txt", LastModified: now}, nil)
 				queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{
-					ID:       1,
-					NewKey:   "new/key.txt",
-					MarkedAt: pgtype.Timestamptz{Time: now, Valid: true},
+					ID:     1,
+					NewKey: "new/key.txt",
 				}).Return(db.File{ID: 1, Key: "new/key.txt"}, nil).Run(func(context.Context, db.MoveFileWithDirectoriesParams) {
 					callOrder = append(callOrder, "MoveFileWithDirectories")
 				})
@@ -361,14 +357,12 @@ func TestMoveFile(t *testing.T) {
 				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil)
 				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows)
 				queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{
-					ID:       1,
-					NewKey:   "new/key.txt",
-					MarkedAt: pgtype.Timestamptz{Time: now, Valid: true},
+					ID:     1,
+					NewKey: "new/key.txt",
 				}).Return(db.File{}, errors.New("db error"))
 
 				storage := NewMockObjectStore(t)
 				storage.EXPECT().Copy(mock.Anything, "old/key.txt", "new/key.txt").Return(nil)
-				storage.EXPECT().Stat(mock.Anything, "new/key.txt").Return(objstore.ObjectInfo{Key: "new/key.txt", LastModified: now}, nil)
 				storage.EXPECT().Delete(mock.Anything, "new/key.txt").Return(nil)
 
 				return queries, storage, nil
@@ -383,14 +377,12 @@ func TestMoveFile(t *testing.T) {
 				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil)
 				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows)
 				queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{
-					ID:       1,
-					NewKey:   "new/key.txt",
-					MarkedAt: pgtype.Timestamptz{Time: now, Valid: true},
+					ID:     1,
+					NewKey: "new/key.txt",
 				}).Return(db.File{}, &pgconn.PgError{Code: "23505"})
 
 				storage := NewMockObjectStore(t)
 				storage.EXPECT().Copy(mock.Anything, "old/key.txt", "new/key.txt").Return(nil)
-				storage.EXPECT().Stat(mock.Anything, "new/key.txt").Return(objstore.ObjectInfo{Key: "new/key.txt", LastModified: now}, nil)
 
 				return queries, storage, func(t *testing.T, resp *pb.MoveFileResponse) {
 					storage.AssertNotCalled(t, "Delete", mock.Anything, mock.Anything)
@@ -406,15 +398,13 @@ func TestMoveFile(t *testing.T) {
 				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil).Once()
 				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows)
 				queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{
-					ID:       1,
-					NewKey:   "new/key.txt",
-					MarkedAt: pgtype.Timestamptz{Time: now, Valid: true},
+					ID:     1,
+					NewKey: "new/key.txt",
 				}).Return(db.File{ID: 1, Key: "new/key.txt"}, nil)
 				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "new/key.txt"}, nil)
 
 				storage := NewMockObjectStore(t)
 				storage.EXPECT().Copy(mock.Anything, "old/key.txt", "new/key.txt").Return(nil)
-				storage.EXPECT().Stat(mock.Anything, "new/key.txt").Return(objstore.ObjectInfo{Key: "new/key.txt", LastModified: now}, nil)
 				storage.EXPECT().Delete(mock.Anything, "old/key.txt").Return(errors.New("s3 error"))
 
 				return queries, storage, func(t *testing.T, resp *pb.MoveFileResponse) {
@@ -422,27 +412,6 @@ func TestMoveFile(t *testing.T) {
 						t.Errorf("MoveFile file = %+v", resp.File)
 					}
 				}
-			},
-			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
-			wantCode: codes.OK,
-		},
-		{
-			name: "stat failure falls back to now for marked_at",
-			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse)) {
-				queries := NewMockFileIndex(t)
-				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil).Once()
-				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows)
-				queries.EXPECT().MoveFileWithDirectories(mock.Anything, mock.MatchedBy(func(arg db.MoveFileWithDirectoriesParams) bool {
-					return arg.ID == 1 && arg.NewKey == "new/key.txt" && arg.MarkedAt.Valid
-				})).Return(db.File{ID: 1, Key: "new/key.txt"}, nil)
-				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "new/key.txt"}, nil)
-
-				storage := NewMockObjectStore(t)
-				storage.EXPECT().Copy(mock.Anything, "old/key.txt", "new/key.txt").Return(nil)
-				storage.EXPECT().Stat(mock.Anything, "new/key.txt").Return(objstore.ObjectInfo{}, errors.New("stat error"))
-				storage.EXPECT().Delete(mock.Anything, "old/key.txt").Return(nil)
-
-				return queries, storage, nil
 			},
 			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
 			wantCode: codes.OK,

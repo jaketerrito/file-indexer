@@ -684,19 +684,20 @@ func (q *Queries) ListFilesForDelete(ctx context.Context, arg ListFilesForDelete
 }
 
 const updateFileKey = `-- name: UpdateFileKey :one
-UPDATE files SET key = $2, marked_at = $3 WHERE id = $1 RETURNING id, key, created_at, marked_at, seen_at
+UPDATE files SET key = $2 WHERE id = $1 RETURNING id, key, created_at, marked_at, seen_at
 `
 
 type UpdateFileKeyParams struct {
-	ID       int64
-	Key      string
-	MarkedAt pgtype.Timestamptz
+	ID  int64
+	Key string
 }
 
-// Update a file's key and bump its marked_at to the moved object's mtime
-// (caller-supplied) so the stat indexer doesn't treat the new key as stale.
+// Update a file's key in place. A move deliberately preserves marked_at:
+// the content is byte-identical, so all existing index results remain valid
+// and nothing should be re-enqueued. The crawler's next listing reconciles
+// the copy's newer S3 mtime in the background (idempotent re-index by design).
 func (q *Queries) UpdateFileKey(ctx context.Context, arg UpdateFileKeyParams) (File, error) {
-	row := q.db.QueryRow(ctx, updateFileKey, arg.ID, arg.Key, arg.MarkedAt)
+	row := q.db.QueryRow(ctx, updateFileKey, arg.ID, arg.Key)
 	var i File
 	err := row.Scan(
 		&i.ID,
