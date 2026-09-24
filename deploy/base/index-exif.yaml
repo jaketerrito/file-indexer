@@ -42,6 +42,8 @@ spec:
                 name: s3-secret
             - configMapRef:
                 name: index-config
+            - configMapRef:
+                name: app-config
           resources:
             requests:
               memory: 128Mi
