@@ -15,10 +15,12 @@ import {
   GetDirectoryStatsResponseSchema,
   GetDownloadURLResponseSchema,
   GetFileInfoResponseSchema,
+  GetOpenURLResponseSchema,
   GetPreviewURLResponseSchema,
   GetUploadPartURLResponseSchema,
   GetUploadURLResponseSchema,
   ListUploadedPartsResponseSchema,
+  OpenURLSpecSchema,
   PreviewURLSpecSchema,
   UploadedPartSchema,
 } from '../gen/service/v1/files_pb'
@@ -41,6 +43,7 @@ import {
   getDirectoryStatsImpl,
   getDownloadUrlImpl,
   getFileMetadataImpl,
+  getOpenUrlImpl,
   getUploadPartUrlImpl,
   getUploadUrlImpl,
   listContentTypesImpl,
@@ -394,6 +397,28 @@ describe('getDownloadUrlImpl', () => {
     } as unknown as Client<typeof FilesService>
 
     await expect(getDownloadUrlImpl(client, '42')).rejects.toThrow('no download URL')
+  })
+})
+
+describe('getOpenUrlImpl', () => {
+  it('requests the id and returns its inline presigned URL', async () => {
+    const getOpenURL = vi.fn().mockResolvedValue(
+      create(GetOpenURLResponseSchema, {
+        openUrls: [create(OpenURLSpecSchema, { id: 42n, url: 'http://s3/inline42' })],
+      }),
+    )
+    const client = { getOpenURL } as unknown as Client<typeof FilesService>
+
+    await expect(getOpenUrlImpl(client, '42')).resolves.toEqual({ url: 'http://s3/inline42' })
+    expect(getOpenURL).toHaveBeenCalledWith({ ids: [42n] })
+  })
+
+  it('throws when the response has no URL for the id', async () => {
+    const client = {
+      getOpenURL: vi.fn().mockResolvedValue(create(GetOpenURLResponseSchema, { openUrls: [] })),
+    } as unknown as Client<typeof FilesService>
+
+    await expect(getOpenUrlImpl(client, '42')).rejects.toThrow('no open URL')
   })
 })
 

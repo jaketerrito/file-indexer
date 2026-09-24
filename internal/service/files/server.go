@@ -132,6 +132,25 @@ func (s *FilesServer) GetDownloadURL(ctx context.Context, req *pb.GetDownloadURL
 	return &pb.GetDownloadURLResponse{DownloadUrls: specs}, nil
 }
 
+// GetOpenURL returns presigned URLs that render the requested files inline
+// in a browser tab (response-content-disposition=inline), unlike
+// GetDownloadURL which forces an attachment download.
+func (s *FilesServer) GetOpenURL(ctx context.Context, req *pb.GetOpenURLRequest) (*pb.GetOpenURLResponse, error) {
+	files, err := s.queries.GetFilesByIDs(ctx, req.GetIds())
+	if err != nil {
+		return nil, err
+	}
+	specs := make([]*pb.OpenURLSpec, 0, len(files))
+	for _, f := range files {
+		url, err := s.storage.GetInlineURL(ctx, f.Key)
+		if err != nil {
+			return nil, err
+		}
+		specs = append(specs, &pb.OpenURLSpec{Id: f.ID, Url: url})
+	}
+	return &pb.GetOpenURLResponse{OpenUrls: specs}, nil
+}
+
 // GetPreviewURL returns inline presigned URLs for the requested files'
 // preview images. Files without a preview are omitted from the response
 // rather than returned with an empty URL, so callers can treat presence as

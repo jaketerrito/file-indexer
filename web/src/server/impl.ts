@@ -365,6 +365,18 @@ export async function getDownloadUrlImpl(
   return { url: spec.url }
 }
 
+export async function getOpenUrlImpl(
+  client: Client<typeof FilesService>,
+  id: string,
+): Promise<{ url: string }> {
+  const res = await client.getOpenURL({ ids: [BigInt(id)] })
+  const spec = res.openUrls.find((u) => u.id.toString() === id)
+  if (!spec) {
+    throw new Error(`no open URL returned for file ${id}`)
+  }
+  return { url: spec.url }
+}
+
 export async function getFileMetadataImpl(
   client: Client<typeof FilesService>,
   id: string,

@@ -8,6 +8,10 @@ option go_package = "file-indexer/internal/pb/service/v1;pb";
 
 service FilesService {
   rpc GetDownloadURL(GetDownloadURLRequest) returns (GetDownloadURLResponse);
+  // Returns presigned URLs with response-content-disposition=inline, so
+  // the file renders in the browser rather than forcing a download like
+  // GetDownloadURL.
+  rpc GetOpenURL(GetOpenURLRequest) returns (GetOpenURLResponse);
   rpc GetPreviewURL(GetPreviewURLRequest) returns (GetPreviewURLResponse);
   rpc GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
@@ -53,6 +57,19 @@ message DownloadURLSpec {
 
 message GetDownloadURLResponse {
   repeated DownloadURLSpec download_urls = 1;
+}
+
+message GetOpenURLRequest {
+  repeated int64 ids = 1;
+}
+
+message OpenURLSpec {
+  int64 id = 1;
+  string url = 2;
+}
+
+message GetOpenURLResponse {
+  repeated OpenURLSpec open_urls = 1;
 }
 
 message GetPreviewURLRequest {

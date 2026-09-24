@@ -11,6 +11,7 @@ import {
   getDownloadUrlImpl,
   getFileMetadataImpl,
   getFilePreviewStatusesImpl,
+  getOpenUrlImpl,
   getUploadPartUrlImpl,
   getUploadUrlImpl,
   listContentTypesImpl,
@@ -47,6 +48,10 @@ export const searchDirectories = createServerFn({ method: 'GET' })
 export const getDownloadUrl = createServerFn({ method: 'GET' })
   .validator(validateIdInput)
   .handler(({ data }) => getDownloadUrlImpl(getFilesClient(), data.id))
+
+export const getOpenUrl = createServerFn({ method: 'GET' })
+  .validator(validateIdInput)
+  .handler(({ data }) => getOpenUrlImpl(getFilesClient(), data.id))
 
 export const deleteFile = createServerFn({ method: 'POST' })
   .validator(validateIdInput)

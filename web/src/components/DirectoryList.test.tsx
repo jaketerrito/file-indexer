@@ -11,6 +11,7 @@ vi.mock('../server/files', () => ({
   deleteDirectory: vi.fn(),
   deleteFile: vi.fn(),
   getDownloadUrl: vi.fn(),
+  getOpenUrl: vi.fn(),
 }))
 
 import {

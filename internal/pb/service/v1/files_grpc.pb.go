@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	FilesService_GetDownloadURL_FullMethodName          = "/service.v1.FilesService/GetDownloadURL"
+	FilesService_GetOpenURL_FullMethodName              = "/service.v1.FilesService/GetOpenURL"
 	FilesService_GetPreviewURL_FullMethodName           = "/service.v1.FilesService/GetPreviewURL"
 	FilesService_GetFileInfo_FullMethodName             = "/service.v1.FilesService/GetFileInfo"
 	FilesService_DeleteFile_FullMethodName              = "/service.v1.FilesService/DeleteFile"
@@ -40,6 +41,10 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type FilesServiceClient interface {
 	GetDownloadURL(ctx context.Context, in *GetDownloadURLRequest, opts ...grpc.CallOption) (*GetDownloadURLResponse, error)
+	// Returns presigned URLs with response-content-disposition=inline, so
+	// the file renders in the browser rather than forcing a download like
+	// GetDownloadURL.
+	GetOpenURL(ctx context.Context, in *GetOpenURLRequest, opts ...grpc.CallOption) (*GetOpenURLResponse, error)
 	GetPreviewURL(ctx context.Context, in *GetPreviewURLRequest, opts ...grpc.CallOption) (*GetPreviewURLResponse, error)
 	GetFileInfo(ctx context.Context, in *GetFileInfoRequest, opts ...grpc.CallOption) (*GetFileInfoResponse, error)
 	DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error)
@@ -71,6 +76,16 @@ func (c *filesServiceClient) GetDownloadURL(ctx context.Context, in *GetDownload
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetDownloadURLResponse)
 	err := c.cc.Invoke(ctx, FilesService_GetDownloadURL_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *filesServiceClient) GetOpenURL(ctx context.Context, in *GetOpenURLRequest, opts ...grpc.CallOption) (*GetOpenURLResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetOpenURLResponse)
+	err := c.cc.Invoke(ctx, FilesService_GetOpenURL_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -212,6 +227,10 @@ func (c *filesServiceClient) GetFilePreviewStatuses(ctx context.Context, in *Get
 // for forward compatibility.
 type FilesServiceServer interface {
 	GetDownloadURL(context.Context, *GetDownloadURLRequest) (*GetDownloadURLResponse, error)
+	// Returns presigned URLs with response-content-disposition=inline, so
+	// the file renders in the browser rather than forcing a download like
+	// GetDownloadURL.
+	GetOpenURL(context.Context, *GetOpenURLRequest) (*GetOpenURLResponse, error)
 	GetPreviewURL(context.Context, *GetPreviewURLRequest) (*GetPreviewURLResponse, error)
 	GetFileInfo(context.Context, *GetFileInfoRequest) (*GetFileInfoResponse, error)
 	DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error)
@@ -241,6 +260,9 @@ type UnimplementedFilesServiceServer struct{}
 
 func (UnimplementedFilesServiceServer) GetDownloadURL(context.Context, *GetDownloadURLRequest) (*GetDownloadURLResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDownloadURL not implemented")
+}
+func (UnimplementedFilesServiceServer) GetOpenURL(context.Context, *GetOpenURLRequest) (*GetOpenURLResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetOpenURL not implemented")
 }
 func (UnimplementedFilesServiceServer) GetPreviewURL(context.Context, *GetPreviewURLRequest) (*GetPreviewURLResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPreviewURL not implemented")
@@ -316,6 +338,24 @@ func _FilesService_GetDownloadURL_Handler(srv interface{}, ctx context.Context, 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(FilesServiceServer).GetDownloadURL(ctx, req.(*GetDownloadURLRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FilesService_GetOpenURL_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOpenURLRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FilesServiceServer).GetOpenURL(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FilesService_GetOpenURL_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FilesServiceServer).GetOpenURL(ctx, req.(*GetOpenURLRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -564,6 +604,10 @@ var FilesService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDownloadURL",
 			Handler:    _FilesService_GetDownloadURL_Handler,
+		},
+		{
+			MethodName: "GetOpenURL",
+			Handler:    _FilesService_GetOpenURL_Handler,
 		},
 		{
 			MethodName: "GetPreviewURL",
