@@ -22,6 +22,9 @@ spec:
       containers:
         - name: index-preview
           image: index-preview
+          ports:
+            - name: metrics
+              containerPort: 8081
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -53,6 +56,26 @@ spec:
               # (~4 bytes/pixel), bounded by PREVIEW_MAX_SOURCE_PIXELS. The
               # runner is single-threaded, so only one image is in flight.
               memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
       volumes:
         - name: tmp
           emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: index-preview
+spec:
+  selector:
+    app: index-preview
+  ports:
+    - name: metrics
+      port: 8081
+      targetPort: metrics

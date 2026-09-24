@@ -64,6 +64,15 @@ Indexer can be parameterized to generate different sets of metadata
   - date range created date, updated date
   - string match tags
 
+# Observability
+
+The three long-running index workers (`index-stat`, `index-preview`, and
+`index-exif`) each expose `/healthz` and `/metrics` on port `8081` (via
+`HEALTH_ADDR`, default `:8081`). The `/healthz` endpoint is wired as a
+liveness probe so a wedged worker is restarted; `/metrics` currently reports
+queue depth and oldest pending item age for Prometheus scraping. The crawler
+and `preview-gc` are finite Kubernetes Jobs and deliberately carry no probes.
+
 # Principles
 - eventually consistent, fine if web app is not totally in sync with file system
 - filesystem as source of truth

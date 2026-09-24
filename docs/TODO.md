@@ -50,10 +50,6 @@ history is the archive.
 Omissions from the initial production overlay work (deploy/overlays/production),
 recorded here after the quickstart doc was trimmed from the repo:
 
-- **No index-worker health checks**: index-stat, index-preview and index-exif
-  have no probes — the images are FROM scratch (no shell, no listener) and
-  restart policy only covers crashes, not a worker that is alive but stuck.
-  Tracked in #117 (shared indexer.Run heartbeat + tiny /healthz per worker).
 - **No NetworkPolicies**: nothing segments in-cluster traffic; every pod can
   reach every pod. Tracked in #115.
 - **No committed ingress/gateway manifest**: only the web Service ships;
