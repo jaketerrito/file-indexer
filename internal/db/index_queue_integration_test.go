@@ -449,3 +449,69 @@ func TestIndexQueueTypeIsolation(t *testing.T) {
 		t.Errorf("claim(other): got %v, want the untouched row", ours)
 	}
 }
+
+func TestGetIndexQueueLagEmpty(t *testing.T) {
+	conn := testConn(t)
+	q := New(conn)
+	ctx := context.Background()
+
+	lag, err := q.GetIndexQueueLag(ctx, statType)
+	if err != nil {
+		t.Fatalf("GetIndexQueueLag: %v", err)
+	}
+	if lag.PendingCount != 0 {
+		t.Errorf("PendingCount = %d, want 0", lag.PendingCount)
+	}
+	oldest, ok := lag.OldestPendingSeconds.(int64)
+	if !ok {
+		t.Fatalf("OldestPendingSeconds type = %T, want int64", lag.OldestPendingSeconds)
+	}
+	if oldest != 0 {
+		t.Errorf("OldestPendingSeconds = %d, want 0", oldest)
+	}
+}
+
+func TestGetIndexQueueLagPendingAndDone(t *testing.T) {
+	conn := testConn(t)
+	q := New(conn)
+	ctx := context.Background()
+
+	pendingKey := uniqueKey(t) + "-pending"
+	doneKey := uniqueKey(t) + "-done"
+	pendingID := insertTestFileWithMark(t, conn, pendingKey, time.Now().UTC())
+	doneID := insertTestFileWithMark(t, conn, doneKey, time.Now().UTC())
+
+	if _, err := q.SeedIndexQueue(ctx, statType); err != nil {
+		t.Fatalf("SeedIndexQueue: %v", err)
+	}
+
+	// Age the pending row so the lag query returns a deterministic nonzero age,
+	// and defer its next_attempt_at so the claim below (batch > 1) cannot pick
+	// it up — it must stay 'pending' for the lag assertion.
+	if _, err := conn.Exec(ctx,
+		`UPDATE index_queue SET updated_at = now() - interval '2 seconds', next_attempt_at = now() + interval '1 hour' WHERE index_type = $1 AND file_id = $2`,
+		statType, pendingID); err != nil {
+		t.Fatalf("age pending row: %v", err)
+	}
+
+	// Complete the done row.
+	if ours := claimOurs(t, q, statType, noStale, doneID); len(ours) != 1 {
+		t.Fatalf("claim(done): got %v", ours)
+	}
+	completeStat(t, q, doneID, "text/plain", 1, time.Now().UTC())
+
+	lag, err := q.GetIndexQueueLag(ctx, statType)
+	if err != nil {
+		t.Fatalf("GetIndexQueueLag: %v", err)
+	}
+	if lag.PendingCount != 1 {
+		t.Errorf("PendingCount = %d, want 1", lag.PendingCount)
+	}
+	oldest, ok := lag.OldestPendingSeconds.(int64)
+	if !ok {
+		t.Fatalf("OldestPendingSeconds type = %T, want int64", lag.OldestPendingSeconds)
+	}
+	if oldest < 2 {
+		t.Errorf("OldestPendingSeconds = %d, want >= 2", oldest)
+	}
+}

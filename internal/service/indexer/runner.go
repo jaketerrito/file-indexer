@@ -32,6 +32,11 @@ type Queue[R any] interface {
 // ProcessFunc does the indexing work for one job.
 type ProcessFunc[R any] func(ctx context.Context, job Job) (R, error)
 
+// Heartbeat records that the worker loop is still alive.
+type Heartbeat interface {
+	Beat()
+}
+
 // Config carries Run's tuning knobs.
 type Config struct {
 	PollInterval time.Duration
@@ -40,6 +45,9 @@ type Config struct {
 	ClaimTTL     time.Duration
 	BackoffBase  time.Duration
 	BackoffMax   time.Duration
+	// Heartbeat, when non-nil, is notified on every loop tick. Idle ticks
+	// are healthy signals: only a wedged loop goes stale.
+	Heartbeat Heartbeat
 }
 
 // Test hooks — set only by tests inside the indexer package.
@@ -117,6 +125,10 @@ func Run[R any](ctx context.Context, name string, cfg Config, queue Queue[R], pr
 	}
 
 	for {
+		if cfg.Heartbeat != nil {
+			cfg.Heartbeat.Beat()
+		}
+
 		claimed, err := queue.Claim(ctx, cfg.BatchSize, cfg.ClaimTTL)
 		if err != nil {
 			if ctx.Err() != nil {

@@ -112,3 +112,13 @@ SELECT file_id, status
 FROM index_queue
 WHERE index_type = sqlc.arg(index_type)::text
   AND file_id = ANY(sqlc.arg(file_ids)::bigint[]);
+
+-- name: GetIndexQueueLag :one
+-- Operational lag for one index type. Counts every pending row (the backlog)
+-- and the age of the oldest pending row by updated_at, since there is no
+-- created_at column.
+SELECT
+    COUNT(*) AS pending_count,
+    COALESCE(EXTRACT(EPOCH FROM (now() - MIN(updated_at)))::bigint, 0) AS oldest_pending_seconds
+FROM index_queue
+WHERE index_type = sqlc.arg(index_type)::text AND status = 'pending';

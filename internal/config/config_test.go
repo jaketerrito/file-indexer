@@ -225,3 +225,25 @@ func TestLoadDefaultGRPCAddr(t *testing.T) {
 		t.Errorf("default GrpcAddr = %q, want %q", cfg.GrpcAddr, ":50051")
 	}
 }
+
+func TestLoadHealthAddr(t *testing.T) {
+	cases := []struct {
+		name string
+		env  string
+		want string
+	}{
+		{"default", "", ":8081"},
+		{"override", ":9090", ":9090"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if c.env != "" {
+				t.Setenv("HEALTH_ADDR", c.env)
+			}
+			cfg := Load()
+			if cfg.HealthAddr != c.want {
+				t.Errorf("HealthAddr = %q, want %q", cfg.HealthAddr, c.want)
+			}
+		})
+	}
+}

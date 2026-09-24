@@ -9,9 +9,11 @@ package main
 import (
 	"context"
 	"file-indexer/internal/config"
+	"file-indexer/internal/db"
 	"file-indexer/internal/logger"
 	"file-indexer/internal/service/indexer"
 	"file-indexer/internal/storage"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -40,12 +42,38 @@ func main() {
 		os.Exit(1)
 	}
 
-	queue := indexer.NewPGQueue(pool, "exif", indexer.StoreExifResult)
+	indexType := "exif"
+	queue := indexer.NewPGQueue(pool, indexType, indexer.StoreExifResult)
 	exifIndexer := indexer.NewExifIndexer(s3, cfg.IndexPrefix, indexer.ExifConfig(cfg.Exif))
 
-	indexerCfg := indexer.Config(cfg.Indexer)
+	status := indexer.NewStatus(indexType, cfg.Indexer.PollInterval, func(ctx context.Context) (indexer.QueueLag, error) {
+		row, err := db.New(pool).GetIndexQueueLag(ctx, indexType)
+		if err != nil {
+			return indexer.QueueLag{}, err
+		}
+		oldest, ok := row.OldestPendingSeconds.(int64)
+		if !ok {
+			return indexer.QueueLag{}, fmt.Errorf("unexpected oldest_pending_seconds type %T", row.OldestPendingSeconds)
+		}
+		return indexer.QueueLag{
+			PendingCount:         row.PendingCount,
+			OldestPendingSeconds: oldest,
+		}, nil
+	})
 
-	if err := indexer.Run(ctx, "exif", indexerCfg, queue, exifIndexer.Process); err != nil {
+	indexerCfg := indexer.Config{
+		PollInterval: cfg.Indexer.PollInterval,
+		BatchSize:    cfg.Indexer.BatchSize,
+		MaxAttempts:  cfg.Indexer.MaxAttempts,
+		ClaimTTL:     cfg.Indexer.ClaimTTL,
+		BackoffBase:  cfg.Indexer.BackoffBase,
+		BackoffMax:   cfg.Indexer.BackoffMax,
+		Heartbeat:    status,
+	}
+
+	status.StartServer(ctx, cfg.HealthAddr)
+
+	if err := indexer.Run(ctx, indexType, indexerCfg, queue, exifIndexer.Process); err != nil {
 		slog.Error("exif indexer failed", "error", err)
 		os.Exit(1)
 	}

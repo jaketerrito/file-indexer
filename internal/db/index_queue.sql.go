@@ -129,6 +129,29 @@ func (q *Queries) FailIndexQueue(ctx context.Context, arg FailIndexQueueParams) 
 	return err
 }
 
+const getIndexQueueLag = `-- name: GetIndexQueueLag :one
+SELECT
+    COUNT(*) AS pending_count,
+    COALESCE(EXTRACT(EPOCH FROM (now() - MIN(updated_at)))::bigint, 0) AS oldest_pending_seconds
+FROM index_queue
+WHERE index_type = $1::text AND status = 'pending'
+`
+
+type GetIndexQueueLagRow struct {
+	PendingCount         int64
+	OldestPendingSeconds interface{}
+}
+
+// Operational lag for one index type. Counts every pending row (the backlog)
+// and the age of the oldest pending row by updated_at, since there is no
+// created_at column.
+func (q *Queries) GetIndexQueueLag(ctx context.Context, indexType string) (GetIndexQueueLagRow, error) {
+	row := q.db.QueryRow(ctx, getIndexQueueLag, indexType)
+	var i GetIndexQueueLagRow
+	err := row.Scan(&i.PendingCount, &i.OldestPendingSeconds)
+	return i, err
+}
+
 const getIndexQueueStatuses = `-- name: GetIndexQueueStatuses :many
 SELECT file_id, status
 FROM index_queue
