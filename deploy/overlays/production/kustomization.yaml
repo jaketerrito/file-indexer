@@ -5,35 +5,37 @@ resources:
   - ../../base
 
 # All images share one tag because this is a monorepo with single-version
-# releases. The release workflow's sed depends on this invariant.
+# releases. release-please bumps the annotated newTag lines in its release
+# PR (see release-please-config.json extra-files); keep every image on the
+# same tag.
 images:
   - name: migrate
     newName: ghcr.io/jaketerrito/file-indexer/migrate
-    newTag: v0.1.2
+    newTag: v0.1.2 # x-release-please-version
   - name: index-stat
     newName: ghcr.io/jaketerrito/file-indexer/index-stat
-    newTag: v0.1.2
+    newTag: v0.1.2 # x-release-please-version
   - name: index-preview
     newName: ghcr.io/jaketerrito/file-indexer/index-preview
-    newTag: v0.1.2
+    newTag: v0.1.2 # x-release-please-version
   - name: index-exif
     newName: ghcr.io/jaketerrito/file-indexer/index-exif
-    newTag: v0.1.2
+    newTag: v0.1.2 # x-release-please-version
   - name: files
     newName: ghcr.io/jaketerrito/file-indexer/files
-    newTag: v0.1.2
+    newTag: v0.1.2 # x-release-please-version
   - name: search
     newName: ghcr.io/jaketerrito/file-indexer/search
-    newTag: v0.1.2
+    newTag: v0.1.2 # x-release-please-version
   - name: crawler
     newName: ghcr.io/jaketerrito/file-indexer/crawler
-    newTag: v0.1.2
+    newTag: v0.1.2 # x-release-please-version
   - name: preview-gc
     newName: ghcr.io/jaketerrito/file-indexer/preview-gc
-    newTag: v0.1.2
+    newTag: v0.1.2 # x-release-please-version
   - name: web
     newName: ghcr.io/jaketerrito/file-indexer/web
-    newTag: v0.1.2
+    newTag: v0.1.2 # x-release-please-version
 
 patches:
   - path: patch-migrate.yaml
