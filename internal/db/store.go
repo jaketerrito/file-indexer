@@ -82,12 +82,11 @@ func (s *Store) DeleteFileWithDirectories(ctx context.Context, id int64) (File, 
 }
 
 // MoveFileWithDirectoriesParams carries the inputs for
-// MoveFileWithDirectories. MarkedAt should be the moved object's S3 mtime
-// so the stat indexer does not treat the new key as stale.
+// MoveFileWithDirectories. A move preserves the row's marked_at: it is a
+// pure path change for identical bytes, so existing index results stay valid.
 type MoveFileWithDirectoriesParams struct {
-	ID       int64
-	NewKey   string
-	MarkedAt pgtype.Timestamptz
+	ID     int64
+	NewKey string
 }
 
 // MoveFileWithDirectories updates a file's key in one transaction and keeps
@@ -104,9 +103,8 @@ func (s *Store) MoveFileWithDirectories(ctx context.Context, arg MoveFileWithDir
 			return err
 		}
 		if f, err = q.UpdateFileKey(ctx, UpdateFileKeyParams{
-			ID:       arg.ID,
-			Key:      arg.NewKey,
-			MarkedAt: arg.MarkedAt,
+			ID:  arg.ID,
+			Key: arg.NewKey,
 		}); err != nil {
 			return err
 		}
