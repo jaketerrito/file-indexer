@@ -1,6 +1,13 @@
+# sync-wave -1: migrations run (and complete) before the workloads roll.
+# Replace=true: every release bumps this Job's image tag, and Job
+# spec.template is immutable, so an apply against a still-present old Job
+# is rejected (v0.2.0 rollout: sync stuck until ttlSecondsAfterFinished
+# deleted the old Job). Replace deletes and recreates instead, making
+# upgrades deterministic.
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: migrate
   annotations:
     argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/sync-options: Replace=true
