@@ -15,6 +15,8 @@ vi.mock('../server/files', () => ({
   getDownloadUrl: vi.fn(),
   getOpenUrl: vi.fn(),
   deleteFile: vi.fn(),
+  moveFile: vi.fn(),
+  listDirectory: vi.fn(),
   getFilePreviewStatuses: vi.fn(),
 }))
 
@@ -23,7 +25,9 @@ import {
   getDownloadUrl,
   getOpenUrl,
   listContentTypes,
+  listDirectory,
   listFiles,
+  moveFile,
 } from '../server/files'
 
 const listFilesMock = vi.mocked(listFiles)
@@ -31,6 +35,8 @@ const listContentTypesMock = vi.mocked(listContentTypes)
 const getDownloadUrlMock = vi.mocked(getDownloadUrl)
 const getOpenUrlMock = vi.mocked(getOpenUrl)
 const deleteFileMock = vi.mocked(deleteFile)
+const moveFileMock = vi.mocked(moveFile)
+const listDirectoryMock = vi.mocked(listDirectory)
 
 function page(keys: string[], startId: number, nextPageToken = ''): ListFilesResult {
   return {
@@ -121,6 +127,11 @@ beforeEach(() => {
   // type-filter test fires a change to 'image/', which must be a rendered
   // <option> for a controlled select to hold the value.
   listContentTypesMock.mockResolvedValue({ categories: ['image/', 'text/'] })
+  listDirectoryMock.mockResolvedValue({
+    directories: [],
+    files: [],
+    nextPageToken: '',
+  })
 })
 
 afterEach(() => {
@@ -438,6 +449,57 @@ describe('FileList', () => {
 
     await screen.findByRole('alert')
     // The dialog stays open on failure so the user can retry or cancel.
+    expect(screen.getByRole('alertdialog')).toBeDefined()
+  })
+
+  it('moves a file after destination selection and refetches the list', async () => {
+    listFilesMock.mockResolvedValueOnce(page(['a.txt'], 1)).mockResolvedValueOnce(page([], 2))
+    moveFileMock.mockResolvedValue(undefined)
+
+    renderFileList()
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move' }))
+    await screen.findByRole('alertdialog')
+
+    fireEvent.change(screen.getByPlaceholderText('folder name'), { target: { value: 'archive' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    await waitFor(() =>
+      expect(screen.getByText(/Destination:/).textContent).toContain('archive/a.txt'),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move here' }))
+
+    await waitFor(() => {
+      expect(moveFileMock).toHaveBeenCalledWith({
+        data: { id: '1', destinationKey: 'archive/a.txt' },
+      })
+      expect(listFilesMock).toHaveBeenCalledTimes(2)
+    })
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
+  })
+
+  it('shows a move collision error inside the dialog', async () => {
+    const { ConnectError } = await import('@connectrpc/connect')
+    const { Code } = await import('@connectrpc/connect')
+    listFilesMock.mockResolvedValueOnce(page(['a.txt'], 1))
+    moveFileMock.mockRejectedValue(ConnectError.from(new Error('occupied'), Code.AlreadyExists))
+
+    renderFileList()
+    await screen.findByText('a.txt')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move' }))
+    await screen.findByRole('alertdialog')
+
+    fireEvent.change(screen.getByPlaceholderText('folder name'), { target: { value: 'archive' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    await waitFor(() =>
+      expect(screen.getByText(/Destination:/).textContent).toContain('archive/a.txt'),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Move here' }))
+
+    expect(await screen.findByRole('alert')).toBeDefined()
     expect(screen.getByRole('alertdialog')).toBeDefined()
   })
 

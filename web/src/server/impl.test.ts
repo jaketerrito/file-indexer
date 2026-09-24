@@ -20,6 +20,7 @@ import {
   GetUploadPartURLResponseSchema,
   GetUploadURLResponseSchema,
   ListUploadedPartsResponseSchema,
+  MoveFileResponseSchema,
   OpenURLSpecSchema,
   PreviewURLSpecSchema,
   UploadedPartSchema,
@@ -50,6 +51,7 @@ import {
   listDirectoryImpl,
   listFilesImpl,
   listUploadedPartsImpl,
+  moveFileImpl,
   searchDirectoriesImpl,
   toFileDto,
   toFileMetadataDto,
@@ -58,6 +60,7 @@ import {
   validateKeyInput,
   validateListDirectoryInput,
   validateListFilesInput,
+  validateMoveFileInput,
   validatePathInput,
   validateSearchDirectoriesInput,
   validateUploadIdInput,
@@ -430,6 +433,49 @@ describe('deleteFileImpl', () => {
     await deleteFileImpl(client, '7')
 
     expect(deleteFile).toHaveBeenCalledWith({ id: 7n })
+  })
+})
+
+describe('validateMoveFileInput', () => {
+  it('accepts a numeric id and a non-empty destination key', () => {
+    expect(validateMoveFileInput({ id: '123', destinationKey: 'docs/moved.txt' })).toEqual({
+      id: '123',
+      destinationKey: 'docs/moved.txt',
+    })
+  })
+
+  it.each([
+    [{}],
+    [{ id: '123' }],
+    [{ destinationKey: 'docs/moved.txt' }],
+    [{ id: 123, destinationKey: 'docs/moved.txt' }],
+    [{ id: 'abc', destinationKey: 'docs/moved.txt' }],
+    [{ id: '123', destinationKey: '' }],
+    [{ id: '123', destinationKey: 42 }],
+  ])('rejects %j', (input) => {
+    expect(() => validateMoveFileInput(input)).toThrow()
+  })
+})
+
+describe('moveFileImpl', () => {
+  it('sends the id and destination key', async () => {
+    const moveFile = vi.fn().mockResolvedValue(create(MoveFileResponseSchema))
+    const client = { moveFile } as unknown as Client<typeof FilesService>
+
+    await moveFileImpl(client, '7', 'docs/moved.txt')
+
+    expect(moveFile).toHaveBeenCalledWith({ id: 7n, destinationKey: 'docs/moved.txt' })
+  })
+
+  it('propagates AlreadyExists so the UI can show a collision message', async () => {
+    const { ConnectError } = await import('@connectrpc/connect')
+    const { Code } = await import('@connectrpc/connect')
+    const moveFile = vi
+      .fn()
+      .mockRejectedValue(ConnectError.from(new Error('occupied'), Code.AlreadyExists))
+    const client = { moveFile } as unknown as Client<typeof FilesService>
+
+    await expect(moveFileImpl(client, '7', 'docs/moved.txt')).rejects.toThrow('occupied')
   })
 })
 
