@@ -17,7 +17,7 @@ secrets via `envFrom`, so the secret **keys** are the contract:
 | Secret | Keys | Source |
 | --- | --- | --- |
 | `db-secret` | `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_NAME`, `DB_PASSWORD` | Environment's Postgres |
-| `s3-secret` | `S3_ENDPOINT`, `S3_ACCESS_ID`, `S3_SECRET`, `S3_BUCKET`, `S3_REGION`, `S3_SECURE` | Environment's bucket credentials |
+| `s3-secret` | `S3_ENDPOINT`, `S3_ACCESS_ID`, `S3_SECRET`, `S3_BUCKET`, `S3_REGION` | Environment's bucket credentials |
 
 Hard contracts an agent must not violate:
 
@@ -27,11 +27,16 @@ Hard contracts an agent must not violate:
    `https://s3.example.com`) — strip it and append the port
    (`s3.example.com:443`).
 2. **TLS requires `S3_SECURE=true`** (added in v0.1.1). Every binary
-   passes it to the S3 client's `secure` flag. Any hosted S3-compatible
-   provider requires `true`; only a local plaintext store (e.g. MinIO in
-   dev) uses the `false` default. Deploying an image `< v0.1.1` against a
-   hosted provider fails: the env var doesn't exist and the client speaks
-   plaintext HTTP.
+   passes it to the S3 client's `secure` flag. This is plain
+   configuration, not credential material, so it is **not** part of
+   `s3-secret`: base generates an `app-config` ConfigMap from
+   `deploy/base/app.env` (`S3_SECURE=false` for local plaintext stores),
+   every S3-consuming workload `envFrom`s it, and overlays override keys
+   with their own env file (`configMapGenerator behavior: merge`) — the
+   production overlay sets `S3_SECURE=true`. New environment knobs follow
+   the same pattern: base default + overlay override. Deploying an image
+   `< v0.1.1` against a hosted provider fails regardless: the config
+   loader doesn't know the variable and the client speaks plaintext HTTP.
 3. **Postgres is reached with `sslmode=disable`** (hardcoded in
    `internal/config/config.go`'s `DatabaseConfig.URL`). Use an in-cluster
    Postgres or a database reachable over a trusted network; a managed
@@ -109,6 +114,14 @@ Run after the deployer syncs (agent-executable, in order):
 - **Pre-v0.1.1 images silently ignore `S3_SECURE`.** The env var simply
   doesn't exist in the config loader; failures surface as S3 connection
   errors in every worker, not as a config error.
+- **Keep non-secret config out of secrets.** An earlier revision of the
+  reference environment carried `S3_SECURE` in `s3-secret`; moving it to
+  the `app-config` ConfigMap means rotating the credential never touches
+  configuration and the pod spec shows the effective value in plain view.
+- **kustomize `behavior: merge` needs matching generatorOptions.** The
+  overlay must restate `disableNameSuffixHash: true` — options are
+  per-kustomization, and a hashed overlay name never matches base's
+  hash-free merge target.
 - **Release workflow tag-PR step runs on a tag checkout** where the
   default-branch ref doesn't exist locally; `gh pr create --fill` fails
   there. Fixed for future releases (explicit `--title`/`--body`), but if
