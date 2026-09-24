@@ -13,15 +13,23 @@ vi.mock('../server/files', () => ({
   listFiles: vi.fn(),
   listContentTypes: vi.fn(),
   getDownloadUrl: vi.fn(),
+  getOpenUrl: vi.fn(),
   deleteFile: vi.fn(),
   getFilePreviewStatuses: vi.fn(),
 }))
 
-import { deleteFile, getDownloadUrl, listContentTypes, listFiles } from '../server/files'
+import {
+  deleteFile,
+  getDownloadUrl,
+  getOpenUrl,
+  listContentTypes,
+  listFiles,
+} from '../server/files'
 
 const listFilesMock = vi.mocked(listFiles)
 const listContentTypesMock = vi.mocked(listContentTypes)
 const getDownloadUrlMock = vi.mocked(getDownloadUrl)
+const getOpenUrlMock = vi.mocked(getOpenUrl)
 const deleteFileMock = vi.mocked(deleteFile)
 
 function page(keys: string[], startId: number, nextPageToken = ''): ListFilesResult {
@@ -122,13 +130,14 @@ afterEach(() => {
 })
 
 describe('FileList', () => {
-  it('renders the file keys with download and delete buttons', async () => {
+  it('renders the file keys with open, download, and delete buttons', async () => {
     listFilesMock.mockResolvedValue(page(['a.txt', 'b.txt'], 1))
 
     renderFileList()
 
     expect(await screen.findByText('a.txt')).toBeDefined()
     expect(screen.getByText('b.txt')).toBeDefined()
+    expect(screen.getAllByRole('button', { name: 'Open' })).toHaveLength(2)
     expect(screen.getAllByRole('button', { name: 'Download' })).toHaveLength(2)
     expect(screen.getAllByRole('button', { name: 'Delete' })).toHaveLength(2)
     expect(listFilesMock).toHaveBeenCalledWith(listArgs())
@@ -235,6 +244,22 @@ describe('FileList', () => {
       ),
     )
     expect(screen.getByRole('button', { name: 'Descending' })).toBeDefined()
+  })
+
+  it('opens the inline presigned URL when Open is clicked', async () => {
+    listFilesMock.mockResolvedValue(page(['a.txt'], 7))
+    getOpenUrlMock.mockResolvedValue({ url: 'http://s3/inline' })
+    const openSpy = vi.fn()
+    vi.stubGlobal('open', openSpy)
+
+    renderFileList()
+    const button = await screen.findByRole('button', { name: 'Open' })
+    button.click()
+
+    await waitFor(() => {
+      expect(getOpenUrlMock).toHaveBeenCalledWith({ data: { id: '7' } })
+      expect(openSpy).toHaveBeenCalledWith('http://s3/inline', '_blank', 'noopener')
+    })
   })
 
   it('opens the presigned URL when Download is clicked', async () => {

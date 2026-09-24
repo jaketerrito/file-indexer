@@ -1,7 +1,7 @@
 import { type QueryKey, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
-import { deleteFile, getDownloadUrl } from '../server/files'
+import { deleteFile, getDownloadUrl, getOpenUrl } from '../server/files'
 import type { FileDto } from '../server/impl'
 import { DeleteFileConfirmation } from './DeleteFileConfirmation'
 import { formatBytes } from './FileMetadataTable'
@@ -44,7 +44,7 @@ interface FileTableProps {
 /**
  * The one table of a listing's rows, shared by search mode (FileList) and
  * browse mode (DirectoryList): preview thumbnail (or index-status
- * placeholder), key, type, size, created, and the Download/Metadata/Delete
+ * placeholder), key, type, size, created, and the Open/Download/Metadata/Delete
  * actions. Browse mode additionally passes subdirectory rows (folders prop),
  * which sort before the files. File delete is a two-step confirm owned here
  * so both modes behave identically; only cache invalidation differs, via
@@ -78,6 +78,11 @@ export function FileTable({
 
   async function handleDownload(id: string) {
     const { url } = await getDownloadUrl({ data: { id } })
+    window.open(url, '_blank', 'noopener')
+  }
+
+  async function handleOpen(id: string) {
+    const { url } = await getOpenUrl({ data: { id } })
     window.open(url, '_blank', 'noopener')
   }
 
@@ -154,6 +159,9 @@ export function FileTable({
               <td>{formatBytes(file.sizeBytes)}</td>
               <td>{file.createdAt}</td>
               <td>
+                <button type="button" onClick={() => void handleOpen(file.id)}>
+                  Open
+                </button>{' '}
                 <button type="button" onClick={() => void handleDownload(file.id)}>
                   Download
                 </button>{' '}
