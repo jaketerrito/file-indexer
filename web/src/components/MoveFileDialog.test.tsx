@@ -33,7 +33,9 @@ function mockDirectoryTree(pagesByPath: Record<string, Page[]>) {
     const { data } = opts as unknown as { data: ListDirectoryInput }
     const queue = pagesByPath[data.path ?? '']
     const page =
-      queue && queue.length > 0 ? queue.shift() : { directories: [], files: [], nextPageToken: '' }
+      queue && queue.length > 0
+        ? queue.shift()
+        : { directories: [], files: [], nextPageToken: '' }
     return Promise.resolve(page as ListDirectoryResult)
   })
 }
@@ -78,36 +80,110 @@ afterEach(() => {
 })
 
 describe('MoveFileDialog', () => {
-  it('renders the folder tree and default destination preview', async () => {
+  it('renders current path breadcrumbs and the destination preview', async () => {
     mockDirectoryTree({
-      '': [{ directories: ['docs/', 'photos/'], files: [file('a.txt')], nextPageToken: '' }],
+      'docs/': [
+        {
+          directories: ['docs/work/', 'docs/archive/'],
+          files: [file('docs/report.pdf')],
+          nextPageToken: '',
+        },
+      ],
     })
     renderDialog('docs/report.pdf')
 
-    expect(await screen.findByRole('button', { name: 'docs' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'photos' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Bucket root' })).toBeTruthy()
+    expect(screen.getByText('docs', { exact: true })).toBeTruthy()
+    expect(screen.getByText('Destination:')).toBeTruthy()
     expect(screen.getByText(/Destination:/).textContent).toContain('docs/report.pdf')
   })
 
-  it('updates the destination preview when a folder is clicked', async () => {
+  it('lists the immediate subdirectories of the current path', async () => {
     mockDirectoryTree({
-      '': [{ directories: ['photos/'], files: [file('a.txt')], nextPageToken: '' }],
+      'docs/': [
+        {
+          directories: ['docs/work/', 'docs/archive/'],
+          files: [file('docs/report.pdf')],
+          nextPageToken: '',
+        },
+      ],
     })
     renderDialog('docs/report.pdf')
 
-    fireEvent.click(await screen.findByRole('button', { name: 'photos' }))
-    await waitFor(() =>
-      expect(screen.getByText(/Destination:/).textContent).toContain('photos/report.pdf'),
-    )
+    expect(await screen.findByRole('button', { name: 'work' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'archive' })).toBeTruthy()
   })
 
-  it('creates a new folder and updates the selection', async () => {
+  it('navigates into a subdirectory when clicked and reloads its children', async () => {
     mockDirectoryTree({
-      '': [{ directories: ['docs/'], files: [file('a.txt')], nextPageToken: '' }],
+      '': [{ directories: ['docs/'], files: [file('report.pdf')], nextPageToken: '' }],
+      'docs/': [
+        {
+          directories: ['docs/work/', 'docs/archive/'],
+          files: [file('docs/report.pdf')],
+          nextPageToken: '',
+        },
+      ],
+      'docs/work/': [
+        { directories: [], files: [file('docs/work/report.pdf')], nextPageToken: '' },
+      ],
     })
     renderDialog('report.pdf')
 
-    fireEvent.change(screen.getByPlaceholderText('folder name'), { target: { value: 'archive' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'docs' }))
+    await waitFor(() =>
+      expect(screen.getByText(/Destination:/).textContent).toContain('docs/report.pdf'),
+    )
+    expect(await screen.findByRole('button', { name: 'work' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'archive' })).toBeTruthy()
+  })
+
+  it('navigates up via breadcrumb clicks', async () => {
+    mockDirectoryTree({
+      'docs/work/': [
+        {
+          directories: [],
+          files: [file('docs/work/report.pdf')],
+          nextPageToken: '',
+        },
+      ],
+      'docs/': [
+        {
+          directories: ['docs/work/'],
+          files: [file('docs/report.pdf')],
+          nextPageToken: '',
+        },
+      ],
+      '': [{ directories: ['docs/'], files: [file('report.pdf')], nextPageToken: '' }],
+    })
+    renderDialog('docs/work/report.pdf')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Bucket root' }))
+    await waitFor(() =>
+      expect(screen.getByText(/Destination:/).textContent).toContain('report.pdf'),
+    )
+    expect(screen.getByRole('button', { name: 'docs' })).toBeTruthy()
+  })
+
+  it('shows an empty state when the current directory has no subfolders', async () => {
+    mockDirectoryTree({
+      'docs/': [{ directories: [], files: [file('docs/report.pdf')], nextPageToken: '' }],
+    })
+    renderDialog('docs/report.pdf')
+
+    expect(await screen.findByText('No subfolders')).toBeTruthy()
+  })
+
+  it('adds a new folder and navigates into it', async () => {
+    mockDirectoryTree({
+      '': [{ directories: [], files: [file('report.pdf')], nextPageToken: '' }],
+    })
+    renderDialog('report.pdf')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add folder' }))
+    fireEvent.change(screen.getByLabelText('New folder name'), {
+      target: { value: 'archive' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     await waitFor(() =>
@@ -116,37 +192,62 @@ describe('MoveFileDialog', () => {
   })
 
   it('rejects invalid new folder names', async () => {
+    mockDirectoryTree({
+      '': [{ directories: [], files: [file('report.pdf')], nextPageToken: '' }],
+    })
     renderDialog('report.pdf')
 
-    fireEvent.change(screen.getByPlaceholderText('folder name'), { target: { value: '' } })
+    fireEvent.click(await screen.findByRole('button', { name: 'Add folder' }))
+    fireEvent.change(screen.getByLabelText('New folder name'), { target: { value: '' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     expect((await screen.findByRole('alert')).textContent).toContain('cannot be empty')
 
-    fireEvent.change(screen.getByPlaceholderText('folder name'), { target: { value: 'a/b' } })
+    fireEvent.change(screen.getByLabelText('New folder name'), { target: { value: 'a/b' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
     expect((await screen.findByRole('alert')).textContent).toContain('cannot contain "/"')
+
+    fireEvent.change(screen.getByLabelText('New folder name'), { target: { value: '.' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    expect((await screen.findByRole('alert')).textContent).toContain('cannot be "." or ".."')
   })
 
-  it('emits the selected path on confirm', async () => {
+  it('cancels the add-folder input', async () => {
     mockDirectoryTree({
-      '': [{ directories: ['photos/'], files: [file('a.txt')], nextPageToken: '' }],
+      '': [{ directories: [], files: [file('report.pdf')], nextPageToken: '' }],
     })
-    const { onConfirm } = renderDialog('docs/report.pdf')
+    renderDialog('report.pdf')
 
-    fireEvent.click(await screen.findByRole('button', { name: 'photos' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Add folder' }))
+    fireEvent.change(screen.getByLabelText('New folder name'), { target: { value: 'x' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel new folder' }))
+
+    expect(screen.queryByLabelText('New folder name')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Add folder' })).toBeTruthy()
+  })
+
+  it('emits the currently viewed path on confirm', async () => {
+    mockDirectoryTree({
+      '': [{ directories: ['docs/'], files: [file('report.pdf')], nextPageToken: '' }],
+      'docs/': [
+        { directories: [], files: [file('docs/report.pdf')], nextPageToken: '' },
+      ],
+    })
+    const { onConfirm } = renderDialog('report.pdf')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'docs' }))
     await waitFor(() =>
-      expect(screen.getByText(/Destination:/).textContent).toContain('photos/report.pdf'),
+      expect(screen.getByText(/Destination:/).textContent).toContain('docs/report.pdf'),
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Move here' }))
-    expect(onConfirm).toHaveBeenCalledWith('photos/')
+    expect(onConfirm).toHaveBeenCalledWith('docs/')
   })
 
   it('disables confirm when the destination is unchanged', async () => {
     renderDialog('docs/report.pdf')
-    expect((screen.getByRole('button', { name: 'Move here' }) as HTMLButtonElement).disabled).toBe(
-      true,
-    )
+    expect(
+      (screen.getByRole('button', { name: 'Move here' }) as HTMLButtonElement).disabled,
+    ).toBe(true)
   })
 
   it('renders an error string and keeps the dialog open', async () => {
@@ -160,7 +261,6 @@ describe('MoveFileDialog', () => {
   it('closes via backdrop click', async () => {
     const { onCancel } = renderDialog('docs/report.pdf')
 
-    // The backdrop is the fixed-position container.
     fireEvent.click(screen.getByRole('alertdialog'))
     expect(onCancel).toHaveBeenCalled()
   })

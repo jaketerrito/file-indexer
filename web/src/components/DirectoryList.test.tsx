@@ -218,14 +218,14 @@ describe('DirectoryList', () => {
       true,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Bucket root' }))
     await waitFor(() => expect(screen.getByText(/Destination:/).textContent).toContain('a.txt'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Move here' }))
 
     await waitFor(() => {
       expect(moveFileMock).toHaveBeenCalledWith({ data: { id: '1', destinationKey: 'a.txt' } })
-      expect(listDirectoryMock).toHaveBeenCalledTimes(4)
+      expect(listDirectoryMock).toHaveBeenCalledTimes(5)
     })
     await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
   })
@@ -242,7 +242,7 @@ describe('DirectoryList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Move' }))
     await screen.findByRole('alertdialog')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Bucket root' }))
     await waitFor(() => expect(screen.getByText(/Destination:/).textContent).toContain('a.txt'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Move here' }))
