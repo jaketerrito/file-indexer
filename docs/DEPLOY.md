@@ -44,9 +44,13 @@ Hard contracts an agent must not violate:
 4. **`S3_REGION` is the SigV4 signing region.** Use whatever region the
    provider expects for the bucket; it is usually derivable from the
    endpoint host.
-5. **The migrate Job must run before the workloads.** The production
-   overlay sets `argocd.argoproj.io/sync-wave: "-1"` on it; if your
-   deployer doesn't honor sync waves, order it yourself.
+5. **The migrate Job runs in the same sync as the workloads — by
+   design.** An earlier revision pinned it to an ArgoCD sync wave, which
+   deadlocked fresh deploys (wave −1 waits for health; the migrate pod
+   needs the ServiceAccount from wave 0). Without waves, workers may
+   crash-loop until the schema exists; they self-heal. Corollary:
+   **migrations must stay backward-compatible**, because on upgrades new
+   workers can start before the migrate Job completes.
 6. **All images share one tag** — the release workflow's sed depends on
    it. Bump tags only via release (see below), never by hand-editing one
    image.
@@ -134,6 +138,12 @@ Run after the deployer syncs (agent-executable, in order):
   not by storing a second credential.
 - **`sslmode=disable` is fine in-cluster** (pod-to-pod traffic on the
   cluster network) but rules out managed databases that enforce TLS.
+- **ArgoCD sync waves across resource kinds are treacherous.** Pinning
+  migrate to wave −1 deadlocked the very first sync: ArgoCD waits for a
+  wave's health before applying the next, and the migrate pod needs the
+  ServiceAccount from wave 0. Wave assignments must cover every resource
+  the earlier wave depends on — or skip waves entirely, as the overlay
+  now does.
 - **The first GitHub Release had to be v0.1.0** (the overlay ships pinned
   to it; see the bootstrap note in `.github/workflows/release.yml`).
 - **Image tag bumps are owned by the release workflow's PR**, not by an
@@ -149,5 +159,6 @@ Run after the deployer syncs (agent-executable, in order):
 2. Confirm the release workflow is green (all 9 image builds + the
    tag-PR job).
 3. Merge the `release/vX.Y.Z` tag-bump PR.
-4. The deployer rolls the new tag; migrate runs first (sync-wave).
+4. The deployer rolls the new tag; migrate runs in the same sync
+   (workers may briefly crash until it completes — self-healing).
    Verify with the checklist above.
