@@ -81,6 +81,43 @@ func (s *Store) DeleteFileWithDirectories(ctx context.Context, id int64) (File, 
 	return f, err
 }
 
+// MoveFileWithDirectoriesParams carries the inputs for
+// MoveFileWithDirectories. MarkedAt should be the moved object's S3 mtime
+// so the stat indexer does not treat the new key as stale.
+type MoveFileWithDirectoriesParams struct {
+	ID       int64
+	NewKey   string
+	MarkedAt pgtype.Timestamptz
+}
+
+// MoveFileWithDirectories updates a file's key in one transaction and keeps
+// the directories index consistent: it prunes directories implied by the old
+// key, then upserts directories implied by the new key. Prune before upsert
+// guarantees that a directory that still contains the destination key is not
+// wrongly removed.
+func (s *Store) MoveFileWithDirectories(ctx context.Context, arg MoveFileWithDirectoriesParams) (File, error) {
+	var f File
+	err := s.withTx(ctx, func(q *Queries) error {
+		var err error
+		var oldKey string
+		if err := q.db.QueryRow(ctx, `SELECT key FROM files WHERE id = $1`, arg.ID).Scan(&oldKey); err != nil {
+			return err
+		}
+		if f, err = q.UpdateFileKey(ctx, UpdateFileKeyParams{
+			ID:       arg.ID,
+			Key:      arg.NewKey,
+			MarkedAt: arg.MarkedAt,
+		}); err != nil {
+			return err
+		}
+		if err := q.PruneDirectoriesForKeys(ctx, []string{oldKey}); err != nil {
+			return err
+		}
+		return q.UpsertDirectoriesForKeys(ctx, []string{arg.NewKey})
+	})
+	return f, err
+}
+
 // DeleteFilesByIDsWithDirectories runs DeleteFilesByIDs and
 // PruneDirectoriesForKeys in one transaction, over keys the caller already
 // has (DeleteDirectory gets them from ListFilesForDelete, so this never

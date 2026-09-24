@@ -270,6 +270,19 @@ func (s *s3Storage) Delete(ctx context.Context, key string) error {
 	return err
 }
 
+func (s *s3Storage) Copy(ctx context.Context, srcKey, dstKey string) error {
+	copySource := minio.CopySrcOptions{
+		Bucket: s.bucket,
+		Object: srcKey,
+	}
+	copyDest := minio.CopyDestOptions{
+		Bucket: s.bucket,
+		Object: dstKey,
+	}
+	_, err := s.client.CopyObject(ctx, copyDest, copySource)
+	return err
+}
+
 func (s *s3Storage) DeleteMany(ctx context.Context, keys []string) error {
 	if len(keys) == 0 {
 		return nil

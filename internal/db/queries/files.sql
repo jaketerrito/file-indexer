@@ -41,6 +41,11 @@ SELECT now()::timestamptz;
 DELETE FROM files
 WHERE seen_at < sqlc.arg(cutoff)::timestamptz;
 
+-- name: UpdateFileKey :one
+-- Update a file's key and bump its marked_at to the moved object's mtime
+-- (caller-supplied) so the stat indexer doesn't treat the new key as stale.
+UPDATE files SET key = $2, marked_at = $3 WHERE id = $1 RETURNING *;
+
 -- name: GetFile :one
 SELECT * FROM file_infos
 WHERE id = $1;

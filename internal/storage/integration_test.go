@@ -351,6 +351,56 @@ func TestDeleteManyEmpty(t *testing.T) {
 	}
 }
 
+func TestCopy(t *testing.T) {
+	s, client, bucket := setupBucket(t)
+	ctx := context.Background()
+
+	putObject(t, client, bucket, "copy-src.txt", "hello copy", "text/plain")
+
+	tests := []struct {
+		name    string
+		srcKey  string
+		dstKey  string
+		wantErr bool
+		want    string
+	}{
+		{"copy to new key", "copy-src.txt", "copy-dst.txt", false, "hello copy"},
+		{"copy over existing key", "copy-src.txt", "copy-existing.txt", false, "hello copy"},
+		{"missing source", "copy-no-such-key.txt", "copy-nowhere.txt", true, ""},
+	}
+
+	// Seed a destination that the "overwrite" case will clobber.
+	putObject(t, client, bucket, "copy-existing.txt", "old content", "text/plain")
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := s.Copy(ctx, tt.srcKey, tt.dstKey)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Copy(%q -> %q) err = %v, wantErr %v", tt.srcKey, tt.dstKey, err, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+
+			obj, err := s.Get(ctx, tt.dstKey)
+			if err != nil {
+				t.Fatalf("Get(%q): %v", tt.dstKey, err)
+			}
+			defer func() { _ = obj.Reader.Close() }()
+			got, err := io.ReadAll(obj.Reader)
+			if err != nil {
+				t.Fatalf("ReadAll: %v", err)
+			}
+			if string(got) != tt.want {
+				t.Errorf("dst content = %q, want %q", got, tt.want)
+			}
+			if obj.ContentType != "text/plain" {
+				t.Errorf("dst ContentType = %q, want text/plain", obj.ContentType)
+			}
+		})
+	}
+}
+
 func TestDeleteManyManyKeys(t *testing.T) {
 	// Exercises minio-go's internal >1000-key batching path (S3's
 	// multi-object delete API caps a single request at 1000 keys).

@@ -683,6 +683,31 @@ func (q *Queries) ListFilesForDelete(ctx context.Context, arg ListFilesForDelete
 	return items, nil
 }
 
+const updateFileKey = `-- name: UpdateFileKey :one
+UPDATE files SET key = $2, marked_at = $3 WHERE id = $1 RETURNING id, key, created_at, marked_at, seen_at
+`
+
+type UpdateFileKeyParams struct {
+	ID       int64
+	Key      string
+	MarkedAt pgtype.Timestamptz
+}
+
+// Update a file's key and bump its marked_at to the moved object's mtime
+// (caller-supplied) so the stat indexer doesn't treat the new key as stale.
+func (q *Queries) UpdateFileKey(ctx context.Context, arg UpdateFileKeyParams) (File, error) {
+	row := q.db.QueryRow(ctx, updateFileKey, arg.ID, arg.Key, arg.MarkedAt)
+	var i File
+	err := row.Scan(
+		&i.ID,
+		&i.Key,
+		&i.CreatedAt,
+		&i.MarkedAt,
+		&i.SeenAt,
+	)
+	return i, err
+}
+
 const upsertFiles = `-- name: UpsertFiles :execrows
 INSERT INTO files (key, marked_at)
 SELECT input.key, MAX(input.marked_at)

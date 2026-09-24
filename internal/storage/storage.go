@@ -58,6 +58,11 @@ type Storage interface {
 
 	Delete(ctx context.Context, key string) error
 
+	// Copy duplicates the object at srcKey to dstKey. Copying within the
+	// same bucket is the only supported shape; the caller is responsible
+	// for updating the DB index and deleting the source object afterward.
+	Copy(ctx context.Context, srcKey, dstKey string) error
+
 	// DeleteMany deletes multiple objects in as few round trips as the
 	// underlying client allows (S3's multi-object delete API caps a single
 	// request at 1000 keys; batching above that is the implementation's
