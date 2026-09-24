@@ -404,6 +404,68 @@ func TestGetDownloadURLStorageError(t *testing.T) {
 	}
 }
 
+func TestGetOpenURL(t *testing.T) {
+	files := []db.FileInfo{
+		{ID: 1, Key: "obj-1"},
+		{ID: 2, Key: "obj-2"},
+	}
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFilesByIDs(mock.Anything, []int64{1, 2}).Return(files, nil)
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().GetInlineURL(mock.Anything, "obj-1").Return("https://example.com/inline-1", nil)
+	storage.EXPECT().GetInlineURL(mock.Anything, "obj-2").Return("https://example.com/inline-2", nil)
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	resp, err := srv.GetOpenURL(context.Background(), &pb.GetOpenURLRequest{Ids: []int64{1, 2}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.OpenUrls) != 2 {
+		t.Fatalf("got %d urls, want 2", len(resp.OpenUrls))
+	}
+	if resp.OpenUrls[0].Id != 1 || resp.OpenUrls[0].Url != "https://example.com/inline-1" {
+		t.Errorf("OpenUrls[0] = %+v", resp.OpenUrls[0])
+	}
+	if resp.OpenUrls[1].Id != 2 || resp.OpenUrls[1].Url != "https://example.com/inline-2" {
+		t.Errorf("OpenUrls[1] = %+v", resp.OpenUrls[1])
+	}
+}
+
+func TestGetOpenURLQueryError(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFilesByIDs(mock.Anything, []int64{1}).Return(nil, errors.New("db error"))
+
+	storage := NewMockObjectStore(t)
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	_, err := srv.GetOpenURL(context.Background(), &pb.GetOpenURLRequest{Ids: []int64{1}})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	storage.AssertNotCalled(t, "GetInlineURL", mock.Anything, mock.Anything)
+}
+
+func TestGetOpenURLStorageError(t *testing.T) {
+	files := []db.FileInfo{{ID: 1, Key: "obj-1"}}
+
+	queries := NewMockFileIndex(t)
+	queries.EXPECT().GetFilesByIDs(mock.Anything, []int64{1}).Return(files, nil)
+
+	storage := NewMockObjectStore(t)
+	storage.EXPECT().GetInlineURL(mock.Anything, "obj-1").Return("", errors.New("s3 error"))
+
+	srv := FilesServer{queries: queries, storage: storage}
+
+	_, err := srv.GetOpenURL(context.Background(), &pb.GetOpenURLRequest{Ids: []int64{1}})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
 func TestGetPreviewURL(t *testing.T) {
 	files := []db.FileInfo{
 		{ID: 1, Key: "obj-1", PreviewKey: pgtype.Text{String: ".index/previews/1", Valid: true}},
