@@ -87,7 +87,9 @@ export function FileTable({
     },
     onError: (err) => {
       const connectErr = ConnectError.from(err)
-      if (connectErr.code === Code.AlreadyExists) {
+      // The server function transport strips the connect code (surfaces as
+      // Unknown with the raw "[already_exists]" message), so match both.
+      if (connectErr.code === Code.AlreadyExists || /already_exists/i.test(connectErr.message)) {
         setMoveError('A file with this name already exists there')
       } else {
         setMoveError(connectErr.message)
