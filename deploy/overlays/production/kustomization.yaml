@@ -9,31 +9,31 @@ resources:
 images:
   - name: migrate
     newName: ghcr.io/jaketerrito/file-indexer/migrate
-    newTag: v0.1.1
+    newTag: v0.1.2
   - name: index-stat
     newName: ghcr.io/jaketerrito/file-indexer/index-stat
-    newTag: v0.1.1
+    newTag: v0.1.2
   - name: index-preview
     newName: ghcr.io/jaketerrito/file-indexer/index-preview
-    newTag: v0.1.1
+    newTag: v0.1.2
   - name: index-exif
     newName: ghcr.io/jaketerrito/file-indexer/index-exif
-    newTag: v0.1.1
+    newTag: v0.1.2
   - name: files
     newName: ghcr.io/jaketerrito/file-indexer/files
-    newTag: v0.1.1
+    newTag: v0.1.2
   - name: search
     newName: ghcr.io/jaketerrito/file-indexer/search
-    newTag: v0.1.1
+    newTag: v0.1.2
   - name: crawler
     newName: ghcr.io/jaketerrito/file-indexer/crawler
-    newTag: v0.1.1
+    newTag: v0.1.2
   - name: preview-gc
     newName: ghcr.io/jaketerrito/file-indexer/preview-gc
-    newTag: v0.1.1
+    newTag: v0.1.2
   - name: web
     newName: ghcr.io/jaketerrito/file-indexer/web
-    newTag: v0.1.1
+    newTag: v0.1.2
 
 patches:
   - path: patch-migrate.yaml
