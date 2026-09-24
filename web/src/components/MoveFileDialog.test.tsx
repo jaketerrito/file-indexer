@@ -98,6 +98,27 @@ describe('MoveFileDialog', () => {
     expect(screen.getByText(/Destination:/).textContent).toContain('docs/report.pdf')
   })
 
+  it('paginates past a page of files to fetch later subdirectories', async () => {
+    mockDirectoryTree({
+      'docs/': [
+        {
+          directories: [],
+          files: [file('docs/report.pdf')],
+          nextPageToken: 'page2',
+        },
+        {
+          directories: ['docs/work/', 'docs/archive/'],
+          files: [],
+          nextPageToken: '',
+        },
+      ],
+    })
+    renderDialog('docs/report.pdf')
+
+    expect(await screen.findByRole('button', { name: 'work' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'archive' })).toBeTruthy()
+  })
+
   it('lists the immediate subdirectories of the current path', async () => {
     mockDirectoryTree({
       'docs/': [

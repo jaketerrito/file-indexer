@@ -313,12 +313,15 @@ func (s *FilesServer) MoveFile(ctx context.Context, req *pb.MoveFileRequest) (*p
 		MarkedAt: pgtype.Timestamptz{Time: markedAt, Valid: true},
 	})
 	if err != nil {
-		if delErr := s.storage.Delete(ctx, newKey); delErr != nil {
-			slog.Warn("rollback copied object after move failed", "key", newKey, "error", delErr)
-		}
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			// Another concurrent request won the race and owns newKey.
+			// Do NOT delete the destination object: the winner's DB row now
+			// references it, and removing it would leave that row orphaned.
 			return nil, status.Errorf(codes.AlreadyExists, "file with key %q already exists", newKey)
+		}
+		if delErr := s.storage.Delete(ctx, newKey); delErr != nil {
+			slog.Warn("rollback copied object after move failed", "key", newKey, "error", delErr)
 		}
 		return nil, status.Errorf(codes.Internal, "move file: %v", err)
 	}
