@@ -1,3 +1,5 @@
 # Coverage artifacts
 coverage.out
 coverage.xml
+# Local Pi runtime state
+.atl/
