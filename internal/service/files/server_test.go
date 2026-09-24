@@ -14,6 +14,7 @@ import (
 	objstore "file-indexer/internal/storage"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
@@ -374,6 +375,28 @@ func TestMoveFile(t *testing.T) {
 			},
 			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
 			wantCode: codes.Internal,
+		},
+		{
+			name: "database unique violation returns already exists and rolls back copied object",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse)) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil)
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows)
+				queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{
+					ID:       1,
+					NewKey:   "new/key.txt",
+					MarkedAt: pgtype.Timestamptz{Time: now, Valid: true},
+				}).Return(db.File{}, &pgconn.PgError{Code: "23505"})
+
+				storage := NewMockObjectStore(t)
+				storage.EXPECT().Copy(mock.Anything, "old/key.txt", "new/key.txt").Return(nil)
+				storage.EXPECT().Stat(mock.Anything, "new/key.txt").Return(objstore.ObjectInfo{Key: "new/key.txt", LastModified: now}, nil)
+				storage.EXPECT().Delete(mock.Anything, "new/key.txt").Return(nil)
+
+				return queries, storage, nil
+			},
+			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
+			wantCode: codes.AlreadyExists,
 		},
 		{
 			name: "old key delete failure still succeeds",
