@@ -94,6 +94,9 @@ type IndexerConfig struct {
 
 type Config struct {
 	GrpcAddr string
+	// HealthAddr is the TCP address for the worker health and Prometheus
+	// metrics HTTP server (e.g. ":8081").
+	HealthAddr string
 	// IndexPrefix is the key prefix under which index types write derived
 	// objects (previews, etc.) into the same bucket as the source files. The
 	// crawler skips keys beneath it so derived objects never become files
@@ -186,6 +189,7 @@ func normalizeIndexPrefix(p string) string {
 func Load() *Config {
 	return &Config{
 		GrpcAddr:    getEnvDefault("GRPC_ADDR", ":50051"),
+		HealthAddr:  getEnvDefault("HEALTH_ADDR", ":8081"),
 		IndexPrefix: normalizeIndexPrefix(getEnvDefault("INDEX_PREFIX", ".index/")),
 		Database: DatabaseConfig{
 			Host:     os.Getenv("DB_HOST"),

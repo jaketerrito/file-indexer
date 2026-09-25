@@ -27,6 +27,25 @@ type failCall struct {
 	exhausted   bool
 }
 
+// heartbeatCounter records how many times Beat() was called.
+type heartbeatCounter struct {
+	mu    sync.Mutex
+	beats int
+	name  string
+}
+
+func (h *heartbeatCounter) Beat() {
+	h.mu.Lock()
+	h.beats++
+	h.mu.Unlock()
+}
+
+func (h *heartbeatCounter) count() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.beats
+}
+
 // fakeQueue is an in-memory Queue. Claim hands out the queued jobs once;
 // afterwards it returns empty batches (or claimErrs, if set).
 type fakeQueue struct {
@@ -377,4 +396,53 @@ func TestBackoff(t *testing.T) {
 			t.Errorf("backoff(%d) = %v, want %v", tt.attempts, got, tt.want)
 		}
 	}
+}
+
+func TestRunHeartbeatOnBusyTick(t *testing.T) {
+	q := newFakeQueue(Job{FileID: 1, Key: "a", Attempts: 1})
+	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
+	hb := &heartbeatCounter{name: "busy"}
+
+	cfg := testConfig()
+	cfg.Heartbeat = hb
+
+	stop := runRunner(t, cfg, q, process)
+	q.waitActivity(t, 1)
+	stop()
+
+	if hb.count() < 1 {
+		t.Errorf("heartbeat beats = %d, want >= 1 on a busy tick", hb.count())
+	}
+}
+
+func TestRunHeartbeatOnIdleTick(t *testing.T) {
+	q := newFakeQueue()
+	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
+	hb := &heartbeatCounter{name: "idle"}
+
+	cfg := testConfig()
+	cfg.Heartbeat = hb
+
+	stop := runRunner(t, cfg, q, process)
+	// Wait long enough for at least two idle poll/sleep cycles.
+	time.Sleep(50 * time.Millisecond)
+	stop()
+
+	if hb.count() < 2 {
+		t.Errorf("heartbeat beats = %d, want >= 2 on idle ticks", hb.count())
+	}
+}
+
+func TestRunNilHeartbeat(t *testing.T) {
+	q := newFakeQueue(Job{FileID: 1, Key: "a", Attempts: 1})
+	process := ProcessFunc[string](func(context.Context, Job) (string, error) { return "ok", nil })
+
+	cfg := testConfig()
+	cfg.Heartbeat = nil
+
+	stop := runRunner(t, cfg, q, process)
+	q.waitActivity(t, 1)
+	stop()
+
+	// The only assertion is that the runner did not panic with a nil heartbeat.
 }
