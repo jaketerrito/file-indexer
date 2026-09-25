@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { listDirectory } from '../server/files'
 
 /**
@@ -90,8 +90,7 @@ export function MoveFileDialog({
       setNewFolderError('Folder name cannot contain "/"')
       return
     }
-    const prefix =
-      viewPath === '' ? '' : viewPath.endsWith('/') ? viewPath : `${viewPath}/`
+    const prefix = viewPath === '' ? '' : viewPath.endsWith('/') ? viewPath : `${viewPath}/`
     navigateTo(`${prefix}${name}/`)
   }
 
@@ -135,7 +134,6 @@ export function MoveFileDialog({
         <p>
           Move <strong>{fileName}</strong>
         </p>
-
         <div
           style={{
             display: 'flex',
@@ -182,7 +180,6 @@ export function MoveFileDialog({
             </button>
           ) : null}
         </div>
-
         {showAddFolder ? (
           <form
             id="new-folder-form"
@@ -201,11 +198,7 @@ export function MoveFileDialog({
               aria-invalid={newFolderError ? 'true' : undefined}
             />{' '}
             <button type="submit">Create</button>{' '}
-            <button
-              type="button"
-              aria-label="Cancel new folder"
-              onClick={cancelAddFolder}
-            >
+            <button type="button" aria-label="Cancel new folder" onClick={cancelAddFolder}>
               Cancel
             </button>
             {newFolderError ? (
@@ -215,9 +208,7 @@ export function MoveFileDialog({
             ) : null}
           </form>
         ) : null}
-
         <div
-          aria-label="Subfolders"
           style={{
             maxHeight: '16rem',
             overflow: 'auto',
@@ -227,14 +218,10 @@ export function MoveFileDialog({
           }}
         >
           {isPending ? <p>Loading…</p> : null}
-          {isError ? (
-            <p role="alert">Failed to load folders: {String(listError)}</p>
-          ) : null}
-          {!isPending && !isError && subdirs?.length === 0 ? (
-            <p>No subfolders</p>
-          ) : null}
+          {isError ? <p role="alert">Failed to load folders: {String(listError)}</p> : null}
+          {!isPending && !isError && subdirs?.length === 0 ? <p>No subfolders</p> : null}
           {!isPending && !isError && subdirs && subdirs.length > 0 ? (
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            <ul aria-label="Subfolders" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
               {subdirs.map((dir) => {
                 const name = dir.replace(/\/$/, '').split('/').pop() as string
                 return (
@@ -248,16 +235,11 @@ export function MoveFileDialog({
             </ul>
           ) : null}
         </div>
-
         <p>
           Destination: <code>{destinationKey}</code>
         </p>
         {error ? <p role="alert">Move failed: {String(error)}</p> : null}
-        <button
-          type="button"
-          onClick={() => onConfirm(viewPath)}
-          disabled={moving || unchanged}
-        >
+        <button type="button" onClick={() => onConfirm(viewPath)} disabled={moving || unchanged}>
           {moving ? 'Moving…' : 'Move here'}
         </button>{' '}
         <button type="button" onClick={onCancel}>

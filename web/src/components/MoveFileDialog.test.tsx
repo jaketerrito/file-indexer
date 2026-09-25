@@ -33,9 +33,7 @@ function mockDirectoryTree(pagesByPath: Record<string, Page[]>) {
     const { data } = opts as unknown as { data: ListDirectoryInput }
     const queue = pagesByPath[data.path ?? '']
     const page =
-      queue && queue.length > 0
-        ? queue.shift()
-        : { directories: [], files: [], nextPageToken: '' }
+      queue && queue.length > 0 ? queue.shift() : { directories: [], files: [], nextPageToken: '' }
     return Promise.resolve(page as ListDirectoryResult)
   })
 }
@@ -145,9 +143,7 @@ describe('MoveFileDialog', () => {
           nextPageToken: '',
         },
       ],
-      'docs/work/': [
-        { directories: [], files: [file('docs/work/report.pdf')], nextPageToken: '' },
-      ],
+      'docs/work/': [{ directories: [], files: [file('docs/work/report.pdf')], nextPageToken: '' }],
     })
     renderDialog('report.pdf')
 
@@ -249,9 +245,7 @@ describe('MoveFileDialog', () => {
   it('emits the currently viewed path on confirm', async () => {
     mockDirectoryTree({
       '': [{ directories: ['docs/'], files: [file('report.pdf')], nextPageToken: '' }],
-      'docs/': [
-        { directories: [], files: [file('docs/report.pdf')], nextPageToken: '' },
-      ],
+      'docs/': [{ directories: [], files: [file('docs/report.pdf')], nextPageToken: '' }],
     })
     const { onConfirm } = renderDialog('report.pdf')
 
@@ -266,9 +260,9 @@ describe('MoveFileDialog', () => {
 
   it('disables confirm when the destination is unchanged', async () => {
     renderDialog('docs/report.pdf')
-    expect(
-      (screen.getByRole('button', { name: 'Move here' }) as HTMLButtonElement).disabled,
-    ).toBe(true)
+    expect((screen.getByRole('button', { name: 'Move here' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    )
   })
 
   it('renders an error string and keeps the dialog open', async () => {
