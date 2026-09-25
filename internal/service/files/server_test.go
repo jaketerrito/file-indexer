@@ -1661,3 +1661,55 @@ func TestMoveFileSerializesConcurrentMoves(t *testing.T) {
 		t.Errorf("final copies = %v", copies)
 	}
 }
+
+func TestMoveFileDeleteHoldsLock(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	store := NewMockObjectStore(t)
+
+	started, proceed := make(chan struct{}), make(chan struct{})
+	var mu sync.Mutex
+	var ops []string
+	record := func(o string) { mu.Lock(); ops = append(ops, o); mu.Unlock() }
+
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "a/x.txt"}, nil).Twice()
+	queries.EXPECT().GetFile(mock.Anything, int64(2)).Return(db.FileInfo{ID: 2, Key: "b/x.txt"}, nil).Twice()
+	queries.EXPECT().GetFileByKey(mock.Anything, "b/x.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Times(2)
+	queries.EXPECT().GetFileByKey(mock.Anything, "a/x.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Times(2)
+	queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{ID: 1, NewKey: "b/x.txt"}).
+		Run(func(context.Context, db.MoveFileWithDirectoriesParams) { close(started); <-proceed }).
+		Return(db.File{ID: 1, Key: "b/x.txt"}, nil).Once()
+	queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{ID: 2, NewKey: "a/x.txt"}).
+		Return(db.File{ID: 2, Key: "a/x.txt"}, nil).Once()
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "b/x.txt"}, nil).Once()
+	queries.EXPECT().GetFile(mock.Anything, int64(2)).Return(db.FileInfo{ID: 2, Key: "a/x.txt"}, nil).Once()
+
+	store.EXPECT().Copy(mock.Anything, "a/x.txt", "b/x.txt").Return(nil).Run(func(context.Context, string, string) { record("copy1") }).Once()
+	store.EXPECT().Copy(mock.Anything, "b/x.txt", "a/x.txt").Return(nil).Run(func(context.Context, string, string) { record("copy2") }).Once()
+	store.EXPECT().Delete(mock.Anything, "a/x.txt").Return(nil).Run(func(context.Context, string) { record("delete1") }).Once()
+	store.EXPECT().Delete(mock.Anything, "b/x.txt").Return(nil).Run(func(context.Context, string) { record("delete2") }).Once()
+
+	srv := &FilesServer{queries: queries, storage: store, indexPrefix: ".index/"}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		srv.MoveFile(context.Background(), &pb.MoveFileRequest{Id: 1, DestinationKey: "b/x.txt"})
+	}()
+	<-started
+	go func() {
+		defer wg.Done()
+		srv.MoveFile(context.Background(), &pb.MoveFileRequest{Id: 2, DestinationKey: "a/x.txt"})
+	}()
+	time.Sleep(20 * time.Millisecond)
+	close(proceed)
+	wg.Wait()
+
+	want := []string{"copy1", "delete1", "copy2", "delete2"}
+	mu.Lock()
+	got := append([]string(nil), ops...)
+	mu.Unlock()
+	if !slices.Equal(got, want) {
+		t.Errorf("action order = %v, want %v", got, want)
+	}
+}
