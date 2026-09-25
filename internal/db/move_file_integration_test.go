@@ -21,6 +21,12 @@ func TestMoveFileWithDirectoriesMovesKeyAndMaintainsDirectories(t *testing.T) {
 	store := NewStore(pool)
 	ctx := context.Background()
 	prefix := uniqueKey(t) + "/"
+	// Tests that seed directly through Store do not get insertTestFile's
+	// per-row cleanup, so sweep the prefix explicitly to avoid leaking stale
+	// rows into later DeleteUnseenFiles tests.
+	t.Cleanup(func() {
+		_, _ = conn.Exec(context.Background(), `DELETE FROM files WHERE key LIKE $1`, prefix+"%")
+	})
 
 	// Seed through the store wrapper so directories are created.
 	oldKey := prefix + "a/file.txt"
@@ -178,6 +184,11 @@ func TestMoveFileWithDirectoriesUniqueViolation(t *testing.T) {
 	store := NewStore(pool)
 	ctx := context.Background()
 	prefix := uniqueKey(t) + "/"
+	// Seed through Store, so clean up the prefix explicitly to avoid leaking
+	// stale rows into later DeleteUnseenFiles tests.
+	t.Cleanup(func() {
+		_, _ = conn.Exec(context.Background(), `DELETE FROM files WHERE key LIKE $1`, prefix+"%")
+	})
 
 	oldKey := prefix + "a/file.txt"
 	existingKey := prefix + "b/existing.txt"
