@@ -331,15 +331,7 @@ func (s *FilesServer) moveFileWithLocks(ctx context.Context, id int64, oldKey, n
 	// db.Store also sorts defensively, but sorting here makes the contract
 	// explicit at the call site and lets unit tests assert the lock order.
 	keys := []string{oldKey, newKey}
-	slices.SortFunc(keys, func(a, b string) int {
-		if a == b {
-			return 0
-		}
-		if a < b {
-			return -1
-		}
-		return 1
-	})
+	slices.Sort(keys)
 	release, err := s.queries.AcquireMoveLocks(ctx, keys...)
 	if err != nil {
 		return db.File{}, status.Errorf(codes.Internal, "acquire move locks: %v", err)

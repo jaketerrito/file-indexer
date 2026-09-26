@@ -205,15 +205,7 @@ func (s *Store) AcquireMoveLocks(ctx context.Context, keys ...string) (func(), e
 		seen[k] = struct{}{}
 		unique = append(unique, k)
 	}
-	slices.SortFunc(unique, func(a, b string) int {
-		if a == b {
-			return 0
-		}
-		if a < b {
-			return -1
-		}
-		return 1
-	})
+	slices.Sort(unique)
 
 	conn, err := s.pool.Acquire(ctx)
 	if err != nil {
