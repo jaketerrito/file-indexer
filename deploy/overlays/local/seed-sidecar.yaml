@@ -1,9 +1,9 @@
 # Local-dev-only seed sidecar, patched into deploy/base's local-s3 Deployment:
-# waits for MinIO, then creates the bucket and uploads the sample dataset
+# waits for RustFS, then creates the bucket and uploads the sample dataset
 # (seed/, mounted below via the seed-data ConfigMap the Tiltfile generates —
-# see seed.md) via the S3 API — objects must go through the API, not the data
-# dir, to be valid MinIO objects. Seeding is a dev convenience, so it lives in
-# this overlay; deploy/base's MinIO stays seed-free.
+# see seed.md) via the S3 API with aws-cli — objects must go through the API,
+# not the data dir, to be valid S3 objects. Seeding is a dev convenience, so
+# it lives in this overlay; deploy/base's local-s3 stays seed-free.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,29 +19,26 @@ spec:
           type: RuntimeDefault
       containers:
         - name: seed
-          image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+          image: amazon/aws-cli:2.37.4
+          workingDir: /tmp
           command:
             - /bin/sh
             - -c
             - |
               set -e
-              until mc alias set local "http://127.0.0.1:9000" "$S3_ACCESS_ID" "$S3_SECRET"; do
-                echo "waiting for minio..."
+              until aws --endpoint-url http://127.0.0.1:9000 s3 mb "s3://$S3_BUCKET"; do
+                echo "waiting for s3 store..."
                 sleep 2
               done
-              mc mb --ignore-existing "local/$S3_BUCKET"
-              # Copy files individually rather than `mc cp --recursive
-              # /seed/`: a ConfigMap volume mount is a symlink farm
-              # (..data -> ..TIMESTAMP/, plus a same-named symlink per key),
-              # and a recursive copy follows the hidden ..TIMESTAMP/ dir too,
-              # duplicating every object under a second, junk key. A plain
-              # glob skips dotfiles, so this only ever sees the real keys.
+              # Copy files individually rather than recursive copy:
+              # a ConfigMap volume mount is a symlink farm (..data -> ..TIMESTAMP/),
+              # so a recursive copy would follow hidden dirs and create junk keys.
+              # A plain glob skips dotfiles, seeing only real keys.
               for f in /seed/*; do
-                mc cp "$f" "local/$S3_BUCKET/$(basename "$f")"
+                aws --endpoint-url http://127.0.0.1:9000 s3 cp "$f" "s3://$S3_BUCKET/$(basename "$f")"
               done
-              # One nested object so a folder exists to browse/search (the
-              # ConfigMap mount is flat, so duplicate an existing seed file).
-              mc cp /seed/todo.txt "local/$S3_BUCKET/docs/todo.txt"
+              # One nested object so a folder exists to browse/search
+              aws --endpoint-url http://127.0.0.1:9000 s3 cp /seed/todo.txt "s3://$S3_BUCKET/docs/todo.txt"
               echo "seeded bucket '$S3_BUCKET' from /seed"
               touch /tmp/seeded
               # Keep the sidecar alive so the pod stays Ready.
@@ -62,18 +59,38 @@ spec:
             seccompProfile:
               type: RuntimeDefault
           env:
-            - name: MC_CONFIG_DIR
-              value: /tmp/mc
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: s3-secret
+                  key: S3_ACCESS_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-secret
+                  key: S3_SECRET
+            - name: AWS_DEFAULT_REGION
+              value: us-east-1
+            - name: AWS_EC2_METADATA_DISABLED
+              value: "true"
+            - name: HOME
+              value: /tmp
           envFrom:
             - secretRef:
                 name: s3-secret
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: logs
+              mountPath: /logs
             - name: seed-data
               mountPath: /seed
               readOnly: true
       volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: logs
+          emptyDir: {}
         - name: seed-data
           configMap:
             name: seed-data

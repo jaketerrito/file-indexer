@@ -214,10 +214,13 @@ interfaces listed in `.mockery.yaml`, and commit the output.
   lint` = biome only, vite build strips types unchecked). Run
   `npm --prefix web run typecheck` before pushing web changes — biome-clean
   code can still fail CI on types.
-- Third-party container images: Docker Hub's `minio` org denies anonymous
-  pulls (401) — `minio/minio` and `minio/mc` both broke CI this way. Use the
-  `quay.io/minio/*` mirrors (same tags); Docker Hub official/library images
-  (postgres, alpine) are unaffected.
+- Third-party container images: MinIO registries (Docker Hub's `minio` org
+  and `quay.io/minio/*`) gated anonymous pulls in September 2026 (401
+  repo-wide), so the project moved to RustFS (`rustfs/rustfs:v1.0.0-rc.5`)
+  as the S3 backend and uses `amazon/aws-cli` for local seeding. RustFS
+  keeps the `/minio/health/*` compatibility endpoints, and the integration
+  suite passes unchanged; Docker Hub official/library images (postgres,
+  alpine) are unaffected.
 - Renovate Go PRs can ship an incomplete go.sum (no gomodTidy in
   .github/renovate.json) — missing tool-build hashes break `just lint`; run
   `go mod tidy` before pushing a fix. Its npm lockfile updates also pin the

@@ -42,7 +42,7 @@ permissions:
   contents: read
 
 jobs:
-  # Provisions the same kind cluster + postgres/MinIO as local dev
+  # Provisions the same kind cluster + postgres/RustFS as local dev
   # (cluster/ + deploy/base manifests) and runs `tilt ci`, which rolls out
   # every service from real built images and re-runs the test-integration
   # Tilt resource (unit + integration tests + coverage thresholds from

@@ -71,32 +71,32 @@ jobs:
           curl -fsSL "https://github.com/casey/just/releases/download/${JUST_VERSION}/just-${JUST_VERSION}-x86_64-unknown-linux-musl.tar.gz" | tar -xz -C ~/.tools just
       - name: Add tools to PATH
         run: echo "$HOME/.tools" >> "$GITHUB_PATH"
-      # Service containers can't override CMD (quay.io/minio/minio needs
-      # `server /data`), so MinIO runs as a plain docker run step instead of
-      # a `services:` entry. internal/storage's integration tests create and
+      # Service containers can't override CMD (rustfs/rustfs needs `/data`
+      # as a positional arg), so RustFS runs as a plain docker run step instead
+      # of a `services:` entry. internal/storage's integration tests create and
       # tear down their own bucket per test, so no seeding is needed here.
-      - name: Start MinIO
+      - name: Start RustFS
         run: |
-          docker run -d --name minio -p 9000:9000 -p 9001:9001 \
-            -e MINIO_ROOT_USER=user \
-            -e MINIO_ROOT_PASSWORD=password \
-            quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z server /data --console-address ":9001"
+          docker run -d --name rustfs -p 9000:9000 -p 9001:9001 \
+            -e RUSTFS_ACCESS_KEY=user \
+            -e RUSTFS_SECRET_KEY=password \
+            rustfs/rustfs:v1.0.0-rc.5 /data
           for i in $(seq 1 30); do
             if curl -fs http://localhost:9000/minio/health/live > /dev/null; then
               exit 0
             fi
             sleep 1
           done
-          echo "MinIO did not become healthy in time" >&2
-          docker logs minio >&2
+          echo "RustFS did not become healthy in time" >&2
+          docker logs rustfs >&2
           exit 1
       # The DB_HOST/S3_ENDPOINT env pins `just test-integration` to the
-      # runner-local postgres/MinIO provisioned above, skipping the recipe's
+      # runner-local postgres/RustFS provisioned above, skipping the recipe's
       # in-cluster port-forward/gateway defaults (see justfile). Values must
       # match the services above.
       - name: Run integration tests via just
         env:
-          # Runner-local postgres/MinIO are provisioned by this workflow; setting
+          # Runner-local postgres/RustFS are provisioned by this workflow; setting
           # these skips the recipe's in-cluster port-forward/gateway defaults.
           DB_HOST: localhost
           S3_ENDPOINT: localhost:9000

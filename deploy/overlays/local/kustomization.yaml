@@ -8,20 +8,20 @@ kind: Kustomization
 # parameterize natively, so the Tiltfile generates them (that also keeps
 # `just lint-k8s` — kubeconform -strict, no Gateway API schemas — able to
 # validate everything the kustomization builds). The seed dataset (seed/,
-# seed.md) and the MinIO seed sidecar (seed-sidecar.yaml patch) live here
-# because seeding is dev-only; base MinIO stays seed-free. Likewise the files
+# seed.md) and the RustFS seed sidecar (seed-sidecar.yaml patch) live here
+# because seeding is dev-only; base RustFS stays seed-free. Likewise the files
 # service's browser-facing S3_PUBLIC_ENDPOINT (files-public-endpoint.yaml
 # patch): presign targets are environment-specific, so base files.yaml stays
 # generic. The web-writable-rootfs.yaml patch relaxes web's
 # readOnlyRootFilesystem for the `--webdev` vite dev loop (vite dev writes
 # node_modules/.vite and regenerates routeTree.gen.ts); base keeps the
-# read-only rootfs. Postgres and MinIO (and the db-secret/s3-secret whose
+# read-only rootfs. Postgres and RustFS (and the db-secret/s3-secret whose
 # values point at them) live here too: they ARE the local environment — any
 # other environment supplies its own secrets against real infra.
 resources:
   - ../../base
   - postgres.yaml
-  - minio.yaml
+  - local-s3.yaml
 patches:
   - path: seed-sidecar.yaml
   - path: files-public-endpoint.yaml
@@ -46,5 +46,5 @@ secretGenerator:
       - S3_ACCESS_ID=user
       - S3_SECRET=password
       - S3_BUCKET=test
-      # SigV4 signing region; us-east-1 is MinIO's default.
+      # SigV4 signing region; us-east-1 matches the S3 backend's default.
       - S3_REGION=us-east-1
