@@ -1,3 +1,4 @@
+import { formatDate } from '../lib/formatDate'
 import type { ExifMetadataDto, FileMetadataDto } from '../server/impl'
 
 /** One label/value row; omitted entirely when value is null/undefined/empty. */
@@ -122,8 +123,8 @@ export function FileMetadataTable({ file }: FileMetadataTableProps) {
         <tbody>
           <Row label="Content type" value={file.contentType} />
           <Row label="Size" value={formatBytes(file.sizeBytes)} />
-          <Row label="Created" value={file.createdAt} />
-          <Row label="Updated" value={file.updatedAt} />
+          <Row label="Created" value={formatDate(file.createdAt)} />
+          <Row label="Updated" value={formatDate(file.updatedAt)} />
         </tbody>
       </table>
       {file.exif ? <ExifSection exif={file.exif} /> : null}

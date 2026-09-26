@@ -1,16 +1,11 @@
-import type { RegisteredRouter } from '@tanstack/react-router'
 import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
-import { normalizeSearchFilters, type SearchFilters } from '../lib/fileFilters'
+
 import { routeTree } from '../routeTree.gen'
 import type { FileDto } from '../server/impl'
 
-// Same wholesale server-function mock as the index route tests; the route
-// tree (and the header SearchBar) is shared. listContentTypes is mocked too
-// because /search renders FileList, whose type dropdown degrades silently
-// without it.
 vi.mock('../server/files', () => ({
   listFiles: vi.fn(),
   listContentTypes: vi.fn(),
@@ -57,20 +52,11 @@ class FakeIntersectionObserver implements IntersectionObserver {
   }
 }
 
-function renderRoute(initialUrl = '/search') {
+function renderRoute(initialUrl = '/recents') {
   const history = createMemoryHistory({ initialEntries: [initialUrl] })
   const router = createRouter({ routeTree, history })
   render(<RouterProvider router={router} />)
   return router
-}
-
-// Names the location-search read used across every navigation assertion.
-// location.search is the raw (stripped) URL search — defaults the route's
-// validateSearch fills in never reach the URL — so run it through the same
-// normalizer to assert on what the route actually sees. RegisteredRouter is
-// the route-tree-registered router type (augmented in routeTree.gen.ts).
-function currentFilters(router: RegisteredRouter): SearchFilters {
-  return normalizeSearchFilters(router.state.location.search)
 }
 
 beforeEach(() => {
@@ -84,33 +70,41 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-describe('search results page', () => {
-  it('query param drives the results list', async () => {
+describe('recents page', () => {
+  it('renders with lastModified descending defaults', async () => {
     listFilesMock.mockResolvedValue({ files: [file('1', 'notes.txt')], nextPageToken: '' })
 
-    renderRoute('/search?query=notes')
+    renderRoute('/recents')
 
-    expect(await screen.findByRole('heading', { name: 'Search results' })).toBeDefined()
     expect(await screen.findByText('notes.txt')).toBeDefined()
     expect(listFilesMock).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ query: 'notes' }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({
+          query: '',
+          contentType: '',
+          sortField: 'lastModified',
+          sortOrder: 'desc',
+        }),
+      }),
     )
   })
 
-  it('type filter changes replace the URL entry', async () => {
+  it('hides the type filter', async () => {
     listFilesMock.mockResolvedValue({ files: [file('1', 'notes.txt')], nextPageToken: '' })
-    listContentTypesMock.mockResolvedValue({ categories: ['image/', 'text/'] })
-    const router = renderRoute('/search?query=notes')
-    await screen.findByRole('heading', { name: 'Search results' })
+
+    renderRoute('/recents')
     await screen.findByText('notes.txt')
 
-    fireEvent.change(screen.getByLabelText(/Type/), { target: { value: 'image/' } })
+    expect(screen.queryByLabelText(/Type/)).toBeNull()
+  })
 
-    // In-place tweaks replace (replace: true), so the query survives and no
-    // history entry piles up.
-    await waitFor(() => {
-      expect(currentFilters(router).type).toBe('image/')
-      expect(currentFilters(router).query).toBe('notes')
-    })
+  it('has no sort or type controls', async () => {
+    listFilesMock.mockResolvedValue({ files: [file('1', 'notes.txt')], nextPageToken: '' })
+
+    renderRoute('/recents')
+    await screen.findByText('notes.txt')
+
+    expect(screen.queryByLabelText(/Sort by/)).toBeNull()
+    expect(screen.queryByLabelText(/Type/)).toBeNull()
   })
 })

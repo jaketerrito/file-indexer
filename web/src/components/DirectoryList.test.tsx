@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
 import type { ListDirectoryResult } from '../server/impl'
@@ -33,7 +33,7 @@ const getDownloadUrlMock = vi.mocked(getDownloadUrl)
 
 function page(
   directories: string[],
-  files: { id: string; key: string }[],
+  files: { id: string; key: string; contentType?: string; createdAt?: string }[],
   nextPageToken = '',
 ): ListDirectoryResult {
   return {
@@ -41,9 +41,9 @@ function page(
     files: files.map((f) => ({
       id: f.id,
       key: f.key,
-      contentType: 'text/plain',
+      contentType: f.contentType ?? 'text/plain',
       sizeBytes: 1,
-      createdAt: null,
+      createdAt: f.createdAt ?? null,
       previewUrl: null,
       previewWidth: null,
       previewHeight: null,
@@ -98,6 +98,22 @@ function renderDirectoryList(path = 'docs/') {
   return { onNavigate, onOpenFile }
 }
 
+function openActionsMenu(key: string) {
+  const row = screen.getByText(key).closest('tr')
+  if (!row) throw new Error(`row for ${key} not found`)
+  const menuButton = within(row).getByRole('button', { name: 'File actions' })
+  fireEvent.click(menuButton)
+  return { row, menuButton }
+}
+
+async function openFolderActionsMenu(name: string) {
+  const row = (await screen.findByRole('button', { name })).closest('tr')
+  if (!row) throw new Error(`row for folder ${name} not found`)
+  const menuButton = within(row).getByRole('button', { name: 'Folder actions' })
+  fireEvent.click(menuButton)
+  return { row, menuButton }
+}
+
 beforeEach(() => {
   vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver)
 })
@@ -119,7 +135,6 @@ describe('DirectoryList', () => {
     expect(await screen.findByRole('button', { name: 'sub' })).toBeDefined()
     expect(screen.getByRole('button', { name: 'sub2' })).toBeDefined()
     expect(screen.getByText('a.txt')).toBeDefined()
-    // Full keys must not leak into the row text.
     expect(screen.queryByText('docs/a.txt')).toBeNull()
     expect(listDirectoryMock).toHaveBeenCalledWith({
       data: { path: 'docs/', pageSize: 50, pageToken: '', sortField: 'key', sortOrder: 'asc' },
@@ -171,9 +186,9 @@ describe('DirectoryList', () => {
     renderDirectoryList()
     await screen.findByText('a.txt')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    openActionsMenu('a.txt')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
 
-    // The row's Delete button only opens the confirmation dialog.
     expect(deleteFileMock).not.toHaveBeenCalled()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm delete' }))
@@ -191,7 +206,8 @@ describe('DirectoryList', () => {
     renderDirectoryList()
     await screen.findByText('a.txt')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    openActionsMenu('a.txt')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
     await screen.findByRole('alertdialog')
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -209,11 +225,10 @@ describe('DirectoryList', () => {
     renderDirectoryList()
     await screen.findByText('a.txt')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move' }))
+    openActionsMenu('a.txt')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move' }))
     await screen.findByRole('alertdialog')
 
-    // Current folder is selected by default; confirm is disabled until the
-    // user picks a different destination.
     expect((screen.getByRole('button', { name: 'Move here' }) as HTMLButtonElement).disabled).toBe(
       true,
     )
@@ -239,7 +254,8 @@ describe('DirectoryList', () => {
     renderDirectoryList()
     await screen.findByText('a.txt')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move' }))
+    openActionsMenu('a.txt')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move' }))
     await screen.findByRole('alertdialog')
 
     fireEvent.click(screen.getByRole('button', { name: 'Bucket root' }))
@@ -258,7 +274,10 @@ describe('DirectoryList', () => {
     vi.stubGlobal('open', openSpy)
 
     renderDirectoryList()
-    fireEvent.click(await screen.findByRole('button', { name: 'Download' }))
+    await screen.findByText('a.txt')
+
+    openActionsMenu('a.txt')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Download' }))
 
     await waitFor(() => {
       expect(getDownloadUrlMock).toHaveBeenCalledWith({ data: { id: '7' } })
@@ -266,11 +285,12 @@ describe('DirectoryList', () => {
     })
   })
 
-  it('routes the Metadata button to the file page via onOpenFile', async () => {
+  it('routes a row click to the file page via onOpenFile', async () => {
     listDirectoryMock.mockResolvedValue(page([], [{ id: '1', key: 'docs/a.txt' }]))
     const { onOpenFile } = renderDirectoryList()
     await screen.findByText('a.txt')
-    fireEvent.click(screen.getByRole('button', { name: 'Metadata' }))
+
+    fireEvent.click(screen.getByTestId('file-row-1'))
 
     expect(onOpenFile).toHaveBeenCalledWith('1')
   })
@@ -350,12 +370,45 @@ describe('DirectoryList', () => {
     expect(screen.getByText('Preview failed')).toBeDefined()
   })
 
+  it('shows a generic icon for non-image files without a preview', async () => {
+    listDirectoryMock.mockResolvedValue(
+      page([], [{ id: '1', key: 'docs/report.pdf', contentType: 'application/pdf' }]),
+    )
+
+    renderDirectoryList()
+    await screen.findByText('report.pdf')
+
+    expect(screen.getByLabelText('PDF')).toBeDefined()
+  })
+
+  it('formats createdAt as a human-readable date', async () => {
+    listDirectoryMock.mockResolvedValue(
+      page(
+        [],
+        [
+          {
+            id: '1',
+            key: 'docs/report.pdf',
+            contentType: 'application/pdf',
+            createdAt: '2026-03-28T12:34:56.000Z',
+          },
+        ],
+      ),
+    )
+
+    renderDirectoryList()
+    await screen.findByText('report.pdf')
+
+    expect(screen.getByText('Mar 28, 2026')).toBeDefined()
+  })
+
   it('shows folder contents in a confirm dialog before deleting', async () => {
     listDirectoryMock.mockResolvedValueOnce(page(['docs/sub/'], []))
     getDirectoryStatsMock.mockResolvedValue({ fileCount: 3, totalBytes: 2048 })
 
     renderDirectoryList()
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete folder' }))
+    await openFolderActionsMenu('sub')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete folder' }))
 
     expect(await screen.findByRole('alertdialog')).toBeDefined()
     expect(getDirectoryStatsMock).toHaveBeenCalledWith({ data: { path: 'docs/sub/' } })
@@ -371,8 +424,8 @@ describe('DirectoryList', () => {
     deleteDirectoryMock.mockResolvedValue({ deletedCount: 1 })
 
     renderDirectoryList()
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete folder' }))
-    // Wait for stats to resolve: Confirm delete is disabled until then.
+    await openFolderActionsMenu('sub')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete folder' }))
     await screen.findByText(/1 file/)
 
     fireEvent.click(screen.getByRole('button', { name: 'Confirm delete' }))
@@ -388,7 +441,8 @@ describe('DirectoryList', () => {
     getDirectoryStatsMock.mockResolvedValue({ fileCount: 1, totalBytes: 10 })
 
     renderDirectoryList()
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete folder' }))
+    await openFolderActionsMenu('sub')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete folder' }))
     await screen.findByRole('alertdialog')
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -403,7 +457,8 @@ describe('DirectoryList', () => {
     deleteDirectoryMock.mockRejectedValue(new Error('s3 error'))
 
     renderDirectoryList()
-    fireEvent.click(await screen.findByRole('button', { name: 'Delete folder' }))
+    await openFolderActionsMenu('sub')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete folder' }))
     await screen.findByText(/1 file/)
     fireEvent.click(screen.getByRole('button', { name: 'Confirm delete' }))
 

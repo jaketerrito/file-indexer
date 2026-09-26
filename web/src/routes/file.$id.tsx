@@ -1,22 +1,23 @@
 import { Code, ConnectError } from '@connectrpc/connect'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
+import { Breadcrumbs } from '../components/Breadcrumbs'
 import { DeleteFileConfirmation } from '../components/DeleteFileConfirmation'
 import { FileMetadataTable } from '../components/FileMetadataTable'
 import { MoveFileDialog } from '../components/MoveFileDialog'
 import { DEFAULT_BROWSE_FILTERS } from '../lib/fileFilters'
-import { deleteFile, getDownloadUrl, getFileMetadata, moveFile } from '../server/files'
+import { deleteFile, getDownloadUrl, getFileMetadata, getOpenUrl, moveFile } from '../server/files'
 
 export const Route = createFileRoute('/file/$id')({
   component: FilePage,
 })
 
 /**
- * Standalone file page (destination of the header search results and the
- * lists' Metadata buttons): full metadata plus the per-file actions —
- * download, delete (two-step confirm), and a link back into browse mode at
- * the parent folder.
+ * Standalone file page: a single vertical stack that works on small and
+ * large screens. Buttons sit right under the file name, followed by the
+ * preview area, then the metadata table. Deleting returns the user to the
+ * parent folder.
  */
 function FilePage() {
   const { id } = Route.useParams()
@@ -31,9 +32,6 @@ function FilePage() {
   const deleteMutation = useMutation({
     mutationFn: () => deleteFile({ data: { id } }),
     onSuccess: () => {
-      // The file is gone: refresh every surface that could still list it
-      // (search list, browse list, sidebar tree) and leave for the parent
-      // folder — the file page has nothing left to show.
       queryClient.invalidateQueries({ queryKey: ['files'] })
       queryClient.invalidateQueries({ queryKey: ['directory'] })
       queryClient.invalidateQueries({ queryKey: ['folder-tree'] })
@@ -73,6 +71,11 @@ function FilePage() {
     },
   })
 
+  async function handleOpen() {
+    const { url } = await getOpenUrl({ data: { id } })
+    window.open(url, '_blank', 'noopener')
+  }
+
   async function handleDownload() {
     const { url } = await getDownloadUrl({ data: { id } })
     window.open(url, '_blank', 'noopener')
@@ -99,23 +102,39 @@ function FilePage() {
 
   return (
     <main style={{ padding: '0 1rem' }}>
-      <p>
-        <Link to="/" search={{ ...DEFAULT_BROWSE_FILTERS, path: parentPath }}>
-          📁 {parentPath === '' ? '/' : parentPath}
-        </Link>
-      </p>
+      <Breadcrumbs
+        path={parentPath}
+        lastIsCurrent={false}
+        onNavigate={(path) =>
+          void navigate({ to: '/', search: { ...DEFAULT_BROWSE_FILTERS, path } })
+        }
+      />
       <h1>{data.key.split('/').pop()}</h1>
-      <p>
+      <nav aria-label="File actions" style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <button type="button" onClick={() => void handleOpen()}>
+          Open
+        </button>
         <button type="button" onClick={() => void handleDownload()}>
           Download
-        </button>{' '}
+        </button>
         <button type="button" onClick={() => setMoveOpen(true)}>
           Move
-        </button>{' '}
+        </button>
         <button type="button" onClick={() => setConfirmDelete(true)}>
           Delete
         </button>
-      </p>
+      </nav>
+      <section
+        style={{
+          margin: '1rem 0',
+          padding: '1rem',
+          minHeight: '10rem',
+          border: '1px dashed #ccc',
+          background: '#fafafa',
+        }}
+      >
+        Preview not available
+      </section>
       <FileMetadataTable file={data} />
       {confirmDelete ? (
         <DeleteFileConfirmation

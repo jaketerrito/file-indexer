@@ -10,12 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PhotosRouteImport } from './routes/photos'
+import { Route as RecentsRouteImport } from './routes/recents'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as FileIdRouteImport } from './routes/file.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PhotosRoute = PhotosRouteImport.update({
+  id: '/photos',
+  path: '/photos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecentsRoute = RecentsRouteImport.update({
+  id: '/recents',
+  path: '/recents',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SearchRoute = SearchRouteImport.update({
@@ -31,30 +43,38 @@ const FileIdRoute = FileIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/photos': typeof PhotosRoute
+  '/recents': typeof RecentsRoute
   '/search': typeof SearchRoute
   '/file/$id': typeof FileIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/photos': typeof PhotosRoute
+  '/recents': typeof RecentsRoute
   '/search': typeof SearchRoute
   '/file/$id': typeof FileIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/photos': typeof PhotosRoute
+  '/recents': typeof RecentsRoute
   '/search': typeof SearchRoute
   '/file/$id': typeof FileIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/search' | '/file/$id'
+  fullPaths: '/' | '/photos' | '/recents' | '/search' | '/file/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/search' | '/file/$id'
-  id: '__root__' | '/' | '/search' | '/file/$id'
+  to: '/' | '/photos' | '/recents' | '/search' | '/file/$id'
+  id: '__root__' | '/' | '/photos' | '/recents' | '/search' | '/file/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PhotosRoute: typeof PhotosRoute
+  RecentsRoute: typeof RecentsRoute
   SearchRoute: typeof SearchRoute
   FileIdRoute: typeof FileIdRoute
 }
@@ -66,6 +86,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/photos': {
+      id: '/photos'
+      path: '/photos'
+      fullPath: '/photos'
+      preLoaderRoute: typeof PhotosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recents': {
+      id: '/recents'
+      path: '/recents'
+      fullPath: '/recents'
+      preLoaderRoute: typeof RecentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/search': {
@@ -87,18 +121,11 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PhotosRoute: PhotosRoute,
+  RecentsRoute: RecentsRoute,
   SearchRoute: SearchRoute,
   FileIdRoute: FileIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

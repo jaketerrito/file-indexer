@@ -18,9 +18,16 @@ interface FileListProps {
   onFiltersChange: (filters: SearchFilters) => void
   /** Opens a file's standalone page (what the metadata modal used to show). */
   onOpenFile: (id: string) => void
+  /** When true, the type filter dropdown is not rendered (Recents/Photos). */
+  hideSearchFilters?: boolean
 }
 
-export function FileList({ filters, onFiltersChange, onOpenFile }: FileListProps) {
+export function FileList({
+  filters,
+  onFiltersChange,
+  onOpenFile,
+  hideSearchFilters = false,
+}: FileListProps) {
   const { data, error, isPending, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
       // Filters are part of the key: changing them restarts pagination, which
@@ -80,43 +87,24 @@ export function FileList({ filters, onFiltersChange, onOpenFile }: FileListProps
 
   return (
     <div>
-      <fieldset>
-        <label>
-          Type{' '}
-          <select
-            value={filters.type}
-            onChange={(e) => onFiltersChange({ ...filters, type: e.target.value })}
-          >
-            <option value="">All types</option>
-            {optionValues.map((value) => (
-              <option key={value} value={value}>
-                {categoryLabel(value)}
-              </option>
-            ))}
-          </select>
-        </label>{' '}
-        <label>
-          Sort by{' '}
-          <select
-            value={filters.sort}
-            onChange={(e) =>
-              onFiltersChange({ ...filters, sort: e.target.value as SearchFilters['sort'] })
-            }
-          >
-            <option value="key">Key</option>
-            <option value="lastModified">Modified</option>
-            <option value="size">Size</option>
-          </select>
-        </label>{' '}
-        <button
-          type="button"
-          onClick={() =>
-            onFiltersChange({ ...filters, order: filters.order === 'asc' ? 'desc' : 'asc' })
-          }
-        >
-          {filters.order === 'asc' ? 'Ascending' : 'Descending'}
-        </button>
-      </fieldset>
+      {hideSearchFilters ? null : (
+        <fieldset>
+          <label>
+            Type{' '}
+            <select
+              value={filters.type}
+              onChange={(e) => onFiltersChange({ ...filters, type: e.target.value })}
+            >
+              <option value="">All types</option>
+              {optionValues.map((value) => (
+                <option key={value} value={value}>
+                  {categoryLabel(value)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </fieldset>
+      )}
 
       {isPending ? (
         <p>Loading…</p>

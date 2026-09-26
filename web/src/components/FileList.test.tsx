@@ -23,7 +23,6 @@ vi.mock('../server/files', () => ({
 import {
   deleteFile,
   getDownloadUrl,
-  getOpenUrl,
   listContentTypes,
   listDirectory,
   listFiles,
@@ -33,7 +32,6 @@ import {
 const listFilesMock = vi.mocked(listFiles)
 const listContentTypesMock = vi.mocked(listContentTypes)
 const getDownloadUrlMock = vi.mocked(getDownloadUrl)
-const getOpenUrlMock = vi.mocked(getOpenUrl)
 const deleteFileMock = vi.mocked(deleteFile)
 const moveFileMock = vi.mocked(moveFile)
 const listDirectoryMock = vi.mocked(listDirectory)
@@ -102,23 +100,44 @@ function triggerIntersection() {
 function Harness({
   initial = DEFAULT_SEARCH_FILTERS,
   onOpenFile,
+  hideSearchFilters = false,
 }: {
   initial?: SearchFilters
   onOpenFile: (id: string) => void
+  hideSearchFilters?: boolean
 }) {
   const [filters, setFilters] = useState(initial)
-  return <FileList filters={filters} onFiltersChange={setFilters} onOpenFile={onOpenFile} />
+  return (
+    <FileList
+      filters={filters}
+      onFiltersChange={setFilters}
+      onOpenFile={onOpenFile}
+      hideSearchFilters={hideSearchFilters}
+    />
+  )
 }
 
-function renderFileList(initial?: SearchFilters, onOpenFile: (id: string) => void = () => {}) {
+function renderFileList(
+  initial?: SearchFilters,
+  onOpenFile: (id: string) => void = () => {},
+  hideSearchFilters = false,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   return render(
     <QueryClientProvider client={queryClient}>
-      <Harness initial={initial} onOpenFile={onOpenFile} />
+      <Harness initial={initial} onOpenFile={onOpenFile} hideSearchFilters={hideSearchFilters} />
     </QueryClientProvider>,
   )
+}
+
+function openActionsMenu(key: string) {
+  const row = screen.getByText(key).closest('tr')
+  if (!row) throw new Error(`row for ${key} not found`)
+  const menuButton = within(row).getByRole('button', { name: 'File actions' })
+  fireEvent.click(menuButton)
+  return { row, menuButton }
 }
 
 beforeEach(() => {
@@ -141,16 +160,14 @@ afterEach(() => {
 })
 
 describe('FileList', () => {
-  it('renders the file keys with open, download, and delete buttons', async () => {
+  it('renders the file keys with a hidden action menu', async () => {
     listFilesMock.mockResolvedValue(page(['a.txt', 'b.txt'], 1))
 
     renderFileList()
 
     expect(await screen.findByText('a.txt')).toBeDefined()
     expect(screen.getByText('b.txt')).toBeDefined()
-    expect(screen.getAllByRole('button', { name: 'Open' })).toHaveLength(2)
-    expect(screen.getAllByRole('button', { name: 'Download' })).toHaveLength(2)
-    expect(screen.getAllByRole('button', { name: 'Delete' })).toHaveLength(2)
+    expect(screen.getAllByRole('button', { name: 'File actions' })).toHaveLength(2)
     expect(listFilesMock).toHaveBeenCalledWith(listArgs())
   })
 
@@ -239,38 +256,12 @@ describe('FileList', () => {
     expect((screen.getByLabelText(/Type/) as HTMLSelectElement).value).toBe('image/')
   })
 
-  it('refetches when sort field and order change', async () => {
+  it('hides the type filter when hideSearchFilters is true', async () => {
     listFilesMock.mockResolvedValue(page(['a.txt'], 1))
-
-    renderFileList()
+    renderFileList(DEFAULT_SEARCH_FILTERS, () => {}, true)
     await screen.findByText('a.txt')
 
-    fireEvent.change(screen.getByLabelText(/Sort by/), { target: { value: 'size' } })
-    await waitFor(() => expect(listFilesMock).toHaveBeenCalledWith(listArgs({ sortField: 'size' })))
-
-    fireEvent.click(screen.getByRole('button', { name: 'Ascending' }))
-    await waitFor(() =>
-      expect(listFilesMock).toHaveBeenCalledWith(
-        listArgs({ sortField: 'size', sortOrder: 'desc' }),
-      ),
-    )
-    expect(screen.getByRole('button', { name: 'Descending' })).toBeDefined()
-  })
-
-  it('opens the inline presigned URL when Open is clicked', async () => {
-    listFilesMock.mockResolvedValue(page(['a.txt'], 7))
-    getOpenUrlMock.mockResolvedValue({ url: 'http://s3/inline' })
-    const openSpy = vi.fn()
-    vi.stubGlobal('open', openSpy)
-
-    renderFileList()
-    const button = await screen.findByRole('button', { name: 'Open' })
-    button.click()
-
-    await waitFor(() => {
-      expect(getOpenUrlMock).toHaveBeenCalledWith({ data: { id: '7' } })
-      expect(openSpy).toHaveBeenCalledWith('http://s3/inline', '_blank', 'noopener')
-    })
+    expect(screen.queryByLabelText(/Type/)).toBeNull()
   })
 
   it('opens the presigned URL when Download is clicked', async () => {
@@ -280,8 +271,10 @@ describe('FileList', () => {
     vi.stubGlobal('open', openSpy)
 
     renderFileList()
-    const button = await screen.findByRole('button', { name: 'Download' })
-    button.click()
+    await screen.findByText('a.txt')
+    openActionsMenu('a.txt')
+
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Download' }))
 
     await waitFor(() => {
       expect(getDownloadUrlMock).toHaveBeenCalledWith({ data: { id: '7' } })
@@ -397,6 +390,54 @@ describe('FileList', () => {
     expect(screen.getByText('Preview failed')).toBeDefined()
   })
 
+  it('shows a generic icon for non-image files without a preview', async () => {
+    listFilesMock.mockResolvedValue({
+      files: [
+        {
+          id: '1',
+          key: 'report.pdf',
+          contentType: 'application/pdf',
+          sizeBytes: 1,
+          createdAt: null,
+          previewUrl: null,
+          previewWidth: null,
+          previewHeight: null,
+          previewStatus: PreviewStatus.NONE,
+        },
+      ],
+      nextPageToken: '',
+    })
+
+    renderFileList()
+    await screen.findByText('report.pdf')
+
+    expect(screen.getByLabelText('PDF')).toBeDefined()
+  })
+
+  it('formats createdAt as a human-readable date', async () => {
+    listFilesMock.mockResolvedValue({
+      files: [
+        {
+          id: '1',
+          key: 'report.pdf',
+          contentType: 'application/pdf',
+          sizeBytes: 1,
+          createdAt: '2026-03-28T12:34:56.000Z',
+          previewUrl: null,
+          previewWidth: null,
+          previewHeight: null,
+          previewStatus: PreviewStatus.NONE,
+        },
+      ],
+      nextPageToken: '',
+    })
+
+    renderFileList()
+    await screen.findByText('report.pdf')
+
+    expect(screen.getByText('Mar 28, 2026')).toBeDefined()
+  })
+
   it('deletes a file after confirmation and refetches the list', async () => {
     listFilesMock
       .mockResolvedValueOnce(page(['a.txt', 'b.txt'], 1))
@@ -406,9 +447,10 @@ describe('FileList', () => {
     renderFileList()
     await screen.findByText('a.txt')
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Delete' })[0])
+    openActionsMenu('a.txt')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
 
-    // The row's Delete button only opens the confirmation dialog.
+    // The menu's Delete item only opens the confirmation dialog.
     expect(deleteFileMock).not.toHaveBeenCalled()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm delete' }))
@@ -428,7 +470,8 @@ describe('FileList', () => {
     renderFileList()
     await screen.findByText('a.txt')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    openActionsMenu('a.txt')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
     await screen.findByRole('alertdialog')
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -444,7 +487,8 @@ describe('FileList', () => {
     renderFileList()
     await screen.findByText('a.txt')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    openActionsMenu('a.txt')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm delete' }))
 
     await screen.findByRole('alert')
@@ -459,7 +503,8 @@ describe('FileList', () => {
     renderFileList()
     await screen.findByText('a.txt')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move' }))
+    openActionsMenu('a.txt')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move' }))
     await screen.findByRole('alertdialog')
 
     fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
@@ -489,7 +534,8 @@ describe('FileList', () => {
     renderFileList()
     await screen.findByText('a.txt')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Move' }))
+    openActionsMenu('a.txt')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Move' }))
     await screen.findByRole('alertdialog')
 
     fireEvent.click(screen.getByRole('button', { name: 'Add folder' }))
@@ -505,16 +551,40 @@ describe('FileList', () => {
     expect(screen.getByRole('alertdialog')).toBeDefined()
   })
 
-  it('routes the Metadata button to the file page via onOpenFile', async () => {
+  it('routes a row click to the file page via onOpenFile', async () => {
     listFilesMock.mockResolvedValue(page(['a.txt'], 1))
     const onOpenFile = vi.fn()
 
     renderFileList(undefined, onOpenFile)
     await screen.findByText('a.txt')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Metadata' }))
+    fireEvent.click(screen.getByTestId('file-row-1'))
 
     expect(onOpenFile).toHaveBeenCalledWith('1')
+  })
+
+  it('does not trigger onOpenFile when the actions menu is toggled', async () => {
+    listFilesMock.mockResolvedValue(page(['a.txt'], 1))
+    const onOpenFile = vi.fn()
+
+    renderFileList(undefined, onOpenFile)
+    await screen.findByText('a.txt')
+
+    openActionsMenu('a.txt')
+
+    expect(onOpenFile).not.toHaveBeenCalled()
+  })
+
+  it('closes the action menu on Escape', async () => {
+    listFilesMock.mockResolvedValue(page(['a.txt'], 1))
+    renderFileList()
+    await screen.findByText('a.txt')
+
+    openActionsMenu('a.txt')
+    expect(screen.getByRole('menu')).toBeDefined()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
   })
 
   it('has no upload UI — uploading is browse-mode-only (see Browser.tsx)', async () => {
