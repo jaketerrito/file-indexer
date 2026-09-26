@@ -3,12 +3,14 @@ import { describe, expect, it, vi } from 'vitest'
 import { Breadcrumbs } from './Breadcrumbs'
 
 describe('Breadcrumbs', () => {
-  it('renders only Home (disabled) at the root', () => {
+  it('renders only Home at the root and it is clickable', () => {
     const onNavigate = vi.fn()
     render(<Breadcrumbs path="" onNavigate={onNavigate} />)
 
     const home = screen.getByRole('button', { name: 'Home' }) as HTMLButtonElement
-    expect(home.disabled).toBe(true)
+    expect(home.disabled).toBe(false)
+    fireEvent.click(home)
+    expect(onNavigate).toHaveBeenCalledWith('')
     expect(screen.queryByText('/')).toBeNull()
   })
 

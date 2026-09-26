@@ -35,26 +35,64 @@ function RootComponent() {
 }
 
 /**
- * Everpresent top bar: app link plus the global file search. SearchBar is
- * navigation-agnostic (file page on file select, browse view on folder
- * select, "/search" on Enter); the wiring lives here so the component stays
- * testable without a router.
+ * Everpresent top bar: primary view navigation plus the global file search.
+ * The bar is sticky so it stays visible while scrolling long lists.
  */
 function Header() {
   const navigate = useNavigate()
+  const linkStyle: React.CSSProperties = {
+    padding: '0.25rem 0.5rem',
+    textDecoration: 'none',
+    color: '#000',
+  }
+
   return (
     <header
       style={{
+        position: 'sticky',
+        top: 0,
         display: 'flex',
         alignItems: 'center',
         gap: '1rem',
         padding: '0.5rem 1rem',
         borderBottom: '1px solid #ddd',
+        background: '#fff',
+        zIndex: 10,
       }}
     >
-      <Link to="/" search={{ ...DEFAULT_BROWSE_FILTERS }} style={{ fontWeight: 'bold' }}>
-        file-indexer
-      </Link>
+      <nav aria-label="Main" style={{ display: 'flex', gap: '0.5rem' }}>
+        <Link
+          to="/"
+          search={{ ...DEFAULT_BROWSE_FILTERS }}
+          activeOptions={{ exact: true }}
+          activeProps={{
+            style: { ...linkStyle, fontWeight: 'bold', borderBottom: '2px solid #000' },
+          }}
+          style={linkStyle}
+        >
+          Files
+        </Link>
+        <Link
+          to="/recents"
+          activeOptions={{ exact: true }}
+          activeProps={{
+            style: { ...linkStyle, fontWeight: 'bold', borderBottom: '2px solid #000' },
+          }}
+          style={linkStyle}
+        >
+          Recents
+        </Link>
+        <Link
+          to="/photos"
+          activeOptions={{ exact: true }}
+          activeProps={{
+            style: { ...linkStyle, fontWeight: 'bold', borderBottom: '2px solid #000' },
+          }}
+          style={linkStyle}
+        >
+          Photos
+        </Link>
+      </nav>
       <SearchBar
         onSelect={(file) => void navigate({ to: '/file/$id', params: { id: file.id } })}
         onSelectFolder={(path) =>

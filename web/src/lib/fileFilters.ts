@@ -32,6 +32,20 @@ export const DEFAULT_SEARCH_FILTERS: SearchFilters = {
   order: 'asc',
 }
 
+/**
+ * Minimal list filters used by routes that have no path or query
+ * (Recents, Photos). Sort defaults to newest-first by last modified.
+ */
+export interface ListFilters {
+  sort: SortFieldInput
+  order: SortOrderInput
+}
+
+export const DEFAULT_LIST_FILTERS: ListFilters = {
+  sort: 'lastModified',
+  order: 'desc',
+}
+
 function parseSort(value: unknown): SortFieldInput {
   return SORT_FIELDS.includes(value as SortFieldInput)
     ? (value as SortFieldInput)
@@ -60,5 +74,17 @@ export function normalizeSearchFilters(search: Record<string, unknown>): SearchF
     type: typeof search.type === 'string' ? search.type : DEFAULT_SEARCH_FILTERS.type,
     sort: parseSort(search.sort),
     order: parseOrder(search.order),
+  }
+}
+
+/** Parses raw URL search params for routes that only carry sort/order. */
+export function normalizeListFilters(search: Record<string, unknown>): ListFilters {
+  return {
+    sort: SORT_FIELDS.includes(search.sort as SortFieldInput)
+      ? (search.sort as SortFieldInput)
+      : DEFAULT_LIST_FILTERS.sort,
+    order: SORT_ORDERS.includes(search.order as SortOrderInput)
+      ? (search.order as SortOrderInput)
+      : DEFAULT_LIST_FILTERS.order,
   }
 }

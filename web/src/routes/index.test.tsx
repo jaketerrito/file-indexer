@@ -113,32 +113,14 @@ describe('root directory landing', () => {
     await waitFor(() => expect(currentFilters(router).path).toBe('docs/'))
   })
 
-  it('sort change replaces — no history entry', async () => {
-    const router = renderRoute()
-
-    fireEvent.click(await waitFor(() => docsListButton()))
-    await waitFor(() => expect(currentFilters(router).path).toBe('docs/'))
-
-    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'size' } })
-    await waitFor(() => {
-      expect(currentFilters(router).path).toBe('docs/')
-      expect(currentFilters(router).sort).toBe('size')
-    })
-
-    // The pre-sort docs/ entry was replaced, so Back skips straight past it
-    // to the root entry — a push would have landed back on docs/.
-    router.history.back()
-    await waitFor(() => expect(currentFilters(router).path).toBe(''))
-  })
-
-  it('the app link resets to the root folder and pushes', async () => {
+  it('the Files link resets to the root folder and pushes', async () => {
     const router = renderRoute('/?path=docs%2F')
     await screen.findByRole('button', { name: 'New folder' })
     await waitFor(() => expect(currentFilters(router).path).toBe('docs/'))
 
-    // The header app link resets to the default browse filters — the bucket
+    // The Files nav link resets to the default browse filters — the bucket
     // root — and that reset is a navigation, so Back returns to docs/.
-    fireEvent.click(screen.getByRole('link', { name: 'file-indexer' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Files' }))
     await waitFor(() => expect(currentFilters(router).path).toBe(''))
 
     router.history.back()

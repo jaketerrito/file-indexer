@@ -1,8 +1,10 @@
 import { Code, ConnectError } from '@connectrpc/connect'
 import { type QueryKey, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { PreviewStatus } from '../gen/service/v1/files_pb'
-import { deleteFile, getDownloadUrl, getOpenUrl, moveFile } from '../server/files'
+import { getFileIcon } from '../lib/fileIcon'
+import { formatDate } from '../lib/formatDate'
+import { deleteFile, getDownloadUrl, moveFile } from '../server/files'
 import type { FileDto } from '../server/impl'
 import { DeleteFileConfirmation } from './DeleteFileConfirmation'
 import { formatBytes } from './FileMetadataTable'
@@ -44,14 +46,13 @@ interface FileTableProps {
 }
 
 /**
- * The one table of a listing's rows, shared by search mode (FileList) and
- * browse mode (DirectoryList): preview thumbnail (or index-status
- * placeholder), key, type, size, created, and the Open/Download/Metadata/Delete
- * actions. Browse mode additionally passes subdirectory rows (folders prop),
- * which sort before the files. File delete is a two-step confirm owned here
- * so both modes behave identically; only cache invalidation differs, via
- * invalidateKeys. Folder delete stays with the caller — it needs stats and a
- * different dialog.
+ * The one table of a listing's rows, shared by search mode (FileList),
+ * browse mode (DirectoryList), Recents, and Photos: preview thumbnail or
+ * content-type icon, key, size, created, and a triple-dot menu for actions.
+ * Only one action menu is open at a time; it closes on outside click or
+ * Escape. Clicking a file row opens its page. Browse mode additionally
+ * passes subdirectory rows, which sort before the files and have their own
+ * triple-dot menu.
  */
 export function FileTable({
   files,
@@ -103,14 +104,70 @@ export function FileTable({
   const [fileToDelete, setFileToDelete] = useState<{ id: string; key: string } | null>(null)
   const [fileToMove, setFileToMove] = useState<{ id: string; key: string } | null>(null)
 
+  // ID of the file whose action menu is open.
+  const [openFileMenuId, setOpenFileMenuId] = useState<string | null>(null)
+  // Path of the folder whose action menu is open.
+  const [openFolderMenuPath, setOpenFolderMenuPath] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  const closeMenus = useCallback(() => {
+    setOpenFileMenuId(null)
+    setOpenFolderMenuPath(null)
+  }, [])
+
+  const anyMenuOpen = openFileMenuId !== null || openFolderMenuPath !== null
+  useEffect(() => {
+    if (!anyMenuOpen) return
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        closeMenus()
+      }
+    }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        closeMenus()
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [anyMenuOpen, closeMenus])
+
   async function handleDownload(id: string) {
     const { url } = await getDownloadUrl({ data: { id } })
     window.open(url, '_blank', 'noopener')
   }
 
-  async function handleOpen(id: string) {
-    const { url } = await getOpenUrl({ data: { id } })
-    window.open(url, '_blank', 'noopener')
+  function toggleFileMenu(id: string, event: React.MouseEvent) {
+    event.stopPropagation()
+    setOpenFileMenuId((current) => (current === id ? null : id))
+    setOpenFolderMenuPath(null)
+  }
+
+  function toggleFolderMenu(path: string, event: React.MouseEvent) {
+    event.stopPropagation()
+    setOpenFolderMenuPath((current) => (current === path ? null : path))
+    setOpenFileMenuId(null)
+  }
+
+  const menuStyle: React.CSSProperties = {
+    position: 'absolute',
+    right: 0,
+    top: '100%',
+    background: 'white',
+    border: '1px solid #ddd',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+    zIndex: 5,
+    minWidth: '8rem',
+  }
+
+  const menuItemStyle: React.CSSProperties = {
+    display: 'block',
+    width: '100%',
+    textAlign: 'left',
   }
 
   return (
@@ -120,49 +177,99 @@ export function FileTable({
           <tr>
             <th>Preview</th>
             <th>Key</th>
-            <th>Type</th>
             <th>Size</th>
             <th>Created</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {folders?.map((folder) => (
-            <tr key={folder.path}>
-              <td>📁</td>
-              <td>
-                <button type="button" onClick={() => onNavigateFolder?.(folder.path)}>
-                  {folder.name}
-                </button>
-              </td>
-              <td>Folder</td>
-              <td />
-              <td />
-              <td>
-                <button type="button" onClick={() => onDeleteFolder?.(folder.path)}>
-                  Delete folder
-                </button>
-              </td>
-            </tr>
-          ))}
-          {files.map((file) => (
-            <tr key={file.id}>
-              <td>
-                {file.previewUrl ? (
-                  <img
-                    src={file.previewUrl}
-                    alt=""
-                    width={file.previewWidth ?? undefined}
-                    height={file.previewHeight ?? undefined}
-                    loading="lazy"
-                    // Cap the rendered size: the width/height attributes
-                    // reserve layout space at intrinsic preview size, which
-                    // dwarfs a table row.
-                    style={{ maxWidth: '4em', maxHeight: '4em', width: 'auto', height: 'auto' }}
-                  />
-                ) : file.previewStatus === PreviewStatus.PENDING ||
-                  file.previewStatus === PreviewStatus.PROCESSING ? (
-                  file.contentType.startsWith('image/') ? (
+          {folders?.map((folder) => {
+            const isMenuOpen = openFolderMenuPath === folder.path
+            return (
+              <tr key={folder.path}>
+                <td>📁</td>
+                <td>
+                  <button type="button" onClick={() => onNavigateFolder?.(folder.path)}>
+                    {folder.name}
+                  </button>
+                </td>
+                <td />
+                <td />
+                <td>
+                  <div ref={isMenuOpen ? menuRef : null} style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      aria-haspopup="menu"
+                      aria-expanded={isMenuOpen}
+                      aria-label="Folder actions"
+                      onClick={(e) => toggleFolderMenu(folder.path, e)}
+                    >
+                      ⋯
+                    </button>
+                    {isMenuOpen ? (
+                      <div role="menu" style={menuStyle}>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            closeMenus()
+                            onDeleteFolder?.(folder.path)
+                          }}
+                          style={menuItemStyle}
+                        >
+                          Delete folder
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
+          {files.map((file) => {
+            const isImage = file.contentType.startsWith('image/')
+            const isMenuOpen = openFileMenuId === file.id
+            return (
+              <tr
+                key={file.id}
+                onClick={() => onOpenFile(file.id)}
+                style={{ cursor: 'pointer' }}
+                data-testid={`file-row-${file.id}`}
+              >
+                <td>
+                  {file.previewUrl ? (
+                    <img
+                      src={file.previewUrl}
+                      alt=""
+                      width={file.previewWidth ?? undefined}
+                      height={file.previewHeight ?? undefined}
+                      loading="lazy"
+                      // Cap the rendered size: the width/height attributes
+                      // reserve layout space at intrinsic preview size, which
+                      // dwarfs a table row.
+                      style={{ maxWidth: '4em', maxHeight: '4em', width: 'auto', height: 'auto' }}
+                    />
+                  ) : file.previewStatus === PreviewStatus.PENDING ||
+                    file.previewStatus === PreviewStatus.PROCESSING ? (
+                    isImage ? (
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          width: '4em',
+                          height: '4em',
+                          border: '1px solid #ccc',
+                          background: '#f5f5f5',
+                        }}
+                      >
+                        Processing…
+                      </span>
+                    ) : (
+                      <span>Indexing…</span>
+                    )
+                  ) : file.previewStatus === PreviewStatus.FAILED ? (
+                    <span>Preview failed</span>
+                  ) : isImage ? (
                     <span
                       style={{
                         display: 'inline-block',
@@ -172,46 +279,78 @@ export function FileTable({
                         background: '#f5f5f5',
                       }}
                     >
-                      Processing…
+                      No preview
                     </span>
                   ) : (
-                    <span>Indexing…</span>
-                  )
-                ) : file.previewStatus === PreviewStatus.FAILED ? (
-                  <span>Preview failed</span>
-                ) : null}
-              </td>
-              <td>{displayKey(file.key)}</td>
-              <td>{file.contentType}</td>
-              <td>{formatBytes(file.sizeBytes)}</td>
-              <td>{file.createdAt}</td>
-              <td>
-                <button type="button" onClick={() => void handleOpen(file.id)}>
-                  Open
-                </button>{' '}
-                <button type="button" onClick={() => void handleDownload(file.id)}>
-                  Download
-                </button>{' '}
-                <button type="button" onClick={() => onOpenFile(file.id)}>
-                  Metadata
-                </button>{' '}
-                <button
-                  type="button"
-                  onClick={() => setFileToMove({ id: file.id, key: file.key })}
-                  disabled={moveMutation.isPending}
-                >
-                  Move
-                </button>{' '}
-                <button
-                  type="button"
-                  onClick={() => setFileToDelete({ id: file.id, key: displayKey(file.key) })}
-                  disabled={deleteMutation.isPending}
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
+                    (() => {
+                      const icon = getFileIcon(file.contentType)
+                      return (
+                        <span role="img" aria-label={icon.label}>
+                          {icon.emoji}
+                        </span>
+                      )
+                    })()
+                  )}
+                </td>
+                <td>{displayKey(file.key)}</td>
+                <td>{formatBytes(file.sizeBytes)}</td>
+                <td>{formatDate(file.createdAt)}</td>
+                <td>
+                  <div ref={isMenuOpen ? menuRef : null} style={{ position: 'relative' }}>
+                    <button
+                      type="button"
+                      aria-haspopup="menu"
+                      aria-expanded={isMenuOpen}
+                      aria-label="File actions"
+                      onClick={(e) => toggleFileMenu(file.id, e)}
+                    >
+                      ⋯
+                    </button>
+                    {isMenuOpen ? (
+                      <div role="menu" style={menuStyle}>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            closeMenus()
+                            void handleDownload(file.id)
+                          }}
+                          style={menuItemStyle}
+                        >
+                          Download
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            closeMenus()
+                            setFileToMove({ id: file.id, key: file.key })
+                          }}
+                          style={menuItemStyle}
+                        >
+                          Move
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            closeMenus()
+                            setFileToDelete({ id: file.id, key: displayKey(file.key) })
+                          }}
+                          style={menuItemStyle}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
       {fileToDelete !== null ? (

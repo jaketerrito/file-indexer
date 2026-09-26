@@ -20,9 +20,6 @@ import {
 import { Breadcrumbs } from './Breadcrumbs'
 import { DirectoryList } from './DirectoryList'
 
-// Bridges the plain-object multipartUpload module to the TanStack Start
-// server functions, which wrap every input in { data }. Module-level: none
-// of this depends on component props or state.
 const multipartDeps: MultipartUploadDeps = {
   createMultipartUpload: (input) => createMultipartUpload({ data: input }),
   getUploadPartUrl: (input) => getUploadPartUrl({ data: input }),
@@ -44,20 +41,13 @@ const multipartDeps: MultipartUploadDeps = {
 interface BrowserProps {
   filters: BrowseFilters
   onFiltersChange: (filters: BrowseFilters) => void
-  /** Opens a file's standalone page; threaded through to the list. */
   onOpenFile: (id: string) => void
 }
 
 /**
- * The browse body of "/": breadcrumbs, new-folder, sort, upload, and the
- * DirectoryList over the current folder. Full-text search results live at
- * "/search" (FileList) — folders are for navigation, filtering is search's
- * job.
- *
- * Directories are virtual: there is no CreateDirectory call. "New folder"
- * just navigates to a path nothing lives under yet; DirectoryList shows it
- * as empty and ready to upload into, and it only becomes real (reachable by
- * ListChildDirectories) once a key actually lands there.
+ * Browse body of "/": breadcrumb path on the left, New folder / Upload on
+ * the right, then the DirectoryList. Directories are virtual: "New folder"
+ * just navigates to an empty path; it becomes real once a key lands there.
  */
 export function Browser({ filters, onFiltersChange, onOpenFile }: BrowserProps) {
   const queryClient = useQueryClient()
@@ -65,13 +55,9 @@ export function Browser({ filters, onFiltersChange, onOpenFile }: BrowserProps) 
 
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const [uploadStatus, setUploadStatus] = useState<string | null>(null)
-  // Mutable, not state: read inside the async mutation loop between parts,
-  // not something a re-render needs to observe.
   const cancelControllerRef = useRef(new AbortController())
   const uploadMutation = useMutation({
     mutationFn: async (files: File[]) => {
-      // Always the current folder — no freeform override. Browsing to the
-      // right folder first is the destination picker.
       const dir = normalizeUploadPath(path)
       cancelControllerRef.current = new AbortController()
       try {
@@ -109,7 +95,6 @@ export function Browser({ filters, onFiltersChange, onOpenFile }: BrowserProps) 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['directory'] })
-      // Uploads create folders the sidebar tree hasn't fetched yet.
       queryClient.invalidateQueries({ queryKey: ['folder-tree'] })
     },
   })
@@ -138,57 +123,45 @@ export function Browser({ filters, onFiltersChange, onOpenFile }: BrowserProps) 
 
   return (
     <div>
-      <Breadcrumbs path={path} onNavigate={handleNavigate} />{' '}
-      <button type="button" onClick={handleNewFolder}>
-        New folder
-      </button>
-      <fieldset>
-        <label>
-          Sort by{' '}
-          <select
-            value={filters.sort}
-            onChange={(e) =>
-              onFiltersChange({ ...filters, sort: e.target.value as BrowseFilters['sort'] })
-            }
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '1rem',
+          marginBottom: '0.75rem',
+        }}
+      >
+        <Breadcrumbs path={path} onNavigate={handleNavigate} />
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button type="button" onClick={handleNewFolder}>
+            New folder
+          </button>
+          <input
+            ref={uploadInputRef}
+            type="file"
+            multiple
+            aria-label="Upload files"
+            onChange={handleUploadChange}
+            style={visuallyHiddenStyle}
+          />
+          <button
+            type="button"
+            onClick={() => uploadInputRef.current?.click()}
+            disabled={uploadMutation.isPending}
           >
-            <option value="key">Key</option>
-            <option value="lastModified">Modified</option>
-            <option value="size">Size</option>
-          </select>
-        </label>{' '}
-        <button
-          type="button"
-          onClick={() =>
-            onFiltersChange({ ...filters, order: filters.order === 'asc' ? 'desc' : 'asc' })
-          }
-        >
-          {filters.order === 'asc' ? 'Ascending' : 'Descending'}
-        </button>{' '}
-        <input
-          ref={uploadInputRef}
-          type="file"
-          multiple
-          aria-label="Upload files"
-          onChange={handleUploadChange}
-          style={visuallyHiddenStyle}
-        />
-        <button
-          type="button"
-          onClick={() => uploadInputRef.current?.click()}
-          disabled={uploadMutation.isPending}
-        >
-          {uploadMutation.isPending ? 'Uploading…' : 'Upload'}
-        </button>
-        {uploadStatus ? (
-          <>
-            {' '}
-            <span>{uploadStatus}</span>{' '}
-            <button type="button" onClick={() => cancelControllerRef.current.abort()}>
-              Cancel
-            </button>
-          </>
-        ) : null}
-      </fieldset>
+            {uploadMutation.isPending ? 'Uploading…' : 'Upload'}
+          </button>
+          {uploadStatus ? (
+            <>
+              <span>{uploadStatus}</span>
+              <button type="button" onClick={() => cancelControllerRef.current.abort()}>
+                Cancel
+              </button>
+            </>
+          ) : null}
+        </div>
+      </div>
       {uploadMutation.isError ? (
         <p role="alert">Upload failed: {String(uploadMutation.error)}</p>
       ) : null}

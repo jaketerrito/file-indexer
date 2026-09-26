@@ -220,18 +220,6 @@ describe('Browser', () => {
     },
   )
 
-  it('refetches sort/order for the directory listing', async () => {
-    renderBrowser({ ...DEFAULT_BROWSE_FILTERS, path: 'docs/' })
-    await screen.findByRole('button', { name: 'New folder' })
-
-    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'size' } })
-    await waitFor(() =>
-      expect(listDirectoryMock).toHaveBeenLastCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ sortField: 'size' }) }),
-      ),
-    )
-  })
-
   it('uploads large files via the resumable multipart path instead of a single PUT', async () => {
     createMultipartUploadMock.mockResolvedValue({ uploadId: 'upload-1' })
     getUploadPartUrlMock.mockResolvedValue({ url: 'https://s3/part-url' })
