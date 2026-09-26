@@ -174,6 +174,69 @@ func (_c *MockObjectStore_CompleteMultipartUpload_Call) RunAndReturn(run func(ct
 	return _c
 }
 
+// Copy provides a mock function for the type MockObjectStore
+func (_mock *MockObjectStore) Copy(ctx context.Context, srcKey string, dstKey string) error {
+	ret := _mock.Called(ctx, srcKey, dstKey)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Copy")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) error); ok {
+		r0 = returnFunc(ctx, srcKey, dstKey)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockObjectStore_Copy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Copy'
+type MockObjectStore_Copy_Call struct {
+	*mock.Call
+}
+
+// Copy is a helper method to define mock.On call
+//   - ctx context.Context
+//   - srcKey string
+//   - dstKey string
+func (_e *MockObjectStore_Expecter) Copy(ctx any, srcKey any, dstKey any) *MockObjectStore_Copy_Call {
+	return &MockObjectStore_Copy_Call{Call: _e.mock.On("Copy", ctx, srcKey, dstKey)}
+}
+
+func (_c *MockObjectStore_Copy_Call) Run(run func(ctx context.Context, srcKey string, dstKey string)) *MockObjectStore_Copy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
+	})
+	return _c
+}
+
+func (_c *MockObjectStore_Copy_Call) Return(err error) *MockObjectStore_Copy_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockObjectStore_Copy_Call) RunAndReturn(run func(ctx context.Context, srcKey string, dstKey string) error) *MockObjectStore_Copy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // CreateMultipartUpload provides a mock function for the type MockObjectStore
 func (_mock *MockObjectStore) CreateMultipartUpload(ctx context.Context, key string, contentType string) (string, error) {
 	ret := _mock.Called(ctx, key, contentType)
@@ -812,6 +875,83 @@ func (_m *MockFileIndex) EXPECT() *MockFileIndex_Expecter {
 	return &MockFileIndex_Expecter{mock: &_m.Mock}
 }
 
+// AcquireMoveLocks provides a mock function for the type MockFileIndex
+func (_mock *MockFileIndex) AcquireMoveLocks(ctx context.Context, keys ...string) (func(), error) {
+	var tmpRet mock.Arguments
+	if len(keys) > 0 {
+		tmpRet = _mock.Called(ctx, keys)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for AcquireMoveLocks")
+	}
+
+	var r0 func()
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...string) (func(), error)); ok {
+		return returnFunc(ctx, keys...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...string) func()); ok {
+		r0 = returnFunc(ctx, keys...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(func())
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...string) error); ok {
+		r1 = returnFunc(ctx, keys...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileIndex_AcquireMoveLocks_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AcquireMoveLocks'
+type MockFileIndex_AcquireMoveLocks_Call struct {
+	*mock.Call
+}
+
+// AcquireMoveLocks is a helper method to define mock.On call
+//   - ctx context.Context
+//   - keys ...string
+func (_e *MockFileIndex_Expecter) AcquireMoveLocks(ctx any, keys ...any) *MockFileIndex_AcquireMoveLocks_Call {
+	return &MockFileIndex_AcquireMoveLocks_Call{Call: _e.mock.On("AcquireMoveLocks",
+		append([]any{ctx}, keys...)...)}
+}
+
+func (_c *MockFileIndex_AcquireMoveLocks_Call) Run(run func(ctx context.Context, keys ...string)) *MockFileIndex_AcquireMoveLocks_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []string
+		var variadicArgs []string
+		if len(args) > 1 {
+			variadicArgs = args[1].([]string)
+		}
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileIndex_AcquireMoveLocks_Call) Return(fn func(), err error) *MockFileIndex_AcquireMoveLocks_Call {
+	_c.Call.Return(fn, err)
+	return _c
+}
+
+func (_c *MockFileIndex_AcquireMoveLocks_Call) RunAndReturn(run func(ctx context.Context, keys ...string) (func(), error)) *MockFileIndex_AcquireMoveLocks_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // DeleteFileWithDirectories provides a mock function for the type MockFileIndex
 func (_mock *MockFileIndex) DeleteFileWithDirectories(ctx context.Context, id int64) (db.File, error) {
 	ret := _mock.Called(ctx, id)
@@ -1414,6 +1554,72 @@ func (_c *MockFileIndex_ListFilesForDelete_Call) Return(listFilesForDeleteRows [
 }
 
 func (_c *MockFileIndex_ListFilesForDelete_Call) RunAndReturn(run func(ctx context.Context, arg db.ListFilesForDeleteParams) ([]db.ListFilesForDeleteRow, error)) *MockFileIndex_ListFilesForDelete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MoveFileWithDirectories provides a mock function for the type MockFileIndex
+func (_mock *MockFileIndex) MoveFileWithDirectories(ctx context.Context, arg db.MoveFileWithDirectoriesParams) (db.File, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MoveFileWithDirectories")
+	}
+
+	var r0 db.File
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.MoveFileWithDirectoriesParams) (db.File, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.MoveFileWithDirectoriesParams) db.File); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		r0 = ret.Get(0).(db.File)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.MoveFileWithDirectoriesParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileIndex_MoveFileWithDirectories_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MoveFileWithDirectories'
+type MockFileIndex_MoveFileWithDirectories_Call struct {
+	*mock.Call
+}
+
+// MoveFileWithDirectories is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.MoveFileWithDirectoriesParams
+func (_e *MockFileIndex_Expecter) MoveFileWithDirectories(ctx any, arg any) *MockFileIndex_MoveFileWithDirectories_Call {
+	return &MockFileIndex_MoveFileWithDirectories_Call{Call: _e.mock.On("MoveFileWithDirectories", ctx, arg)}
+}
+
+func (_c *MockFileIndex_MoveFileWithDirectories_Call) Run(run func(ctx context.Context, arg db.MoveFileWithDirectoriesParams)) *MockFileIndex_MoveFileWithDirectories_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.MoveFileWithDirectoriesParams
+		if args[1] != nil {
+			arg1 = args[1].(db.MoveFileWithDirectoriesParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileIndex_MoveFileWithDirectories_Call) Return(file db.File, err error) *MockFileIndex_MoveFileWithDirectories_Call {
+	_c.Call.Return(file, err)
+	return _c
+}
+
+func (_c *MockFileIndex_MoveFileWithDirectories_Call) RunAndReturn(run func(ctx context.Context, arg db.MoveFileWithDirectoriesParams) (db.File, error)) *MockFileIndex_MoveFileWithDirectories_Call {
 	_c.Call.Return(run)
 	return _c
 }

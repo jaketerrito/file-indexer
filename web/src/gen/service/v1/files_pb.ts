@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file service/v1/files.proto.
  */
 export const file_service_v1_files: GenFile = /*@__PURE__*/
-  fileDesc("ChZzZXJ2aWNlL3YxL2ZpbGVzLnByb3RvEgpzZXJ2aWNlLnYxIiwKHUdldEZpbGVQcmV2aWV3U3RhdHVzZXNSZXF1ZXN0EgsKA2lkcxgBIAMoAyJnChFGaWxlUHJldmlld1N0YXR1cxIKCgJpZBgBIAEoAxIxCg5wcmV2aWV3X3N0YXR1cxgCIAEoDjIZLnNlcnZpY2UudjEuUHJldmlld1N0YXR1cxITCgtwcmV2aWV3X3VybBgDIAEoCSJRCh5HZXRGaWxlUHJldmlld1N0YXR1c2VzUmVzcG9uc2USLwoIc3RhdHVzZXMYASADKAsyHS5zZXJ2aWNlLnYxLkZpbGVQcmV2aWV3U3RhdHVzIiQKFUdldERvd25sb2FkVVJMUmVxdWVzdBILCgNpZHMYASADKAMiKgoPRG93bmxvYWRVUkxTcGVjEgoKAmlkGAEgASgDEgsKA3VybBgCIAEoCSJMChZHZXREb3dubG9hZFVSTFJlc3BvbnNlEjIKDWRvd25sb2FkX3VybHMYASADKAsyGy5zZXJ2aWNlLnYxLkRvd25sb2FkVVJMU3BlYyIgChFHZXRPcGVuVVJMUmVxdWVzdBILCgNpZHMYASADKAMiJgoLT3BlblVSTFNwZWMSCgoCaWQYASABKAMSCwoDdXJsGAIgASgJIkAKEkdldE9wZW5VUkxSZXNwb25zZRIqCglvcGVuX3VybHMYASADKAsyFy5zZXJ2aWNlLnYxLk9wZW5VUkxTcGVjIiMKFEdldFByZXZpZXdVUkxSZXF1ZXN0EgsKA2lkcxgBIAMoAyIpCg5QcmV2aWV3VVJMU3BlYxIKCgJpZBgBIAEoAxILCgN1cmwYAiABKAkiSQoVR2V0UHJldmlld1VSTFJlc3BvbnNlEjAKDHByZXZpZXdfdXJscxgBIAMoCzIaLnNlcnZpY2UudjEuUHJldmlld1VSTFNwZWMiIAoSR2V0RmlsZUluZm9SZXF1ZXN0EgoKAmlkGAEgASgDIswCCghGaWxlSW5mbxIKCgJpZBgBIAEoAxILCgNrZXkYAiABKAkSFAoMY29udGVudF90eXBlGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAMSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLcHJldmlld19rZXkYByABKAkSFQoNcHJldmlld193aWR0aBgIIAEoBRIWCg5wcmV2aWV3X2hlaWdodBgJIAEoBRImCgRleGlmGAogASgLMhguc2VydmljZS52MS5FeGlmTWV0YWRhdGESMQoOcHJldmlld19zdGF0dXMYCyABKA4yGS5zZXJ2aWNlLnYxLlByZXZpZXdTdGF0dXMilAsKDEV4aWZNZXRhZGF0YRIXCgppbWFnZV90eXBlGAEgASgJSACIAQESGAoLY2FtZXJhX21ha2UYAiABKAlIAYgBARIZCgxjYW1lcmFfbW9kZWwYAyABKAlIAogBARIaCg1jYW1lcmFfc2VyaWFsGAQgASgJSAOIAQESFgoJbGVuc19tYWtlGAUgASgJSASIAQESFwoKbGVuc19tb2RlbBgGIAEoCUgFiAEBEiwKCHRha2VuX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCgNpc28YCCABKAVIBogBARIVCghmX251bWJlchgJIAEoAkgHiAEBEhoKDWV4cG9zdXJlX3RpbWUYCiABKAJICIgBARIZCgxmb2NhbF9sZW5ndGgYCyABKAJICYgBARIeChFmb2NhbF9sZW5ndGhfMzVtbRgMIAEoAkgKiAEBEh0KEGV4cG9zdXJlX3Byb2dyYW0YDSABKAVIC4gBARIaCg1tZXRlcmluZ19tb2RlGA4gASgFSAyIAQESEgoFZmxhc2gYDyABKAVIDYgBARIYCgtvcmllbnRhdGlvbhgQIAEoBUgOiAEBEhgKC2ltYWdlX3dpZHRoGBEgASgFSA+IAQESGQoMaW1hZ2VfaGVpZ2h0GBIgASgFSBCIAQESGQoMZ3BzX2xhdGl0dWRlGBMgASgBSBGIAQESGgoNZ3BzX2xvbmdpdHVkZRgUIAEoAUgSiAEBEhkKDGdwc19hbHRpdHVkZRgVIAEoAkgTiAEBEioKBmdwc19hdBgWIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFQoIc29mdHdhcmUYFyABKAlIFIgBARITCgZhcnRpc3QYGCABKAlIFYgBARIWCgljb3B5cmlnaHQYGSABKAlIFogBARIeChFpbWFnZV9kZXNjcmlwdGlvbhgaIAEoCUgXiAEBEhYKCXhtcF90aXRsZRgbIAEoCUgYiAEBEhwKD3htcF9kZXNjcmlwdGlvbhgcIAEoCUgZiAEBEhgKC3htcF9jcmVhdG9yGB0gASgJSBqIAQESFgoJeG1wX2xhYmVsGB4gASgJSBuIAQESFwoKeG1wX3JhdGluZxgfIAEoBUgciAEBEhQKDHhtcF9rZXl3b3JkcxggIAMoCRIzCg94bXBfY3JlYXRlX2RhdGUYISABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCGhhc19leGlmGCIgASgIEg8KB2hhc194bXAYIyABKAhCDQoLX2ltYWdlX3R5cGVCDgoMX2NhbWVyYV9tYWtlQg8KDV9jYW1lcmFfbW9kZWxCEAoOX2NhbWVyYV9zZXJpYWxCDAoKX2xlbnNfbWFrZUINCgtfbGVuc19tb2RlbEIGCgRfaXNvQgsKCV9mX251bWJlckIQCg5fZXhwb3N1cmVfdGltZUIPCg1fZm9jYWxfbGVuZ3RoQhQKEl9mb2NhbF9sZW5ndGhfMzVtbUITChFfZXhwb3N1cmVfcHJvZ3JhbUIQCg5fbWV0ZXJpbmdfbW9kZUIICgZfZmxhc2hCDgoMX29yaWVudGF0aW9uQg4KDF9pbWFnZV93aWR0aEIPCg1faW1hZ2VfaGVpZ2h0Qg8KDV9ncHNfbGF0aXR1ZGVCEAoOX2dwc19sb25naXR1ZGVCDwoNX2dwc19hbHRpdHVkZUILCglfc29mdHdhcmVCCQoHX2FydGlzdEIMCgpfY29weXJpZ2h0QhQKEl9pbWFnZV9kZXNjcmlwdGlvbkIMCgpfeG1wX3RpdGxlQhIKEF94bXBfZGVzY3JpcHRpb25CDgoMX3htcF9jcmVhdG9yQgwKCl94bXBfbGFiZWxCDQoLX3htcF9yYXRpbmciOQoTR2V0RmlsZUluZm9SZXNwb25zZRIiCgRmaWxlGAEgASgLMhQuc2VydmljZS52MS5GaWxlSW5mbyIfChFEZWxldGVGaWxlUmVxdWVzdBIKCgJpZBgBIAEoAyIUChJEZWxldGVGaWxlUmVzcG9uc2UiIgoTR2V0VXBsb2FkVVJMUmVxdWVzdBILCgNrZXkYASABKAkiIwoUR2V0VXBsb2FkVVJMUmVzcG9uc2USCwoDdXJsGAEgASgJIiIKE0NvbW1pdFVwbG9hZFJlcXVlc3QSCwoDa2V5GAEgASgJIjoKFENvbW1pdFVwbG9hZFJlc3BvbnNlEiIKBGZpbGUYASABKAsyFC5zZXJ2aWNlLnYxLkZpbGVJbmZvIkEKHENyZWF0ZU11bHRpcGFydFVwbG9hZFJlcXVlc3QSCwoDa2V5GAEgASgJEhQKDGNvbnRlbnRfdHlwZRgCIAEoCSIyCh1DcmVhdGVNdWx0aXBhcnRVcGxvYWRSZXNwb25zZRIRCgl1cGxvYWRfaWQYASABKAkiTgoXR2V0VXBsb2FkUGFydFVSTFJlcXVlc3QSCwoDa2V5GAEgASgJEhEKCXVwbG9hZF9pZBgCIAEoCRITCgtwYXJ0X251bWJlchgDIAEoBSInChhHZXRVcGxvYWRQYXJ0VVJMUmVzcG9uc2USCwoDdXJsGAEgASgJIjoKGExpc3RVcGxvYWRlZFBhcnRzUmVxdWVzdBILCgNrZXkYASABKAkSEQoJdXBsb2FkX2lkGAIgASgJIjEKDFVwbG9hZGVkUGFydBITCgtwYXJ0X251bWJlchgBIAEoBRIMCgRzaXplGAIgASgDIkQKGUxpc3RVcGxvYWRlZFBhcnRzUmVzcG9uc2USJwoFcGFydHMYASADKAsyGC5zZXJ2aWNlLnYxLlVwbG9hZGVkUGFydCJACh5Db21wbGV0ZU11bHRpcGFydFVwbG9hZFJlcXVlc3QSCwoDa2V5GAEgASgJEhEKCXVwbG9hZF9pZBgCIAEoCSJFCh9Db21wbGV0ZU11bHRpcGFydFVwbG9hZFJlc3BvbnNlEiIKBGZpbGUYASABKAsyFC5zZXJ2aWNlLnYxLkZpbGVJbmZvIj0KG0Fib3J0TXVsdGlwYXJ0VXBsb2FkUmVxdWVzdBILCgNrZXkYASABKAkSEQoJdXBsb2FkX2lkGAIgASgJIh4KHEFib3J0TXVsdGlwYXJ0VXBsb2FkUmVzcG9uc2UiKAoYR2V0RGlyZWN0b3J5U3RhdHNSZXF1ZXN0EgwKBHBhdGgYASABKAkiRAoZR2V0RGlyZWN0b3J5U3RhdHNSZXNwb25zZRISCgpmaWxlX2NvdW50GAEgASgDEhMKC3RvdGFsX2J5dGVzGAIgASgDIiYKFkRlbGV0ZURpcmVjdG9yeVJlcXVlc3QSDAoEcGF0aBgBIAEoCSIwChdEZWxldGVEaXJlY3RvcnlSZXNwb25zZRIVCg1kZWxldGVkX2NvdW50GAEgASgDKrgBCg1QcmV2aWV3U3RhdHVzEh4KGlBSRVZJRVdfU1RBVFVTX1VOU1BFQ0lGSUVEEAASFwoTUFJFVklFV19TVEFUVVNfTk9ORRABEhoKFlBSRVZJRVdfU1RBVFVTX1BFTkRJTkcQAhIdChlQUkVWSUVXX1NUQVRVU19QUk9DRVNTSU5HEAMSGAoUUFJFVklFV19TVEFUVVNfUkVBRFkQBBIZChVQUkVWSUVXX1NUQVRVU19GQUlMRUQQBTKKCwoMRmlsZXNTZXJ2aWNlElcKDkdldERvd25sb2FkVVJMEiEuc2VydmljZS52MS5HZXREb3dubG9hZFVSTFJlcXVlc3QaIi5zZXJ2aWNlLnYxLkdldERvd25sb2FkVVJMUmVzcG9uc2USSwoKR2V0T3BlblVSTBIdLnNlcnZpY2UudjEuR2V0T3BlblVSTFJlcXVlc3QaHi5zZXJ2aWNlLnYxLkdldE9wZW5VUkxSZXNwb25zZRJUCg1HZXRQcmV2aWV3VVJMEiAuc2VydmljZS52MS5HZXRQcmV2aWV3VVJMUmVxdWVzdBohLnNlcnZpY2UudjEuR2V0UHJldmlld1VSTFJlc3BvbnNlEk4KC0dldEZpbGVJbmZvEh4uc2VydmljZS52MS5HZXRGaWxlSW5mb1JlcXVlc3QaHy5zZXJ2aWNlLnYxLkdldEZpbGVJbmZvUmVzcG9uc2USSwoKRGVsZXRlRmlsZRIdLnNlcnZpY2UudjEuRGVsZXRlRmlsZVJlcXVlc3QaHi5zZXJ2aWNlLnYxLkRlbGV0ZUZpbGVSZXNwb25zZRJRCgxHZXRVcGxvYWRVUkwSHy5zZXJ2aWNlLnYxLkdldFVwbG9hZFVSTFJlcXVlc3QaIC5zZXJ2aWNlLnYxLkdldFVwbG9hZFVSTFJlc3BvbnNlElEKDENvbW1pdFVwbG9hZBIfLnNlcnZpY2UudjEuQ29tbWl0VXBsb2FkUmVxdWVzdBogLnNlcnZpY2UudjEuQ29tbWl0VXBsb2FkUmVzcG9uc2USbAoVQ3JlYXRlTXVsdGlwYXJ0VXBsb2FkEiguc2VydmljZS52MS5DcmVhdGVNdWx0aXBhcnRVcGxvYWRSZXF1ZXN0Gikuc2VydmljZS52MS5DcmVhdGVNdWx0aXBhcnRVcGxvYWRSZXNwb25zZRJdChBHZXRVcGxvYWRQYXJ0VVJMEiMuc2VydmljZS52MS5HZXRVcGxvYWRQYXJ0VVJMUmVxdWVzdBokLnNlcnZpY2UudjEuR2V0VXBsb2FkUGFydFVSTFJlc3BvbnNlEmAKEUxpc3RVcGxvYWRlZFBhcnRzEiQuc2VydmljZS52MS5MaXN0VXBsb2FkZWRQYXJ0c1JlcXVlc3QaJS5zZXJ2aWNlLnYxLkxpc3RVcGxvYWRlZFBhcnRzUmVzcG9uc2UScgoXQ29tcGxldGVNdWx0aXBhcnRVcGxvYWQSKi5zZXJ2aWNlLnYxLkNvbXBsZXRlTXVsdGlwYXJ0VXBsb2FkUmVxdWVzdBorLnNlcnZpY2UudjEuQ29tcGxldGVNdWx0aXBhcnRVcGxvYWRSZXNwb25zZRJpChRBYm9ydE11bHRpcGFydFVwbG9hZBInLnNlcnZpY2UudjEuQWJvcnRNdWx0aXBhcnRVcGxvYWRSZXF1ZXN0Giguc2VydmljZS52MS5BYm9ydE11bHRpcGFydFVwbG9hZFJlc3BvbnNlEmAKEUdldERpcmVjdG9yeVN0YXRzEiQuc2VydmljZS52MS5HZXREaXJlY3RvcnlTdGF0c1JlcXVlc3QaJS5zZXJ2aWNlLnYxLkdldERpcmVjdG9yeVN0YXRzUmVzcG9uc2USWgoPRGVsZXRlRGlyZWN0b3J5EiIuc2VydmljZS52MS5EZWxldGVEaXJlY3RvcnlSZXF1ZXN0GiMuc2VydmljZS52MS5EZWxldGVEaXJlY3RvcnlSZXNwb25zZRJvChZHZXRGaWxlUHJldmlld1N0YXR1c2VzEikuc2VydmljZS52MS5HZXRGaWxlUHJldmlld1N0YXR1c2VzUmVxdWVzdBoqLnNlcnZpY2UudjEuR2V0RmlsZVByZXZpZXdTdGF0dXNlc1Jlc3BvbnNlQihaJmZpbGUtaW5kZXhlci9pbnRlcm5hbC9wYi9zZXJ2aWNlL3YxO3BiYgZwcm90bzM", [file_google_protobuf_timestamp]);
+  fileDesc("ChZzZXJ2aWNlL3YxL2ZpbGVzLnByb3RvEgpzZXJ2aWNlLnYxIiwKHUdldEZpbGVQcmV2aWV3U3RhdHVzZXNSZXF1ZXN0EgsKA2lkcxgBIAMoAyJnChFGaWxlUHJldmlld1N0YXR1cxIKCgJpZBgBIAEoAxIxCg5wcmV2aWV3X3N0YXR1cxgCIAEoDjIZLnNlcnZpY2UudjEuUHJldmlld1N0YXR1cxITCgtwcmV2aWV3X3VybBgDIAEoCSJRCh5HZXRGaWxlUHJldmlld1N0YXR1c2VzUmVzcG9uc2USLwoIc3RhdHVzZXMYASADKAsyHS5zZXJ2aWNlLnYxLkZpbGVQcmV2aWV3U3RhdHVzIiQKFUdldERvd25sb2FkVVJMUmVxdWVzdBILCgNpZHMYASADKAMiKgoPRG93bmxvYWRVUkxTcGVjEgoKAmlkGAEgASgDEgsKA3VybBgCIAEoCSJMChZHZXREb3dubG9hZFVSTFJlc3BvbnNlEjIKDWRvd25sb2FkX3VybHMYASADKAsyGy5zZXJ2aWNlLnYxLkRvd25sb2FkVVJMU3BlYyIgChFHZXRPcGVuVVJMUmVxdWVzdBILCgNpZHMYASADKAMiJgoLT3BlblVSTFNwZWMSCgoCaWQYASABKAMSCwoDdXJsGAIgASgJIkAKEkdldE9wZW5VUkxSZXNwb25zZRIqCglvcGVuX3VybHMYASADKAsyFy5zZXJ2aWNlLnYxLk9wZW5VUkxTcGVjIiMKFEdldFByZXZpZXdVUkxSZXF1ZXN0EgsKA2lkcxgBIAMoAyIpCg5QcmV2aWV3VVJMU3BlYxIKCgJpZBgBIAEoAxILCgN1cmwYAiABKAkiSQoVR2V0UHJldmlld1VSTFJlc3BvbnNlEjAKDHByZXZpZXdfdXJscxgBIAMoCzIaLnNlcnZpY2UudjEuUHJldmlld1VSTFNwZWMiIAoSR2V0RmlsZUluZm9SZXF1ZXN0EgoKAmlkGAEgASgDIswCCghGaWxlSW5mbxIKCgJpZBgBIAEoAxILCgNrZXkYAiABKAkSFAoMY29udGVudF90eXBlGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAMSLgoKY3JlYXRlZF9hdBgFIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASLgoKdXBkYXRlZF9hdBgGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASEwoLcHJldmlld19rZXkYByABKAkSFQoNcHJldmlld193aWR0aBgIIAEoBRIWCg5wcmV2aWV3X2hlaWdodBgJIAEoBRImCgRleGlmGAogASgLMhguc2VydmljZS52MS5FeGlmTWV0YWRhdGESMQoOcHJldmlld19zdGF0dXMYCyABKA4yGS5zZXJ2aWNlLnYxLlByZXZpZXdTdGF0dXMilAsKDEV4aWZNZXRhZGF0YRIXCgppbWFnZV90eXBlGAEgASgJSACIAQESGAoLY2FtZXJhX21ha2UYAiABKAlIAYgBARIZCgxjYW1lcmFfbW9kZWwYAyABKAlIAogBARIaCg1jYW1lcmFfc2VyaWFsGAQgASgJSAOIAQESFgoJbGVuc19tYWtlGAUgASgJSASIAQESFwoKbGVuc19tb2RlbBgGIAEoCUgFiAEBEiwKCHRha2VuX2F0GAcgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIQCgNpc28YCCABKAVIBogBARIVCghmX251bWJlchgJIAEoAkgHiAEBEhoKDWV4cG9zdXJlX3RpbWUYCiABKAJICIgBARIZCgxmb2NhbF9sZW5ndGgYCyABKAJICYgBARIeChFmb2NhbF9sZW5ndGhfMzVtbRgMIAEoAkgKiAEBEh0KEGV4cG9zdXJlX3Byb2dyYW0YDSABKAVIC4gBARIaCg1tZXRlcmluZ19tb2RlGA4gASgFSAyIAQESEgoFZmxhc2gYDyABKAVIDYgBARIYCgtvcmllbnRhdGlvbhgQIAEoBUgOiAEBEhgKC2ltYWdlX3dpZHRoGBEgASgFSA+IAQESGQoMaW1hZ2VfaGVpZ2h0GBIgASgFSBCIAQESGQoMZ3BzX2xhdGl0dWRlGBMgASgBSBGIAQESGgoNZ3BzX2xvbmdpdHVkZRgUIAEoAUgSiAEBEhkKDGdwc19hbHRpdHVkZRgVIAEoAkgTiAEBEioKBmdwc19hdBgWIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXASFQoIc29mdHdhcmUYFyABKAlIFIgBARITCgZhcnRpc3QYGCABKAlIFYgBARIWCgljb3B5cmlnaHQYGSABKAlIFogBARIeChFpbWFnZV9kZXNjcmlwdGlvbhgaIAEoCUgXiAEBEhYKCXhtcF90aXRsZRgbIAEoCUgYiAEBEhwKD3htcF9kZXNjcmlwdGlvbhgcIAEoCUgZiAEBEhgKC3htcF9jcmVhdG9yGB0gASgJSBqIAQESFgoJeG1wX2xhYmVsGB4gASgJSBuIAQESFwoKeG1wX3JhdGluZxgfIAEoBUgciAEBEhQKDHhtcF9rZXl3b3JkcxggIAMoCRIzCg94bXBfY3JlYXRlX2RhdGUYISABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEhAKCGhhc19leGlmGCIgASgIEg8KB2hhc194bXAYIyABKAhCDQoLX2ltYWdlX3R5cGVCDgoMX2NhbWVyYV9tYWtlQg8KDV9jYW1lcmFfbW9kZWxCEAoOX2NhbWVyYV9zZXJpYWxCDAoKX2xlbnNfbWFrZUINCgtfbGVuc19tb2RlbEIGCgRfaXNvQgsKCV9mX251bWJlckIQCg5fZXhwb3N1cmVfdGltZUIPCg1fZm9jYWxfbGVuZ3RoQhQKEl9mb2NhbF9sZW5ndGhfMzVtbUITChFfZXhwb3N1cmVfcHJvZ3JhbUIQCg5fbWV0ZXJpbmdfbW9kZUIICgZfZmxhc2hCDgoMX29yaWVudGF0aW9uQg4KDF9pbWFnZV93aWR0aEIPCg1faW1hZ2VfaGVpZ2h0Qg8KDV9ncHNfbGF0aXR1ZGVCEAoOX2dwc19sb25naXR1ZGVCDwoNX2dwc19hbHRpdHVkZUILCglfc29mdHdhcmVCCQoHX2FydGlzdEIMCgpfY29weXJpZ2h0QhQKEl9pbWFnZV9kZXNjcmlwdGlvbkIMCgpfeG1wX3RpdGxlQhIKEF94bXBfZGVzY3JpcHRpb25CDgoMX3htcF9jcmVhdG9yQgwKCl94bXBfbGFiZWxCDQoLX3htcF9yYXRpbmciOQoTR2V0RmlsZUluZm9SZXNwb25zZRIiCgRmaWxlGAEgASgLMhQuc2VydmljZS52MS5GaWxlSW5mbyIfChFEZWxldGVGaWxlUmVxdWVzdBIKCgJpZBgBIAEoAyIUChJEZWxldGVGaWxlUmVzcG9uc2UiNgoPTW92ZUZpbGVSZXF1ZXN0EgoKAmlkGAEgASgDEhcKD2Rlc3RpbmF0aW9uX2tleRgCIAEoCSI2ChBNb3ZlRmlsZVJlc3BvbnNlEiIKBGZpbGUYASABKAsyFC5zZXJ2aWNlLnYxLkZpbGVJbmZvIiIKE0dldFVwbG9hZFVSTFJlcXVlc3QSCwoDa2V5GAEgASgJIiMKFEdldFVwbG9hZFVSTFJlc3BvbnNlEgsKA3VybBgBIAEoCSIiChNDb21taXRVcGxvYWRSZXF1ZXN0EgsKA2tleRgBIAEoCSI6ChRDb21taXRVcGxvYWRSZXNwb25zZRIiCgRmaWxlGAEgASgLMhQuc2VydmljZS52MS5GaWxlSW5mbyJBChxDcmVhdGVNdWx0aXBhcnRVcGxvYWRSZXF1ZXN0EgsKA2tleRgBIAEoCRIUCgxjb250ZW50X3R5cGUYAiABKAkiMgodQ3JlYXRlTXVsdGlwYXJ0VXBsb2FkUmVzcG9uc2USEQoJdXBsb2FkX2lkGAEgASgJIk4KF0dldFVwbG9hZFBhcnRVUkxSZXF1ZXN0EgsKA2tleRgBIAEoCRIRCgl1cGxvYWRfaWQYAiABKAkSEwoLcGFydF9udW1iZXIYAyABKAUiJwoYR2V0VXBsb2FkUGFydFVSTFJlc3BvbnNlEgsKA3VybBgBIAEoCSI6ChhMaXN0VXBsb2FkZWRQYXJ0c1JlcXVlc3QSCwoDa2V5GAEgASgJEhEKCXVwbG9hZF9pZBgCIAEoCSIxCgxVcGxvYWRlZFBhcnQSEwoLcGFydF9udW1iZXIYASABKAUSDAoEc2l6ZRgCIAEoAyJEChlMaXN0VXBsb2FkZWRQYXJ0c1Jlc3BvbnNlEicKBXBhcnRzGAEgAygLMhguc2VydmljZS52MS5VcGxvYWRlZFBhcnQiQAoeQ29tcGxldGVNdWx0aXBhcnRVcGxvYWRSZXF1ZXN0EgsKA2tleRgBIAEoCRIRCgl1cGxvYWRfaWQYAiABKAkiRQofQ29tcGxldGVNdWx0aXBhcnRVcGxvYWRSZXNwb25zZRIiCgRmaWxlGAEgASgLMhQuc2VydmljZS52MS5GaWxlSW5mbyI9ChtBYm9ydE11bHRpcGFydFVwbG9hZFJlcXVlc3QSCwoDa2V5GAEgASgJEhEKCXVwbG9hZF9pZBgCIAEoCSIeChxBYm9ydE11bHRpcGFydFVwbG9hZFJlc3BvbnNlIigKGEdldERpcmVjdG9yeVN0YXRzUmVxdWVzdBIMCgRwYXRoGAEgASgJIkQKGUdldERpcmVjdG9yeVN0YXRzUmVzcG9uc2USEgoKZmlsZV9jb3VudBgBIAEoAxITCgt0b3RhbF9ieXRlcxgCIAEoAyImChZEZWxldGVEaXJlY3RvcnlSZXF1ZXN0EgwKBHBhdGgYASABKAkiMAoXRGVsZXRlRGlyZWN0b3J5UmVzcG9uc2USFQoNZGVsZXRlZF9jb3VudBgBIAEoAyq4AQoNUHJldmlld1N0YXR1cxIeChpQUkVWSUVXX1NUQVRVU19VTlNQRUNJRklFRBAAEhcKE1BSRVZJRVdfU1RBVFVTX05PTkUQARIaChZQUkVWSUVXX1NUQVRVU19QRU5ESU5HEAISHQoZUFJFVklFV19TVEFUVVNfUFJPQ0VTU0lORxADEhgKFFBSRVZJRVdfU1RBVFVTX1JFQURZEAQSGQoVUFJFVklFV19TVEFUVVNfRkFJTEVEEAUy0QsKDEZpbGVzU2VydmljZRJXCg5HZXREb3dubG9hZFVSTBIhLnNlcnZpY2UudjEuR2V0RG93bmxvYWRVUkxSZXF1ZXN0GiIuc2VydmljZS52MS5HZXREb3dubG9hZFVSTFJlc3BvbnNlEksKCkdldE9wZW5VUkwSHS5zZXJ2aWNlLnYxLkdldE9wZW5VUkxSZXF1ZXN0Gh4uc2VydmljZS52MS5HZXRPcGVuVVJMUmVzcG9uc2USVAoNR2V0UHJldmlld1VSTBIgLnNlcnZpY2UudjEuR2V0UHJldmlld1VSTFJlcXVlc3QaIS5zZXJ2aWNlLnYxLkdldFByZXZpZXdVUkxSZXNwb25zZRJOCgtHZXRGaWxlSW5mbxIeLnNlcnZpY2UudjEuR2V0RmlsZUluZm9SZXF1ZXN0Gh8uc2VydmljZS52MS5HZXRGaWxlSW5mb1Jlc3BvbnNlEksKCkRlbGV0ZUZpbGUSHS5zZXJ2aWNlLnYxLkRlbGV0ZUZpbGVSZXF1ZXN0Gh4uc2VydmljZS52MS5EZWxldGVGaWxlUmVzcG9uc2USRQoITW92ZUZpbGUSGy5zZXJ2aWNlLnYxLk1vdmVGaWxlUmVxdWVzdBocLnNlcnZpY2UudjEuTW92ZUZpbGVSZXNwb25zZRJRCgxHZXRVcGxvYWRVUkwSHy5zZXJ2aWNlLnYxLkdldFVwbG9hZFVSTFJlcXVlc3QaIC5zZXJ2aWNlLnYxLkdldFVwbG9hZFVSTFJlc3BvbnNlElEKDENvbW1pdFVwbG9hZBIfLnNlcnZpY2UudjEuQ29tbWl0VXBsb2FkUmVxdWVzdBogLnNlcnZpY2UudjEuQ29tbWl0VXBsb2FkUmVzcG9uc2USbAoVQ3JlYXRlTXVsdGlwYXJ0VXBsb2FkEiguc2VydmljZS52MS5DcmVhdGVNdWx0aXBhcnRVcGxvYWRSZXF1ZXN0Gikuc2VydmljZS52MS5DcmVhdGVNdWx0aXBhcnRVcGxvYWRSZXNwb25zZRJdChBHZXRVcGxvYWRQYXJ0VVJMEiMuc2VydmljZS52MS5HZXRVcGxvYWRQYXJ0VVJMUmVxdWVzdBokLnNlcnZpY2UudjEuR2V0VXBsb2FkUGFydFVSTFJlc3BvbnNlEmAKEUxpc3RVcGxvYWRlZFBhcnRzEiQuc2VydmljZS52MS5MaXN0VXBsb2FkZWRQYXJ0c1JlcXVlc3QaJS5zZXJ2aWNlLnYxLkxpc3RVcGxvYWRlZFBhcnRzUmVzcG9uc2UScgoXQ29tcGxldGVNdWx0aXBhcnRVcGxvYWQSKi5zZXJ2aWNlLnYxLkNvbXBsZXRlTXVsdGlwYXJ0VXBsb2FkUmVxdWVzdBorLnNlcnZpY2UudjEuQ29tcGxldGVNdWx0aXBhcnRVcGxvYWRSZXNwb25zZRJpChRBYm9ydE11bHRpcGFydFVwbG9hZBInLnNlcnZpY2UudjEuQWJvcnRNdWx0aXBhcnRVcGxvYWRSZXF1ZXN0Giguc2VydmljZS52MS5BYm9ydE11bHRpcGFydFVwbG9hZFJlc3BvbnNlEmAKEUdldERpcmVjdG9yeVN0YXRzEiQuc2VydmljZS52MS5HZXREaXJlY3RvcnlTdGF0c1JlcXVlc3QaJS5zZXJ2aWNlLnYxLkdldERpcmVjdG9yeVN0YXRzUmVzcG9uc2USWgoPRGVsZXRlRGlyZWN0b3J5EiIuc2VydmljZS52MS5EZWxldGVEaXJlY3RvcnlSZXF1ZXN0GiMuc2VydmljZS52MS5EZWxldGVEaXJlY3RvcnlSZXNwb25zZRJvChZHZXRGaWxlUHJldmlld1N0YXR1c2VzEikuc2VydmljZS52MS5HZXRGaWxlUHJldmlld1N0YXR1c2VzUmVxdWVzdBoqLnNlcnZpY2UudjEuR2V0RmlsZVByZXZpZXdTdGF0dXNlc1Jlc3BvbnNlQihaJmZpbGUtaW5kZXhlci9pbnRlcm5hbC9wYi9zZXJ2aWNlL3YxO3BiYgZwcm90bzM", [file_google_protobuf_timestamp]);
 
 /**
  * @generated from message service.v1.GetFilePreviewStatusesRequest
@@ -608,6 +608,45 @@ export const DeleteFileResponseSchema: GenMessage<DeleteFileResponse> = /*@__PUR
   messageDesc(file_service_v1_files, 17);
 
 /**
+ * @generated from message service.v1.MoveFileRequest
+ */
+export type MoveFileRequest = Message<"service.v1.MoveFileRequest"> & {
+  /**
+   * @generated from field: int64 id = 1;
+   */
+  id: bigint;
+
+  /**
+   * @generated from field: string destination_key = 2;
+   */
+  destinationKey: string;
+};
+
+/**
+ * Describes the message service.v1.MoveFileRequest.
+ * Use `create(MoveFileRequestSchema)` to create a new message.
+ */
+export const MoveFileRequestSchema: GenMessage<MoveFileRequest> = /*@__PURE__*/
+  messageDesc(file_service_v1_files, 18);
+
+/**
+ * @generated from message service.v1.MoveFileResponse
+ */
+export type MoveFileResponse = Message<"service.v1.MoveFileResponse"> & {
+  /**
+   * @generated from field: service.v1.FileInfo file = 1;
+   */
+  file?: FileInfo | undefined;
+};
+
+/**
+ * Describes the message service.v1.MoveFileResponse.
+ * Use `create(MoveFileResponseSchema)` to create a new message.
+ */
+export const MoveFileResponseSchema: GenMessage<MoveFileResponse> = /*@__PURE__*/
+  messageDesc(file_service_v1_files, 19);
+
+/**
  * @generated from message service.v1.GetUploadURLRequest
  */
 export type GetUploadURLRequest = Message<"service.v1.GetUploadURLRequest"> & {
@@ -626,7 +665,7 @@ export type GetUploadURLRequest = Message<"service.v1.GetUploadURLRequest"> & {
  * Use `create(GetUploadURLRequestSchema)` to create a new message.
  */
 export const GetUploadURLRequestSchema: GenMessage<GetUploadURLRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 18);
+  messageDesc(file_service_v1_files, 20);
 
 /**
  * @generated from message service.v1.GetUploadURLResponse
@@ -643,7 +682,7 @@ export type GetUploadURLResponse = Message<"service.v1.GetUploadURLResponse"> & 
  * Use `create(GetUploadURLResponseSchema)` to create a new message.
  */
 export const GetUploadURLResponseSchema: GenMessage<GetUploadURLResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 19);
+  messageDesc(file_service_v1_files, 21);
 
 /**
  * @generated from message service.v1.CommitUploadRequest
@@ -662,7 +701,7 @@ export type CommitUploadRequest = Message<"service.v1.CommitUploadRequest"> & {
  * Use `create(CommitUploadRequestSchema)` to create a new message.
  */
 export const CommitUploadRequestSchema: GenMessage<CommitUploadRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 20);
+  messageDesc(file_service_v1_files, 22);
 
 /**
  * @generated from message service.v1.CommitUploadResponse
@@ -683,7 +722,7 @@ export type CommitUploadResponse = Message<"service.v1.CommitUploadResponse"> & 
  * Use `create(CommitUploadResponseSchema)` to create a new message.
  */
 export const CommitUploadResponseSchema: GenMessage<CommitUploadResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 21);
+  messageDesc(file_service_v1_files, 23);
 
 /**
  * CreateMultipartUpload starts an S3 multipart upload for large files,
@@ -719,7 +758,7 @@ export type CreateMultipartUploadRequest = Message<"service.v1.CreateMultipartUp
  * Use `create(CreateMultipartUploadRequestSchema)` to create a new message.
  */
 export const CreateMultipartUploadRequestSchema: GenMessage<CreateMultipartUploadRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 22);
+  messageDesc(file_service_v1_files, 24);
 
 /**
  * @generated from message service.v1.CreateMultipartUploadResponse
@@ -738,7 +777,7 @@ export type CreateMultipartUploadResponse = Message<"service.v1.CreateMultipartU
  * Use `create(CreateMultipartUploadResponseSchema)` to create a new message.
  */
 export const CreateMultipartUploadResponseSchema: GenMessage<CreateMultipartUploadResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 23);
+  messageDesc(file_service_v1_files, 25);
 
 /**
  * @generated from message service.v1.GetUploadPartURLRequest
@@ -767,7 +806,7 @@ export type GetUploadPartURLRequest = Message<"service.v1.GetUploadPartURLReques
  * Use `create(GetUploadPartURLRequestSchema)` to create a new message.
  */
 export const GetUploadPartURLRequestSchema: GenMessage<GetUploadPartURLRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 24);
+  messageDesc(file_service_v1_files, 26);
 
 /**
  * @generated from message service.v1.GetUploadPartURLResponse
@@ -784,7 +823,7 @@ export type GetUploadPartURLResponse = Message<"service.v1.GetUploadPartURLRespo
  * Use `create(GetUploadPartURLResponseSchema)` to create a new message.
  */
 export const GetUploadPartURLResponseSchema: GenMessage<GetUploadPartURLResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 25);
+  messageDesc(file_service_v1_files, 27);
 
 /**
  * @generated from message service.v1.ListUploadedPartsRequest
@@ -806,7 +845,7 @@ export type ListUploadedPartsRequest = Message<"service.v1.ListUploadedPartsRequ
  * Use `create(ListUploadedPartsRequestSchema)` to create a new message.
  */
 export const ListUploadedPartsRequestSchema: GenMessage<ListUploadedPartsRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 26);
+  messageDesc(file_service_v1_files, 28);
 
 /**
  * UploadedPart reports one part S3 already has for an in-progress multipart
@@ -831,7 +870,7 @@ export type UploadedPart = Message<"service.v1.UploadedPart"> & {
  * Use `create(UploadedPartSchema)` to create a new message.
  */
 export const UploadedPartSchema: GenMessage<UploadedPart> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 27);
+  messageDesc(file_service_v1_files, 29);
 
 /**
  * @generated from message service.v1.ListUploadedPartsResponse
@@ -848,7 +887,7 @@ export type ListUploadedPartsResponse = Message<"service.v1.ListUploadedPartsRes
  * Use `create(ListUploadedPartsResponseSchema)` to create a new message.
  */
 export const ListUploadedPartsResponseSchema: GenMessage<ListUploadedPartsResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 28);
+  messageDesc(file_service_v1_files, 30);
 
 /**
  * @generated from message service.v1.CompleteMultipartUploadRequest
@@ -870,7 +909,7 @@ export type CompleteMultipartUploadRequest = Message<"service.v1.CompleteMultipa
  * Use `create(CompleteMultipartUploadRequestSchema)` to create a new message.
  */
 export const CompleteMultipartUploadRequestSchema: GenMessage<CompleteMultipartUploadRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 29);
+  messageDesc(file_service_v1_files, 31);
 
 /**
  * @generated from message service.v1.CompleteMultipartUploadResponse
@@ -890,7 +929,7 @@ export type CompleteMultipartUploadResponse = Message<"service.v1.CompleteMultip
  * Use `create(CompleteMultipartUploadResponseSchema)` to create a new message.
  */
 export const CompleteMultipartUploadResponseSchema: GenMessage<CompleteMultipartUploadResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 30);
+  messageDesc(file_service_v1_files, 32);
 
 /**
  * @generated from message service.v1.AbortMultipartUploadRequest
@@ -912,7 +951,7 @@ export type AbortMultipartUploadRequest = Message<"service.v1.AbortMultipartUplo
  * Use `create(AbortMultipartUploadRequestSchema)` to create a new message.
  */
 export const AbortMultipartUploadRequestSchema: GenMessage<AbortMultipartUploadRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 31);
+  messageDesc(file_service_v1_files, 33);
 
 /**
  * @generated from message service.v1.AbortMultipartUploadResponse
@@ -925,7 +964,7 @@ export type AbortMultipartUploadResponse = Message<"service.v1.AbortMultipartUpl
  * Use `create(AbortMultipartUploadResponseSchema)` to create a new message.
  */
 export const AbortMultipartUploadResponseSchema: GenMessage<AbortMultipartUploadResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 32);
+  messageDesc(file_service_v1_files, 34);
 
 /**
  * @generated from message service.v1.GetDirectoryStatsRequest
@@ -945,7 +984,7 @@ export type GetDirectoryStatsRequest = Message<"service.v1.GetDirectoryStatsRequ
  * Use `create(GetDirectoryStatsRequestSchema)` to create a new message.
  */
 export const GetDirectoryStatsRequestSchema: GenMessage<GetDirectoryStatsRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 33);
+  messageDesc(file_service_v1_files, 35);
 
 /**
  * @generated from message service.v1.GetDirectoryStatsResponse
@@ -967,7 +1006,7 @@ export type GetDirectoryStatsResponse = Message<"service.v1.GetDirectoryStatsRes
  * Use `create(GetDirectoryStatsResponseSchema)` to create a new message.
  */
 export const GetDirectoryStatsResponseSchema: GenMessage<GetDirectoryStatsResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 34);
+  messageDesc(file_service_v1_files, 36);
 
 /**
  * @generated from message service.v1.DeleteDirectoryRequest
@@ -988,7 +1027,7 @@ export type DeleteDirectoryRequest = Message<"service.v1.DeleteDirectoryRequest"
  * Use `create(DeleteDirectoryRequestSchema)` to create a new message.
  */
 export const DeleteDirectoryRequestSchema: GenMessage<DeleteDirectoryRequest> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 35);
+  messageDesc(file_service_v1_files, 37);
 
 /**
  * @generated from message service.v1.DeleteDirectoryResponse
@@ -1011,7 +1050,7 @@ export type DeleteDirectoryResponse = Message<"service.v1.DeleteDirectoryRespons
  * Use `create(DeleteDirectoryResponseSchema)` to create a new message.
  */
 export const DeleteDirectoryResponseSchema: GenMessage<DeleteDirectoryResponse> = /*@__PURE__*/
-  messageDesc(file_service_v1_files, 36);
+  messageDesc(file_service_v1_files, 38);
 
 /**
  * PreviewStatus describes a file's position in the preview index pipeline.
@@ -1120,6 +1159,14 @@ export const FilesService: GenService<{
     methodKind: "unary";
     input: typeof DeleteFileRequestSchema;
     output: typeof DeleteFileResponseSchema;
+  },
+  /**
+   * @generated from rpc service.v1.FilesService.MoveFile
+   */
+  moveFile: {
+    methodKind: "unary";
+    input: typeof MoveFileRequestSchema;
+    output: typeof MoveFileResponseSchema;
   },
   /**
    * @generated from rpc service.v1.FilesService.GetUploadURL

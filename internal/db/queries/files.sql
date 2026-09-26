@@ -41,6 +41,13 @@ SELECT now()::timestamptz;
 DELETE FROM files
 WHERE seen_at < sqlc.arg(cutoff)::timestamptz;
 
+-- name: UpdateFileKey :one
+-- Update a file's key in place. A move deliberately preserves marked_at:
+-- the content is byte-identical, so all existing index results remain valid
+-- and nothing should be re-enqueued. The crawler's next listing reconciles
+-- the copy's newer S3 mtime in the background (idempotent re-index by design).
+UPDATE files SET key = $2 WHERE id = $1 RETURNING *;
+
 -- name: GetFile :one
 SELECT * FROM file_infos
 WHERE id = $1;

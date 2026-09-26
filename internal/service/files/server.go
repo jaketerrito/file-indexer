@@ -9,9 +9,11 @@ import (
 	"file-indexer/internal/validate"
 	"log/slog"
 	"net"
+	"slices"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -30,6 +32,9 @@ type ObjectStore interface {
 	// S3 (and read its size/content-type/mtime) before it is upserted into
 	// the index — never trust an unverified client claim.
 	Stat(ctx context.Context, key string) (storage.ObjectInfo, error)
+	// Copy duplicates an object within the same bucket, used by MoveFile to
+	// land the object at its new key before updating the database row.
+	Copy(ctx context.Context, srcKey, dstKey string) error
 	Delete(ctx context.Context, key string) error
 	// DeleteMany is used by DeleteDirectory to batch-remove a subtree's
 	// objects. See its doc comment on the not-atomic contract this implies.
@@ -54,6 +59,7 @@ type FileIndex interface {
 	GetFilesByIDs(ctx context.Context, ids []int64) ([]db.FileInfo, error)
 	GetFileByKey(ctx context.Context, key string) (db.FileInfo, error)
 	DeleteFileWithDirectories(ctx context.Context, id int64) (db.File, error)
+	MoveFileWithDirectories(ctx context.Context, arg db.MoveFileWithDirectoriesParams) (db.File, error)
 	UpsertFilesWithDirectories(ctx context.Context, arg db.UpsertFilesParams) (int64, error)
 	// GetIndexExifResult returns pgx.ErrNoRows when the file has neither EXIF
 	// nor XMP data (or hasn't reached the exif indexer yet).
@@ -62,6 +68,11 @@ type FileIndex interface {
 	ListFilesForDelete(ctx context.Context, arg db.ListFilesForDeleteParams) ([]db.ListFilesForDeleteRow, error)
 	DeleteFilesByIDsWithDirectories(ctx context.Context, ids []int64, keys []string) (int64, error)
 	GetIndexQueueStatuses(ctx context.Context, arg db.GetIndexQueueStatusesParams) ([]db.GetIndexQueueStatusesRow, error)
+	// AcquireMoveLocks pins a connection and acquires Postgres advisory locks
+	// for the supplied keys. The returned release function must be called to
+	// unlock and return the connection. Used by MoveFile to serialize moves
+	// across multiple files-service replicas.
+	AcquireMoveLocks(ctx context.Context, keys ...string) (func(), error)
 }
 
 // previewIndexType is duplicated from internal/service/search for the same
@@ -259,6 +270,123 @@ func (s *FilesServer) DeleteFile(ctx context.Context, req *pb.DeleteFileRequest)
 		return nil, err
 	}
 	return &pb.DeleteFileResponse{}, nil
+}
+
+// MoveFile relocates a file to a new S3 key. The copy, DB update, and
+// best-effort old-object deletion all run inside a Postgres advisory-lock
+// critical section so moves are safe across multiple files-service replicas;
+// if the old-object deletion fails, the move is still successful because the
+// crawler reconciles orphaned source objects out of band.
+func (s *FilesServer) MoveFile(ctx context.Context, req *pb.MoveFileRequest) (*pb.MoveFileResponse, error) {
+	file, err := s.queries.GetFile(ctx, req.GetId())
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Errorf(codes.NotFound, "file %d not found", req.GetId())
+		}
+		return nil, status.Errorf(codes.Internal, "failed to read source file")
+	}
+
+	newKey := req.GetDestinationKey()
+	if newKey == "" {
+		return nil, status.Error(codes.InvalidArgument, "destination_key must not be empty")
+	}
+	if newKey == file.Key {
+		return nil, status.Error(codes.InvalidArgument, "destination_key must differ from current key")
+	}
+	if s.indexPrefix != "" && strings.HasPrefix(newKey, s.indexPrefix) {
+		return nil, status.Errorf(codes.InvalidArgument, "destination_key %q is reserved for derived objects", newKey)
+	}
+
+	// Friendly fast-path check: if the destination is already occupied, fail
+	// before doing any work. The same check is repeated inside the advisory
+	// locks so a key that appears while we are waiting is caught before any
+	// Copy.
+	if _, err := s.queries.GetFileByKey(ctx, newKey); err == nil {
+		return nil, status.Errorf(codes.AlreadyExists, "file with key %q already exists", newKey)
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return nil, status.Errorf(codes.Internal, "failed to check destination key")
+	}
+
+	moved, err := s.moveFileWithLocks(ctx, req.GetId(), file.Key, newKey)
+	if err != nil {
+		return nil, err
+	}
+
+	updated, err := s.queries.GetFile(ctx, moved.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.MoveFileResponse{File: dbFileToProto(updated)}, nil
+}
+
+// moveFileWithLocks serializes the MoveFile copy-vs-commit critical section
+// across multiple files-service replicas using Postgres advisory locks. The
+// locks are held through the DB update and the old-key Delete; keeping the
+// delete inside the locked section closes the A→B→A race where a concurrent
+// move back to the source key could otherwise copy an object that the first
+// move then deletes after releasing the locks.
+func (s *FilesServer) moveFileWithLocks(ctx context.Context, id int64, oldKey, newKey string) (db.File, error) {
+	// Lock both endpoints in the global byte order. The same order is used
+	// by every mover, so M(A→B) and M(B→A) serialize instead of deadlocking.
+	// db.Store also sorts defensively, but sorting here makes the contract
+	// explicit at the call site and lets unit tests assert the lock order.
+	keys := []string{oldKey, newKey}
+	slices.Sort(keys)
+	release, err := s.queries.AcquireMoveLocks(ctx, keys...)
+	if err != nil {
+		return db.File{}, status.Errorf(codes.Internal, "acquire move locks: %v", err)
+	}
+	defer release()
+
+	// Re-read the source row under the lock so the storage Copy and the
+	// old-key Delete use the key as it exists at lock time. A concurrent
+	// move in another replica could have changed it while we waited for the
+	// advisory locks.
+	src, err := s.queries.GetFile(ctx, id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return db.File{}, status.Errorf(codes.NotFound, "file %d not found", id)
+		}
+		return db.File{}, status.Errorf(codes.Internal, "failed to read source file")
+	}
+	currentOldKey := src.Key
+
+	// Re-validate the destination under the lock. A destination that
+	// appeared while we were waiting must be rejected before any Copy.
+	if _, err := s.queries.GetFileByKey(ctx, newKey); err == nil {
+		return db.File{}, status.Errorf(codes.AlreadyExists, "file with key %q already exists", newKey)
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return db.File{}, status.Errorf(codes.Internal, "failed to check destination key")
+	}
+
+	if err := s.storage.Copy(ctx, currentOldKey, newKey); err != nil {
+		return db.File{}, status.Errorf(codes.Internal, "copy object: %v", err)
+	}
+
+	moved, err := s.queries.MoveFileWithDirectories(ctx, db.MoveFileWithDirectoriesParams{
+		ID:     id,
+		NewKey: newKey,
+	})
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			// Another concurrent request won the race and owns newKey.
+			// Do NOT delete the destination object: the winner's DB row now
+			// references it, and removing it would leave that row orphaned.
+			return db.File{}, status.Errorf(codes.AlreadyExists, "file with key %q already exists", newKey)
+		}
+		if delErr := s.storage.Delete(ctx, newKey); delErr != nil {
+			slog.Warn("rollback copied object after move failed", "key", newKey, "error", delErr)
+		}
+		return db.File{}, status.Errorf(codes.Internal, "move file: %v", err)
+	}
+
+	// Best-effort cleanup of the old object, done before releasing the locks
+	// so M1's delete(A) is ordered before M2's copy to A.
+	if err := s.storage.Delete(ctx, currentOldKey); err != nil {
+		slog.Warn("delete old object after move", "key", currentOldKey, "error", err)
+	}
+	return moved, nil
 }
 
 // GetUploadURL returns a presigned URL the caller can PUT an object's bytes
