@@ -40,6 +40,10 @@ spec:
               value: 'true'
             - name: RUSTFS_CONSOLE_ADDRESS
               value: 0.0.0.0:9001
+              # Browser uploads PUT directly to the S3 endpoint from the web
+              # origin; MinIO's default CORS was '*', RustFS's is empty.
+            - name: RUSTFS_CORS_ALLOWED_ORIGINS
+              value: '*'
             - name: RUSTFS_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
