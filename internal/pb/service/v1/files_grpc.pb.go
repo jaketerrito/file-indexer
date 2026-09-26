@@ -24,6 +24,7 @@ const (
 	FilesService_GetPreviewURL_FullMethodName           = "/service.v1.FilesService/GetPreviewURL"
 	FilesService_GetFileInfo_FullMethodName             = "/service.v1.FilesService/GetFileInfo"
 	FilesService_DeleteFile_FullMethodName              = "/service.v1.FilesService/DeleteFile"
+	FilesService_MoveFile_FullMethodName                = "/service.v1.FilesService/MoveFile"
 	FilesService_GetUploadURL_FullMethodName            = "/service.v1.FilesService/GetUploadURL"
 	FilesService_CommitUpload_FullMethodName            = "/service.v1.FilesService/CommitUpload"
 	FilesService_CreateMultipartUpload_FullMethodName   = "/service.v1.FilesService/CreateMultipartUpload"
@@ -48,6 +49,7 @@ type FilesServiceClient interface {
 	GetPreviewURL(ctx context.Context, in *GetPreviewURLRequest, opts ...grpc.CallOption) (*GetPreviewURLResponse, error)
 	GetFileInfo(ctx context.Context, in *GetFileInfoRequest, opts ...grpc.CallOption) (*GetFileInfoResponse, error)
 	DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error)
+	MoveFile(ctx context.Context, in *MoveFileRequest, opts ...grpc.CallOption) (*MoveFileResponse, error)
 	GetUploadURL(ctx context.Context, in *GetUploadURLRequest, opts ...grpc.CallOption) (*GetUploadURLResponse, error)
 	CommitUpload(ctx context.Context, in *CommitUploadRequest, opts ...grpc.CallOption) (*CommitUploadResponse, error)
 	// Large-file resumable path: initiate once, PUT parts independently via
@@ -116,6 +118,16 @@ func (c *filesServiceClient) DeleteFile(ctx context.Context, in *DeleteFileReque
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DeleteFileResponse)
 	err := c.cc.Invoke(ctx, FilesService_DeleteFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *filesServiceClient) MoveFile(ctx context.Context, in *MoveFileRequest, opts ...grpc.CallOption) (*MoveFileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MoveFileResponse)
+	err := c.cc.Invoke(ctx, FilesService_MoveFile_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -234,6 +246,7 @@ type FilesServiceServer interface {
 	GetPreviewURL(context.Context, *GetPreviewURLRequest) (*GetPreviewURLResponse, error)
 	GetFileInfo(context.Context, *GetFileInfoRequest) (*GetFileInfoResponse, error)
 	DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error)
+	MoveFile(context.Context, *MoveFileRequest) (*MoveFileResponse, error)
 	GetUploadURL(context.Context, *GetUploadURLRequest) (*GetUploadURLResponse, error)
 	CommitUpload(context.Context, *CommitUploadRequest) (*CommitUploadResponse, error)
 	// Large-file resumable path: initiate once, PUT parts independently via
@@ -272,6 +285,9 @@ func (UnimplementedFilesServiceServer) GetFileInfo(context.Context, *GetFileInfo
 }
 func (UnimplementedFilesServiceServer) DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteFile not implemented")
+}
+func (UnimplementedFilesServiceServer) MoveFile(context.Context, *MoveFileRequest) (*MoveFileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method MoveFile not implemented")
 }
 func (UnimplementedFilesServiceServer) GetUploadURL(context.Context, *GetUploadURLRequest) (*GetUploadURLResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetUploadURL not implemented")
@@ -410,6 +426,24 @@ func _FilesService_DeleteFile_Handler(srv interface{}, ctx context.Context, dec 
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(FilesServiceServer).DeleteFile(ctx, req.(*DeleteFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _FilesService_MoveFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MoveFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(FilesServiceServer).MoveFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: FilesService_MoveFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(FilesServiceServer).MoveFile(ctx, req.(*MoveFileRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -620,6 +654,10 @@ var FilesService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteFile",
 			Handler:    _FilesService_DeleteFile_Handler,
+		},
+		{
+			MethodName: "MoveFile",
+			Handler:    _FilesService_MoveFile_Handler,
 		},
 		{
 			MethodName: "GetUploadURL",

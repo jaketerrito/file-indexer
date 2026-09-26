@@ -6,6 +6,9 @@ import (
 	"file-indexer/internal/db"
 	"fmt"
 	"net"
+	"slices"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,13 +16,38 @@ import (
 	objstore "file-indexer/internal/storage"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 )
+
+// noOpRelease is a stand-in for the release function returned by
+// AcquireMoveLocks in unit tests that do not exercise lock contention.
+func noOpRelease() {}
+
+// expectMoveLocks registers an AcquireMoveLocks expectation for the two
+// endpoint keys in deterministic sorted order. The keys are sorted in byte
+// order to match the implementation in db.Store.
+func expectMoveLocks(t *testing.T, q *MockFileIndex, a, b string) {
+	t.Helper()
+	keys := []string{a, b}
+	slices.SortFunc(keys, func(x, y string) int {
+		if x == y {
+			return 0
+		}
+		if x < y {
+			return -1
+		}
+		return 1
+	})
+	q.EXPECT().AcquireMoveLocks(mock.Anything, keys).Return(noOpRelease, nil).Once()
+}
 
 func TestNew(t *testing.T) {
 	queries := NewMockFileIndex(t)
@@ -233,6 +261,361 @@ func TestDeleteFileDBDeleteError(t *testing.T) {
 	_, err := srv.DeleteFile(context.Background(), &pb.DeleteFileRequest{Id: 1})
 	if err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestMoveFile(t *testing.T) {
+	tests := []struct {
+		name     string
+		setup    func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse))
+		req      *pb.MoveFileRequest
+		wantCode codes.Code
+	}{
+		{
+			name: "success",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse)) {
+				queries := NewMockFileIndex(t)
+				storage := NewMockObjectStore(t)
+
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil).Twice()
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Twice()
+				expectMoveLocks(t, queries, "old/key.txt", "new/key.txt")
+
+				var callOrder []string
+				storage.EXPECT().Copy(mock.Anything, "old/key.txt", "new/key.txt").Return(nil).Run(func(context.Context, string, string) {
+					callOrder = append(callOrder, "Copy")
+				})
+				queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{
+					ID:     1,
+					NewKey: "new/key.txt",
+				}).Return(db.File{ID: 1, Key: "new/key.txt"}, nil).Run(func(context.Context, db.MoveFileWithDirectoriesParams) {
+					callOrder = append(callOrder, "MoveFileWithDirectories")
+				})
+				storage.EXPECT().Delete(mock.Anything, "old/key.txt").Return(nil).Run(func(context.Context, string) {
+					callOrder = append(callOrder, "Delete(old)")
+				})
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "new/key.txt"}, nil)
+
+				return queries, storage, func(t *testing.T, resp *pb.MoveFileResponse) {
+					want := []string{"Copy", "MoveFileWithDirectories", "Delete(old)"}
+					if !slices.Equal(callOrder, want) {
+						t.Errorf("call order = %v, want %v", callOrder, want)
+					}
+					if resp.File.Id != 1 || resp.File.Key != "new/key.txt" {
+						t.Errorf("MoveFile file = %+v", resp.File)
+					}
+				}
+			},
+			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
+			wantCode: codes.OK,
+		},
+		{
+			name: "file not found",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse)) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(99)).Return(db.FileInfo{}, pgx.ErrNoRows)
+				return queries, NewMockObjectStore(t), nil
+			},
+			req:      &pb.MoveFileRequest{Id: 99, DestinationKey: "new/key.txt"},
+			wantCode: codes.NotFound,
+		},
+		{
+			name: "empty destination",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse)) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil)
+				return queries, NewMockObjectStore(t), nil
+			},
+			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: ""},
+			wantCode: codes.InvalidArgument,
+		},
+		{
+			name: "same key",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse)) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "same/key.txt"}, nil)
+				return queries, NewMockObjectStore(t), nil
+			},
+			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "same/key.txt"},
+			wantCode: codes.InvalidArgument,
+		},
+		{
+			name: "destination under index prefix",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse)) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil)
+				return queries, NewMockObjectStore(t), nil
+			},
+			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: ".index/derived.txt"},
+			wantCode: codes.InvalidArgument,
+		},
+		{
+			name: "destination occupied",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse)) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil)
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{ID: 2, Key: "new/key.txt"}, nil)
+				return queries, NewMockObjectStore(t), nil
+			},
+			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
+			wantCode: codes.AlreadyExists,
+		},
+		{
+			name: "destination appears while waiting for lock",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse)) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil).Twice()
+				// Outer preflight passes...
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Once()
+				expectMoveLocks(t, queries, "old/key.txt", "new/key.txt")
+				// ...but the destination appears while this request is waiting
+				// for the advisory locks, so the in-lock revalidation must reject it.
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{ID: 2, Key: "new/key.txt"}, nil).Once()
+
+				storage := NewMockObjectStore(t)
+				return queries, storage, func(t *testing.T, resp *pb.MoveFileResponse) {
+					storage.AssertNotCalled(t, "Copy", mock.Anything, mock.Anything, mock.Anything)
+				}
+			},
+			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
+			wantCode: codes.AlreadyExists,
+		},
+		{
+			name: "copy failure",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse)) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil).Twice()
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Twice()
+				expectMoveLocks(t, queries, "old/key.txt", "new/key.txt")
+
+				storage := NewMockObjectStore(t)
+				storage.EXPECT().Copy(mock.Anything, "old/key.txt", "new/key.txt").Return(errors.New("s3 error"))
+
+				return queries, storage, nil
+			},
+			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
+			wantCode: codes.Internal,
+		},
+		{
+			name: "database move failure rolls back copied object",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse)) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil).Twice()
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Twice()
+				expectMoveLocks(t, queries, "old/key.txt", "new/key.txt")
+				queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{
+					ID:     1,
+					NewKey: "new/key.txt",
+				}).Return(db.File{}, errors.New("db error"))
+
+				storage := NewMockObjectStore(t)
+				storage.EXPECT().Copy(mock.Anything, "old/key.txt", "new/key.txt").Return(nil)
+				storage.EXPECT().Delete(mock.Anything, "new/key.txt").Return(nil)
+
+				return queries, storage, nil
+			},
+			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
+			wantCode: codes.Internal,
+		},
+		{
+			name: "database unique violation returns already exists and does not roll back copied object",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse)) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil).Twice()
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Twice()
+				expectMoveLocks(t, queries, "old/key.txt", "new/key.txt")
+				queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{
+					ID:     1,
+					NewKey: "new/key.txt",
+				}).Return(db.File{}, &pgconn.PgError{Code: "23505"})
+
+				storage := NewMockObjectStore(t)
+				storage.EXPECT().Copy(mock.Anything, "old/key.txt", "new/key.txt").Return(nil)
+
+				return queries, storage, func(t *testing.T, resp *pb.MoveFileResponse) {
+					storage.AssertNotCalled(t, "Delete", mock.Anything, mock.Anything)
+				}
+			},
+			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
+			wantCode: codes.AlreadyExists,
+		},
+		{
+			name: "old key delete failure still succeeds",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore, func(*testing.T, *pb.MoveFileResponse)) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil).Twice()
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Twice()
+				expectMoveLocks(t, queries, "old/key.txt", "new/key.txt")
+				queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{
+					ID:     1,
+					NewKey: "new/key.txt",
+				}).Return(db.File{ID: 1, Key: "new/key.txt"}, nil)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "new/key.txt"}, nil)
+
+				storage := NewMockObjectStore(t)
+				storage.EXPECT().Copy(mock.Anything, "old/key.txt", "new/key.txt").Return(nil)
+				storage.EXPECT().Delete(mock.Anything, "old/key.txt").Return(errors.New("s3 error"))
+
+				return queries, storage, func(t *testing.T, resp *pb.MoveFileResponse) {
+					if resp.File.Id != 1 || resp.File.Key != "new/key.txt" {
+						t.Errorf("MoveFile file = %+v", resp.File)
+					}
+				}
+			},
+			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
+			wantCode: codes.OK,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			queries, storage, check := tt.setup(t)
+			srv := FilesServer{queries: queries, storage: storage, indexPrefix: ".index/"}
+
+			resp, err := srv.MoveFile(context.Background(), tt.req)
+			if status.Code(err) != tt.wantCode {
+				t.Fatalf("MoveFile status = %v, want %v (err: %v)", status.Code(err), tt.wantCode, err)
+			}
+			if check != nil {
+				check(t, resp)
+			}
+		})
+	}
+}
+
+func TestMoveFileAdvisoryHardening(t *testing.T) {
+	tests := []struct {
+		name               string
+		setup              func(t *testing.T) (*MockFileIndex, *MockObjectStore)
+		req                *pb.MoveFileRequest
+		wantCode           codes.Code
+		wantMsgNotContains string
+	}{
+		{
+			name: "raw error reading source file maps to internal",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{}, errors.New("connection reset by peer")).Once()
+				return queries, NewMockObjectStore(t)
+			},
+			req:                &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
+			wantCode:           codes.Internal,
+			wantMsgNotContains: "connection reset by peer",
+		},
+		{
+			name: "raw error checking destination maps to internal",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil).Once()
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, errors.New("db timeout")).Once()
+				return queries, NewMockObjectStore(t)
+			},
+			req:                &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
+			wantCode:           codes.Internal,
+			wantMsgNotContains: "db timeout",
+		},
+		{
+			name: "source file vanished under lock",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil).Once()
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Once()
+				expectMoveLocks(t, queries, "old/key.txt", "new/key.txt")
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{}, pgx.ErrNoRows).Once()
+				return queries, NewMockObjectStore(t)
+			},
+			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
+			wantCode: codes.NotFound,
+		},
+		{
+			name: "raw error re-reading source under lock maps to internal",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil).Once()
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Once()
+				expectMoveLocks(t, queries, "old/key.txt", "new/key.txt")
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{}, errors.New("db timeout")).Once()
+				return queries, NewMockObjectStore(t)
+			},
+			req:                &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
+			wantCode:           codes.Internal,
+			wantMsgNotContains: "db timeout",
+		},
+		{
+			name: "raw error re-checking destination under lock maps to internal",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil).Once()
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Once()
+				expectMoveLocks(t, queries, "old/key.txt", "new/key.txt")
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil).Once()
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, errors.New("db timeout")).Once()
+				return queries, NewMockObjectStore(t)
+			},
+			req:                &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
+			wantCode:           codes.Internal,
+			wantMsgNotContains: "db timeout",
+		},
+		{
+			name: "lock acquisition failure maps to internal",
+			setup: func(t *testing.T) (*MockFileIndex, *MockObjectStore) {
+				queries := NewMockFileIndex(t)
+				queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "old/key.txt"}, nil).Once()
+				queries.EXPECT().GetFileByKey(mock.Anything, "new/key.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Once()
+				queries.EXPECT().AcquireMoveLocks(mock.Anything, []string{"new/key.txt", "old/key.txt"}).Return(nil, errors.New("db timeout")).Once()
+				return queries, NewMockObjectStore(t)
+			},
+			req:      &pb.MoveFileRequest{Id: 1, DestinationKey: "new/key.txt"},
+			wantCode: codes.Internal,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			queries, storage := tt.setup(t)
+			srv := FilesServer{queries: queries, storage: storage, indexPrefix: ".index/"}
+
+			_, err := srv.MoveFile(context.Background(), tt.req)
+			if status.Code(err) != tt.wantCode {
+				t.Fatalf("MoveFile status = %v, want %v (err: %v)", status.Code(err), tt.wantCode, err)
+			}
+			if tt.wantMsgNotContains != "" && strings.Contains(err.Error(), tt.wantMsgNotContains) {
+				t.Errorf("error message contains raw sentinel %q: %v", tt.wantMsgNotContains, err)
+			}
+		})
+	}
+}
+
+func TestMoveFileReReadsSourceKeyUnderLock(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	storage := NewMockObjectStore(t)
+
+	// Pre-lock read sees the old key; under the lock the key has already
+	// changed due to a concurrent move.
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "a/x.txt"}, nil).Once()
+	queries.EXPECT().GetFileByKey(mock.Anything, "dest/x.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Once()
+	// Locks are acquired using the pre-lock source key, then the source is
+	// re-read under the lock to get the current key for Copy/Delete.
+	expectMoveLocks(t, queries, "a/x.txt", "dest/x.txt")
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "b/x.txt"}, nil).Once()
+	queries.EXPECT().GetFileByKey(mock.Anything, "dest/x.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Once()
+	queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{
+		ID:     1,
+		NewKey: "dest/x.txt",
+	}).Return(db.File{ID: 1, Key: "dest/x.txt"}, nil)
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "dest/x.txt"}, nil)
+
+	storage.EXPECT().Copy(mock.Anything, "b/x.txt", "dest/x.txt").Return(nil).Once()
+	storage.EXPECT().Delete(mock.Anything, "b/x.txt").Return(nil).Once()
+
+	srv := FilesServer{queries: queries, storage: storage, indexPrefix: ".index/"}
+
+	resp, err := srv.MoveFile(context.Background(), &pb.MoveFileRequest{Id: 1, DestinationKey: "dest/x.txt"})
+	if err != nil {
+		t.Fatalf("MoveFile: %v", err)
+	}
+	if resp.File.Key != "dest/x.txt" {
+		t.Errorf("MoveFile file key = %q, want %q", resp.File.Key, "dest/x.txt")
 	}
 }
 
@@ -1257,5 +1640,143 @@ func TestHealthCheckNotServingWhenStopped(t *testing.T) {
 	_, err = healthpb.NewHealthClient(conn).Check(ctx, &healthpb.HealthCheckRequest{})
 	if err == nil {
 		t.Fatal("Health/Check: expected error for stopped server, got nil")
+	}
+}
+
+func TestMoveFileSerializesConcurrentMoves(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	store := NewMockObjectStore(t)
+
+	aBlock := make(chan struct{})
+	aProceed := make(chan struct{})
+	var mu sync.Mutex
+	var copies []string
+
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "a/old.txt"}, nil).Twice()
+	queries.EXPECT().GetFile(mock.Anything, int64(2)).Return(db.FileInfo{ID: 2, Key: "b/old.txt"}, nil).Twice()
+	queries.EXPECT().GetFileByKey(mock.Anything, "dst").Return(db.FileInfo{}, pgx.ErrNoRows).Times(4)
+	// Both movers want the same destination; the server passes the endpoint
+	// keys sorted in byte order for deterministic locking.
+	queries.EXPECT().AcquireMoveLocks(mock.Anything, []string{"a/old.txt", "dst"}).Return(noOpRelease, nil).Once()
+	queries.EXPECT().AcquireMoveLocks(mock.Anything, []string{"b/old.txt", "dst"}).Return(noOpRelease, nil).Once()
+	queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{ID: 1, NewKey: "dst"}).
+		Run(func(context.Context, db.MoveFileWithDirectoriesParams) { close(aBlock); <-aProceed }).
+		Return(db.File{ID: 1, Key: "dst"}, nil).Once()
+	queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{ID: 2, NewKey: "dst"}).
+		Return(db.File{}, &pgconn.PgError{Code: "23505"}).Once()
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "dst"}, nil).Once()
+
+	store.EXPECT().Copy(mock.Anything, "a/old.txt", "dst").Run(func(context.Context, string, string) {
+		mu.Lock()
+		copies = append(copies, "a")
+		mu.Unlock()
+	}).Return(nil).Once()
+	store.EXPECT().Copy(mock.Anything, "b/old.txt", "dst").Run(func(context.Context, string, string) {
+		mu.Lock()
+		copies = append(copies, "b")
+		mu.Unlock()
+	}).Return(nil).Once()
+	store.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	srv := &FilesServer{queries: queries, storage: store, indexPrefix: ".index/"}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	var aErr, bErr error
+	go func() {
+		defer wg.Done()
+		_, aErr = srv.MoveFile(context.Background(), &pb.MoveFileRequest{Id: 1, DestinationKey: "dst"})
+	}()
+	<-aBlock
+	go func() {
+		defer wg.Done()
+		_, bErr = srv.MoveFile(context.Background(), &pb.MoveFileRequest{Id: 2, DestinationKey: "dst"})
+	}()
+	close(aProceed)
+	wg.Wait()
+
+	if aErr != nil {
+		t.Errorf("A: %v", aErr)
+	}
+	if status.Code(bErr) != codes.AlreadyExists {
+		t.Errorf("B status = %v", status.Code(bErr))
+	}
+	// Both Copy calls must complete; the real cross-replica serialization is
+	// verified by the advisory-lock integration tests.
+	if len(copies) != 2 || copies[0] != "a" || copies[1] != "b" {
+		t.Errorf("copies = %v", copies)
+	}
+}
+
+func TestMoveFileDeleteHoldsLock(t *testing.T) {
+	queries := NewMockFileIndex(t)
+	store := NewMockObjectStore(t)
+
+	started, proceed := make(chan struct{}), make(chan struct{})
+	// heldByA is closed when A has acquired the locks; releasedByA is
+	// closed when A's deferred release runs. B blocks on releasedByA so
+	// the test observes the cross-replica serialization story: A's delete
+	// and release complete before B's copy begins.
+	heldByA, releasedByA := make(chan struct{}), make(chan struct{})
+	var mu sync.Mutex
+	var ops []string
+	record := func(o string) { mu.Lock(); ops = append(ops, o); mu.Unlock() }
+
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "a/x.txt"}, nil).Twice()
+	queries.EXPECT().GetFile(mock.Anything, int64(2)).Return(db.FileInfo{ID: 2, Key: "b/x.txt"}, nil).Twice()
+	queries.EXPECT().GetFileByKey(mock.Anything, "b/x.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Times(2)
+	queries.EXPECT().GetFileByKey(mock.Anything, "a/x.txt").Return(db.FileInfo{}, pgx.ErrNoRows).Times(2)
+	// Both movers lock the same endpoint set in the same sorted order, so
+	// M(A→B) and M(B→A) serialize instead of deadlocking.
+	queries.EXPECT().AcquireMoveLocks(mock.Anything, []string{"a/x.txt", "b/x.txt"}).Return(func() {
+		record("release1")
+		close(releasedByA)
+	}, nil).Run(func(context.Context, ...string) { close(heldByA) }).Once()
+	queries.EXPECT().AcquireMoveLocks(mock.Anything, []string{"a/x.txt", "b/x.txt"}).Return(func() {
+		record("release2")
+	}, nil).Run(func(context.Context, ...string) { <-releasedByA }).Once()
+	queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{ID: 1, NewKey: "b/x.txt"}).
+		Run(func(context.Context, db.MoveFileWithDirectoriesParams) { close(started); <-proceed }).
+		Return(db.File{ID: 1, Key: "b/x.txt"}, nil).Once()
+	queries.EXPECT().MoveFileWithDirectories(mock.Anything, db.MoveFileWithDirectoriesParams{ID: 2, NewKey: "a/x.txt"}).
+		Return(db.File{ID: 2, Key: "a/x.txt"}, nil).Once()
+	queries.EXPECT().GetFile(mock.Anything, int64(1)).Return(db.FileInfo{ID: 1, Key: "b/x.txt"}, nil).Once()
+	queries.EXPECT().GetFile(mock.Anything, int64(2)).Return(db.FileInfo{ID: 2, Key: "a/x.txt"}, nil).Once()
+
+	store.EXPECT().Copy(mock.Anything, "a/x.txt", "b/x.txt").Return(nil).Run(func(context.Context, string, string) { record("copy1") }).Once()
+	store.EXPECT().Copy(mock.Anything, "b/x.txt", "a/x.txt").Return(nil).Run(func(context.Context, string, string) { record("copy2") }).Once()
+	store.EXPECT().Delete(mock.Anything, "a/x.txt").Return(nil).Run(func(context.Context, string) { record("delete1") }).Once()
+	store.EXPECT().Delete(mock.Anything, "b/x.txt").Return(nil).Run(func(context.Context, string) { record("delete2") }).Once()
+
+	srv := &FilesServer{queries: queries, storage: store, indexPrefix: ".index/"}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		if _, err := srv.MoveFile(context.Background(), &pb.MoveFileRequest{Id: 1, DestinationKey: "b/x.txt"}); err != nil {
+			t.Errorf("A: %v", err)
+		}
+	}()
+	<-started
+	go func() {
+		defer wg.Done()
+		if _, err := srv.MoveFile(context.Background(), &pb.MoveFileRequest{Id: 2, DestinationKey: "a/x.txt"}); err != nil {
+			t.Errorf("B: %v", err)
+		}
+	}()
+	<-heldByA
+	time.Sleep(20 * time.Millisecond)
+	close(proceed)
+	wg.Wait()
+
+	// Each old-key delete must finish before its corresponding release;
+	// A's release must also finish before B's copy begins.
+	want := []string{"copy1", "delete1", "release1", "copy2", "delete2", "release2"}
+	mu.Lock()
+	got := append([]string(nil), ops...)
+	mu.Unlock()
+	if !slices.Equal(got, want) {
+		t.Errorf("action order = %v, want %v", got, want)
 	}
 }

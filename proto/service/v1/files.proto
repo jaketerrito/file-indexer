@@ -15,6 +15,7 @@ service FilesService {
   rpc GetPreviewURL(GetPreviewURLRequest) returns (GetPreviewURLResponse);
   rpc GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  rpc MoveFile(MoveFileRequest) returns (MoveFileResponse);
   rpc GetUploadURL(GetUploadURLRequest) returns (GetUploadURLResponse);
   rpc CommitUpload(CommitUploadRequest) returns (CommitUploadResponse);
   // Large-file resumable path: initiate once, PUT parts independently via
@@ -204,6 +205,15 @@ message DeleteFileRequest {
 }
 
 message DeleteFileResponse {}
+
+message MoveFileRequest {
+  int64 id = 1;
+  string destination_key = 2;
+}
+
+message MoveFileResponse {
+  FileInfo file = 1;
+}
 
 message GetUploadURLRequest {
   // Destination object key. The client sets its own Content-Type header on

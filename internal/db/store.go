@@ -2,11 +2,16 @@ package db
 
 import (
 	"context"
+	"slices"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// advisoryLockNamespace scopes move-lock advisory locks to this service so
+// unrelated uses of pg_advisory_lock with the same 32-bit hash cannot collide.
+const advisoryLockNamespace = 2901
 
 // Store wraps Queries with directory-index-maintaining variants of the
 // files write queries (UpsertFiles, DeleteFile, DeleteFilesByIDs,
@@ -81,6 +86,41 @@ func (s *Store) DeleteFileWithDirectories(ctx context.Context, id int64) (File, 
 	return f, err
 }
 
+// MoveFileWithDirectoriesParams carries the inputs for
+// MoveFileWithDirectories. A move preserves the row's marked_at: it is a
+// pure path change for identical bytes, so existing index results stay valid.
+type MoveFileWithDirectoriesParams struct {
+	ID     int64
+	NewKey string
+}
+
+// MoveFileWithDirectories updates a file's key in one transaction and keeps
+// the directories index consistent: it prunes directories implied by the old
+// key, then upserts directories implied by the new key. Prune before upsert
+// guarantees that a directory that still contains the destination key is not
+// wrongly removed.
+func (s *Store) MoveFileWithDirectories(ctx context.Context, arg MoveFileWithDirectoriesParams) (File, error) {
+	var f File
+	err := s.withTx(ctx, func(q *Queries) error {
+		var err error
+		var oldKey string
+		if err := q.db.QueryRow(ctx, `SELECT key FROM files WHERE id = $1`, arg.ID).Scan(&oldKey); err != nil {
+			return err
+		}
+		if f, err = q.UpdateFileKey(ctx, UpdateFileKeyParams{
+			ID:  arg.ID,
+			Key: arg.NewKey,
+		}); err != nil {
+			return err
+		}
+		if err := q.PruneDirectoriesForKeys(ctx, []string{oldKey}); err != nil {
+			return err
+		}
+		return q.UpsertDirectoriesForKeys(ctx, []string{arg.NewKey})
+	})
+	return f, err
+}
+
 // DeleteFilesByIDsWithDirectories runs DeleteFilesByIDs and
 // PruneDirectoriesForKeys in one transaction, over keys the caller already
 // has (DeleteDirectory gets them from ListFilesForDelete, so this never
@@ -135,4 +175,71 @@ func (s *Store) DeleteUnseenFilesWithDirectories(ctx context.Context, cutoff tim
 		return q.PruneOrphanDirectories(ctx)
 	})
 	return n, err
+}
+
+// AcquireMoveLocks pins a pooled connection and acquires session-scoped
+// advisory locks for every supplied key. The returned release function must
+// be called when the critical section ends; it unlocks the keys and returns
+// the connection to the pool. If acquiring any lock fails, all locks taken
+// so far are released and the connection is returned before the error is
+// returned.
+//
+// Keys are deduplicated and sorted in BYTE order before locking. Byte order
+// matches files.key's COLLATE "C" ordering, and the sort is what makes the
+// global lock order total: every mover locks both source and destination in
+// the same sequence, so M(A→B) and M(B→A) serialize instead of deadlocking.
+// The advisory-lock namespace is advisoryLockNamespace and the per-key id is
+// hashtext(key)::int; 32-bit hash collisions only cause false sharing (extra
+// serialization), never incorrectness. The locks are session-scoped rather
+// than transaction-scoped because the move critical section spans S3 I/O
+// outside any database transaction. If a files-service replica crashes while
+// holding locks, Postgres releases them automatically when the connection
+// closes.
+func (s *Store) AcquireMoveLocks(ctx context.Context, keys ...string) (func(), error) {
+	seen := make(map[string]struct{}, len(keys))
+	unique := make([]string, 0, len(keys))
+	for _, k := range keys {
+		if _, ok := seen[k]; ok {
+			continue
+		}
+		seen[k] = struct{}{}
+		unique = append(unique, k)
+	}
+	slices.Sort(unique)
+
+	conn, err := s.pool.Acquire(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	q := New(conn)
+	locked := make([]string, 0, len(unique))
+	for _, k := range unique {
+		if err := q.AdvisoryLock(ctx, AdvisoryLockParams{
+			Namespace: advisoryLockNamespace,
+			Key:       k,
+		}); err != nil {
+			// Unlock what we managed to take before giving up.
+			for _, lk := range locked {
+				_ = q.AdvisoryUnlock(context.Background(), AdvisoryUnlockParams{
+					Namespace: advisoryLockNamespace,
+					Key:       lk,
+				})
+			}
+			conn.Release()
+			return nil, err
+		}
+		locked = append(locked, k)
+	}
+
+	release := func() {
+		for _, k := range locked {
+			_ = q.AdvisoryUnlock(context.Background(), AdvisoryUnlockParams{
+				Namespace: advisoryLockNamespace,
+				Key:       k,
+			})
+		}
+		conn.Release()
+	}
+	return release, nil
 }
