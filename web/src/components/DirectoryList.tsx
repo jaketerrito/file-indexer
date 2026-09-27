@@ -44,6 +44,8 @@ export function DirectoryList({ path, sort, order, onNavigate, onOpenFile }: Dir
         }),
       initialPageParam: '',
       getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
     })
 
   // Folder pending delete confirmation, or null when none. Stats are fetched

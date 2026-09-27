@@ -14,24 +14,26 @@ type Directory struct {
 }
 
 type File struct {
-	ID        int64
-	Key       string
-	CreatedAt pgtype.Timestamptz
-	MarkedAt  pgtype.Timestamptz
-	SeenAt    pgtype.Timestamptz
+	ID               int64
+	Key              string
+	CreatedAt        pgtype.Timestamptz
+	MarkedAt         pgtype.Timestamptz
+	SeenAt           pgtype.Timestamptz
+	EffectiveTakenAt pgtype.Timestamp
 }
 
 type FileInfo struct {
-	ID            int64
-	Key           string
-	CreatedAt     pgtype.Timestamptz
-	ContentType   pgtype.Text
-	SizeBytes     pgtype.Int8
-	LastModified  pgtype.Timestamptz
-	TakenAt       pgtype.Timestamp
-	PreviewKey    pgtype.Text
-	PreviewWidth  pgtype.Int4
-	PreviewHeight pgtype.Int4
+	ID               int64
+	Key              string
+	CreatedAt        pgtype.Timestamptz
+	ContentType      pgtype.Text
+	SizeBytes        pgtype.Int8
+	LastModified     pgtype.Timestamptz
+	TakenAt          pgtype.Timestamp
+	EffectiveTakenAt pgtype.Timestamp
+	PreviewKey       pgtype.Text
+	PreviewWidth     pgtype.Int4
+	PreviewHeight    pgtype.Int4
 }
 
 type IndexExifResult struct {

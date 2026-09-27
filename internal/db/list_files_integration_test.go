@@ -331,13 +331,7 @@ func createListFileWithTakenAt(t *testing.T, conn *pgx.Conn, key, contentType st
 }
 
 func coalesceTakenAtCursor(f FileInfo) pgtype.Timestamp {
-	if f.TakenAt.Valid {
-		return f.TakenAt
-	}
-	if f.LastModified.Valid {
-		return pgtype.Timestamp{Time: f.LastModified.Time.UTC(), Valid: true}
-	}
-	return pgtype.Timestamp{Time: time.Unix(0, 0).UTC(), Valid: true}
+	return f.EffectiveTakenAt
 }
 
 func TestListFilesByTakenAtNullFallback(t *testing.T) {
