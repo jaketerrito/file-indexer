@@ -83,10 +83,7 @@ export function getFileRow(page: Page, fileName: string): Locator {
  * returns the menu locator. Retries clicks to survive the hydration gap on
  * SSR'd interactive elements.
  */
-export async function openFileActionsMenu(
-  page: Page,
-  fileName: string,
-): Promise<Locator> {
+export async function openFileActionsMenu(page: Page, fileName: string): Promise<Locator> {
   const row = getFileRow(page, fileName)
   const menuButton = row.getByRole('button', { name: 'File actions' })
   const menu = row.getByRole('menu')

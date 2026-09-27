@@ -1,11 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { expect, type FileChooser, type Locator, type Page, test } from '@playwright/test'
-import {
-  clickUntil,
-  expectAfterReload,
-  openFileActionsMenu,
-  selectMenuItem,
-} from './helpers'
+import { clickUntil, expectAfterReload, openFileActionsMenu, selectMenuItem } from './helpers'
 
 async function uploadFile(page: Page, fileName: string, content: Buffer) {
   let chooser: FileChooser | undefined
