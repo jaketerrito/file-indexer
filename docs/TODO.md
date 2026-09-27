@@ -61,3 +61,11 @@ recorded here after the quickstart doc was trimmed from the repo:
 - **Conservative single-replica defaults**: replicas stay 1, no HPA/VPA, and
   resource requests/limits are starting points users should tune in their
   own overlay.
+- **Crawler is a full-bucket scan, not event-driven**: the crawler CronJob lists
+  the entire S3 bucket on every run. At high object counts and short intervals
+  this is expensive; the long-term fix is S3 bucket event notifications (SNS/SQS
+  or a queue-compatible equivalent) feeding a small reference-emitter service,
+  with the crawler demoted to a periodic reconciliation job. Note that
+  DigitalOcean Spaces does **not** support bucket event notifications as of
+  2026-09, so this path requires an S3-compatible provider that does
+  (e.g., AWS S3, MinIO).

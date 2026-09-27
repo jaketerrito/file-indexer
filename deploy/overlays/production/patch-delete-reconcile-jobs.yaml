@@ -1,0 +1,11 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: crawler
+$patch: delete
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: preview-gc
+$patch: delete
