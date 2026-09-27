@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { expect, type FileChooser, test } from '@playwright/test'
-import { expectAfterReload } from './helpers'
+import { clickUntilURL, clickUntilVisible, expectAfterReload, waitForHydrated } from './helpers'
 
 // Full write-path round-trip against the deployed stack: presigned PUT to
 // MinIO through the gateway, CommitUpload, async indexing, browse listing,
@@ -11,6 +11,7 @@ test('upload, browse, and delete round-trip', async ({ page }) => {
 
   // "/" is browse mode at the bucket root by default.
   await page.goto('/')
+  await waitForHydrated(page)
   await expect(page.getByRole('button', { name: 'Upload', exact: true })).toBeVisible()
 
   // The file input is visually hidden; drive it through the chooser the
@@ -49,17 +50,17 @@ test('upload, browse, and delete round-trip', async ({ page }) => {
   })
 
   // Open the file's page and delete it there (two-step confirm).
-  await page
+  const metadataButton = page
     .getByRole('row')
     .filter({ hasText: key })
     .getByRole('button', { name: 'Metadata' })
-    .click()
+  await clickUntilURL(page, metadataButton, /\/file\/[^/]+$/, { label: 'Metadata button' })
   await expect(page.getByRole('heading', { name: key })).toBeVisible()
-  await page.getByRole('button', { name: 'Delete', exact: true }).click()
-  await page
-    .getByRole('alertdialog', { name: 'Confirm delete file' })
-    .getByRole('button', { name: 'Confirm delete' })
-    .click()
+
+  const deleteButton = page.getByRole('button', { name: 'Delete', exact: true })
+  const confirmDialog = page.getByRole('alertdialog', { name: 'Confirm delete file' })
+  await clickUntilVisible(page, deleteButton, confirmDialog, { label: 'Delete button' })
+  await confirmDialog.getByRole('button', { name: 'Confirm delete' }).click()
 
   // Delete navigates back to the parent folder (bucket root); the file is gone.
   await expect(page).toHaveURL(/\/$/)
