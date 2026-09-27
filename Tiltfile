@@ -141,7 +141,7 @@ k8s_yaml(blob('\n---\n'.join(routes)))
 # deploy/overlays/local/seed/ is picked up automatically, with no list to keep in sync.
 watch_file('deploy/overlays/local/seed')
 local(
-    'kubectl create configmap seed-data --from-file=deploy/overlays/local/seed --dry-run=client -o yaml | kubectl apply --server-side -f -',
+    'kubectl create namespace "%s" --dry-run=client -o yaml | kubectl apply -f - && kubectl create configmap seed-data --from-file=deploy/overlays/local/seed --dry-run=client -o yaml | kubectl apply --server-side -f -' % ns,
     quiet=True,
 )
 
