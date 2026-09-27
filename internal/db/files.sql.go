@@ -32,7 +32,7 @@ func (q *Queries) DatabaseNow(ctx context.Context) (pgtype.Timestamptz, error) {
 const deleteFile = `-- name: DeleteFile :one
 DELETE FROM files
 WHERE id = $1
-RETURNING id, key, created_at, marked_at, seen_at
+RETURNING id, key, created_at, marked_at, seen_at, effective_taken_at
 `
 
 func (q *Queries) DeleteFile(ctx context.Context, id int64) (File, error) {
@@ -44,6 +44,7 @@ func (q *Queries) DeleteFile(ctx context.Context, id int64) (File, error) {
 		&i.CreatedAt,
 		&i.MarkedAt,
 		&i.SeenAt,
+		&i.EffectiveTakenAt,
 	)
 	return i, err
 }
@@ -108,7 +109,7 @@ func (q *Queries) GetDirectoryStats(ctx context.Context, keyPattern string) (Get
 }
 
 const getFile = `-- name: GetFile :one
-SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, preview_key, preview_width, preview_height FROM file_infos
+SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, effective_taken_at, preview_key, preview_width, preview_height FROM file_infos
 WHERE id = $1
 `
 
@@ -123,6 +124,7 @@ func (q *Queries) GetFile(ctx context.Context, id int64) (FileInfo, error) {
 		&i.SizeBytes,
 		&i.LastModified,
 		&i.TakenAt,
+		&i.EffectiveTakenAt,
 		&i.PreviewKey,
 		&i.PreviewWidth,
 		&i.PreviewHeight,
@@ -131,7 +133,7 @@ func (q *Queries) GetFile(ctx context.Context, id int64) (FileInfo, error) {
 }
 
 const getFileByKey = `-- name: GetFileByKey :one
-SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, preview_key, preview_width, preview_height FROM file_infos
+SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, effective_taken_at, preview_key, preview_width, preview_height FROM file_infos
 WHERE key = $1
 `
 
@@ -146,6 +148,7 @@ func (q *Queries) GetFileByKey(ctx context.Context, key string) (FileInfo, error
 		&i.SizeBytes,
 		&i.LastModified,
 		&i.TakenAt,
+		&i.EffectiveTakenAt,
 		&i.PreviewKey,
 		&i.PreviewWidth,
 		&i.PreviewHeight,
@@ -154,7 +157,7 @@ func (q *Queries) GetFileByKey(ctx context.Context, key string) (FileInfo, error
 }
 
 const getFilesByIDs = `-- name: GetFilesByIDs :many
-SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, preview_key, preview_width, preview_height FROM file_infos
+SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, effective_taken_at, preview_key, preview_width, preview_height FROM file_infos
 WHERE id = ANY($1::bigint[])
 `
 
@@ -175,6 +178,7 @@ func (q *Queries) GetFilesByIDs(ctx context.Context, dollar_1 []int64) ([]FileIn
 			&i.SizeBytes,
 			&i.LastModified,
 			&i.TakenAt,
+			&i.EffectiveTakenAt,
 			&i.PreviewKey,
 			&i.PreviewWidth,
 			&i.PreviewHeight,
@@ -224,7 +228,7 @@ func (q *Queries) ListContentTypeCategories(ctx context.Context) ([]interface{},
 
 const listFilesByKeyAsc = `-- name: ListFilesByKeyAsc :many
 
-SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, preview_key, preview_width, preview_height FROM file_infos
+SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, effective_taken_at, preview_key, preview_width, preview_height FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR key ILIKE $3 OR key %> $2)
   AND ($4::text = '' OR content_type LIKE $4)
@@ -298,6 +302,7 @@ func (q *Queries) ListFilesByKeyAsc(ctx context.Context, arg ListFilesByKeyAscPa
 			&i.SizeBytes,
 			&i.LastModified,
 			&i.TakenAt,
+			&i.EffectiveTakenAt,
 			&i.PreviewKey,
 			&i.PreviewWidth,
 			&i.PreviewHeight,
@@ -313,7 +318,7 @@ func (q *Queries) ListFilesByKeyAsc(ctx context.Context, arg ListFilesByKeyAscPa
 }
 
 const listFilesByKeyDesc = `-- name: ListFilesByKeyDesc :many
-SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, preview_key, preview_width, preview_height FROM file_infos
+SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, effective_taken_at, preview_key, preview_width, preview_height FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR key ILIKE $3 OR key %> $2)
   AND ($4::text = '' OR content_type LIKE $4)
@@ -364,6 +369,7 @@ func (q *Queries) ListFilesByKeyDesc(ctx context.Context, arg ListFilesByKeyDesc
 			&i.SizeBytes,
 			&i.LastModified,
 			&i.TakenAt,
+			&i.EffectiveTakenAt,
 			&i.PreviewKey,
 			&i.PreviewWidth,
 			&i.PreviewHeight,
@@ -379,7 +385,7 @@ func (q *Queries) ListFilesByKeyDesc(ctx context.Context, arg ListFilesByKeyDesc
 }
 
 const listFilesByLastModifiedAsc = `-- name: ListFilesByLastModifiedAsc :many
-SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, preview_key, preview_width, preview_height FROM file_infos
+SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, effective_taken_at, preview_key, preview_width, preview_height FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR key ILIKE $3 OR key %> $2)
   AND ($4::text = '' OR content_type LIKE $4)
@@ -430,6 +436,7 @@ func (q *Queries) ListFilesByLastModifiedAsc(ctx context.Context, arg ListFilesB
 			&i.SizeBytes,
 			&i.LastModified,
 			&i.TakenAt,
+			&i.EffectiveTakenAt,
 			&i.PreviewKey,
 			&i.PreviewWidth,
 			&i.PreviewHeight,
@@ -445,7 +452,7 @@ func (q *Queries) ListFilesByLastModifiedAsc(ctx context.Context, arg ListFilesB
 }
 
 const listFilesByLastModifiedDesc = `-- name: ListFilesByLastModifiedDesc :many
-SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, preview_key, preview_width, preview_height FROM file_infos
+SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, effective_taken_at, preview_key, preview_width, preview_height FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR key ILIKE $3 OR key %> $2)
   AND ($4::text = '' OR content_type LIKE $4)
@@ -496,6 +503,7 @@ func (q *Queries) ListFilesByLastModifiedDesc(ctx context.Context, arg ListFiles
 			&i.SizeBytes,
 			&i.LastModified,
 			&i.TakenAt,
+			&i.EffectiveTakenAt,
 			&i.PreviewKey,
 			&i.PreviewWidth,
 			&i.PreviewHeight,
@@ -511,7 +519,7 @@ func (q *Queries) ListFilesByLastModifiedDesc(ctx context.Context, arg ListFiles
 }
 
 const listFilesBySizeAsc = `-- name: ListFilesBySizeAsc :many
-SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, preview_key, preview_width, preview_height FROM file_infos
+SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, effective_taken_at, preview_key, preview_width, preview_height FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR key ILIKE $3 OR key %> $2)
   AND ($4::text = '' OR content_type LIKE $4)
@@ -562,6 +570,7 @@ func (q *Queries) ListFilesBySizeAsc(ctx context.Context, arg ListFilesBySizeAsc
 			&i.SizeBytes,
 			&i.LastModified,
 			&i.TakenAt,
+			&i.EffectiveTakenAt,
 			&i.PreviewKey,
 			&i.PreviewWidth,
 			&i.PreviewHeight,
@@ -577,7 +586,7 @@ func (q *Queries) ListFilesBySizeAsc(ctx context.Context, arg ListFilesBySizeAsc
 }
 
 const listFilesBySizeDesc = `-- name: ListFilesBySizeDesc :many
-SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, preview_key, preview_width, preview_height FROM file_infos
+SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, effective_taken_at, preview_key, preview_width, preview_height FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR key ILIKE $3 OR key %> $2)
   AND ($4::text = '' OR content_type LIKE $4)
@@ -628,6 +637,7 @@ func (q *Queries) ListFilesBySizeDesc(ctx context.Context, arg ListFilesBySizeDe
 			&i.SizeBytes,
 			&i.LastModified,
 			&i.TakenAt,
+			&i.EffectiveTakenAt,
 			&i.PreviewKey,
 			&i.PreviewWidth,
 			&i.PreviewHeight,
@@ -643,13 +653,13 @@ func (q *Queries) ListFilesBySizeDesc(ctx context.Context, arg ListFilesBySizeDe
 }
 
 const listFilesByTakenAtAsc = `-- name: ListFilesByTakenAtAsc :many
-SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, preview_key, preview_width, preview_height FROM file_infos
+SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, effective_taken_at, preview_key, preview_width, preview_height FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR key ILIKE $3 OR key %> $2)
   AND ($4::text = '' OR content_type LIKE $4)
   AND (NOT $5::bool OR strpos(substr(key, char_length($6::text) + 1), '/') = 0)
-  AND (NOT $7::bool OR (COALESCE(taken_at, last_modified AT TIME ZONE 'UTC', 'epoch'::timestamp), id) > ($8::timestamp, $9::bigint))
-ORDER BY COALESCE(taken_at, last_modified AT TIME ZONE 'UTC', 'epoch'::timestamp) ASC, id ASC
+  AND (NOT $7::bool OR (effective_taken_at, id) > ($8::timestamp, $9::bigint))
+ORDER BY effective_taken_at ASC, id ASC
 LIMIT $10
 `
 
@@ -694,6 +704,7 @@ func (q *Queries) ListFilesByTakenAtAsc(ctx context.Context, arg ListFilesByTake
 			&i.SizeBytes,
 			&i.LastModified,
 			&i.TakenAt,
+			&i.EffectiveTakenAt,
 			&i.PreviewKey,
 			&i.PreviewWidth,
 			&i.PreviewHeight,
@@ -709,13 +720,13 @@ func (q *Queries) ListFilesByTakenAtAsc(ctx context.Context, arg ListFilesByTake
 }
 
 const listFilesByTakenAtDesc = `-- name: ListFilesByTakenAtDesc :many
-SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, preview_key, preview_width, preview_height FROM file_infos
+SELECT id, key, created_at, content_type, size_bytes, last_modified, taken_at, effective_taken_at, preview_key, preview_width, preview_height FROM file_infos
 WHERE key LIKE $1
   AND ($2::text = '' OR key ILIKE $3 OR key %> $2)
   AND ($4::text = '' OR content_type LIKE $4)
   AND (NOT $5::bool OR strpos(substr(key, char_length($6::text) + 1), '/') = 0)
-  AND (NOT $7::bool OR (COALESCE(taken_at, last_modified AT TIME ZONE 'UTC', 'epoch'::timestamp), id) < ($8::timestamp, $9::bigint))
-ORDER BY COALESCE(taken_at, last_modified AT TIME ZONE 'UTC', 'epoch'::timestamp) DESC, id DESC
+  AND (NOT $7::bool OR (effective_taken_at, id) < ($8::timestamp, $9::bigint))
+ORDER BY effective_taken_at DESC, id DESC
 LIMIT $10
 `
 
@@ -760,6 +771,7 @@ func (q *Queries) ListFilesByTakenAtDesc(ctx context.Context, arg ListFilesByTak
 			&i.SizeBytes,
 			&i.LastModified,
 			&i.TakenAt,
+			&i.EffectiveTakenAt,
 			&i.PreviewKey,
 			&i.PreviewWidth,
 			&i.PreviewHeight,
@@ -825,7 +837,7 @@ func (q *Queries) ListFilesForDelete(ctx context.Context, arg ListFilesForDelete
 }
 
 const updateFileKey = `-- name: UpdateFileKey :one
-UPDATE files SET key = $2 WHERE id = $1 RETURNING id, key, created_at, marked_at, seen_at
+UPDATE files SET key = $2 WHERE id = $1 RETURNING id, key, created_at, marked_at, seen_at, effective_taken_at
 `
 
 type UpdateFileKeyParams struct {
@@ -846,6 +858,7 @@ func (q *Queries) UpdateFileKey(ctx context.Context, arg UpdateFileKeyParams) (F
 		&i.CreatedAt,
 		&i.MarkedAt,
 		&i.SeenAt,
+		&i.EffectiveTakenAt,
 	)
 	return i, err
 }
