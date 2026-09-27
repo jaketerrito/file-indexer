@@ -40,5 +40,10 @@ DOKS `file-indexer` namespace showed no errors, but:
 
 - Backend pagination check: walked 200 pages/10k unique image files via
   `SearchService.ListFiles` directly without exhausting the token.
-- Current per-page latency: ~160 ms for search + ~70 ms for preview URLs.
-- Current query plan: full Hash Join + top-N heapsort over 21,701 image rows.
+- Pre-fix query plan: full Hash Join + top-N heapsort over 21,701 image rows
+  (~125 ms execution).
+- Post-fix query plan: index scan on `files_effective_taken_at_idx`
+  (~1.8 ms execution).
+- Commits:
+  - `fadd628` fix(web): avoid refetching loaded infinite-scroll pages on focus
+  - `16ae660` perf(search): index photos taken_at sort with effective_taken_at column
