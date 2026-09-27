@@ -69,3 +69,8 @@ recorded here after the quickstart doc was trimmed from the repo:
   DigitalOcean Spaces does **not** support bucket event notifications as of
   2026-09, so this path requires an S3-compatible provider that does
   (e.g., AWS S3, MinIO).
+- **Local-dev seed mechanism uses a ConfigMap**: the Tiltfile creates
+  `seed-data` from `deploy/overlays/local/seed/` and applies it server-side to
+  avoid the `last-applied-configuration` size limit. Replace this with a
+  container-image or init-container-based seed mechanism before the dataset
+  grows past ~1 MB.

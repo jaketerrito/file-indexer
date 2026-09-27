@@ -1,11 +1,11 @@
 apiVersion: batch/v1
-kind: Job
+kind: CronJob
 metadata:
   name: crawler
 $patch: delete
 ---
 apiVersion: batch/v1
-kind: Job
+kind: CronJob
 metadata:
   name: preview-gc
 $patch: delete
