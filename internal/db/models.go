@@ -28,6 +28,7 @@ type FileInfo struct {
 	ContentType   pgtype.Text
 	SizeBytes     pgtype.Int8
 	LastModified  pgtype.Timestamptz
+	TakenAt       pgtype.Timestamp
 	PreviewKey    pgtype.Text
 	PreviewWidth  pgtype.Int4
 	PreviewHeight pgtype.Int4

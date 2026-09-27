@@ -745,6 +745,9 @@ func dbFileToProto(f db.FileInfo) *pb.FileInfo {
 	if f.LastModified.Valid {
 		info.UpdatedAt = timestamppb.New(f.LastModified.Time)
 	}
+	if f.TakenAt.Valid {
+		info.Exif = &pb.ExifMetadata{TakenAt: timestamppb.New(f.TakenAt.Time)}
+	}
 	return info
 }
 

@@ -653,6 +653,142 @@ func (_c *MockFileIndex_ListFilesBySizeDesc_Call) RunAndReturn(run func(ctx cont
 	return _c
 }
 
+// ListFilesByTakenAtAsc provides a mock function for the type MockFileIndex
+func (_mock *MockFileIndex) ListFilesByTakenAtAsc(ctx context.Context, arg db.ListFilesByTakenAtAscParams) ([]db.FileInfo, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListFilesByTakenAtAsc")
+	}
+
+	var r0 []db.FileInfo
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListFilesByTakenAtAscParams) ([]db.FileInfo, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListFilesByTakenAtAscParams) []db.FileInfo); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.FileInfo)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ListFilesByTakenAtAscParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileIndex_ListFilesByTakenAtAsc_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListFilesByTakenAtAsc'
+type MockFileIndex_ListFilesByTakenAtAsc_Call struct {
+	*mock.Call
+}
+
+// ListFilesByTakenAtAsc is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.ListFilesByTakenAtAscParams
+func (_e *MockFileIndex_Expecter) ListFilesByTakenAtAsc(ctx any, arg any) *MockFileIndex_ListFilesByTakenAtAsc_Call {
+	return &MockFileIndex_ListFilesByTakenAtAsc_Call{Call: _e.mock.On("ListFilesByTakenAtAsc", ctx, arg)}
+}
+
+func (_c *MockFileIndex_ListFilesByTakenAtAsc_Call) Run(run func(ctx context.Context, arg db.ListFilesByTakenAtAscParams)) *MockFileIndex_ListFilesByTakenAtAsc_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.ListFilesByTakenAtAscParams
+		if args[1] != nil {
+			arg1 = args[1].(db.ListFilesByTakenAtAscParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileIndex_ListFilesByTakenAtAsc_Call) Return(fileInfos []db.FileInfo, err error) *MockFileIndex_ListFilesByTakenAtAsc_Call {
+	_c.Call.Return(fileInfos, err)
+	return _c
+}
+
+func (_c *MockFileIndex_ListFilesByTakenAtAsc_Call) RunAndReturn(run func(ctx context.Context, arg db.ListFilesByTakenAtAscParams) ([]db.FileInfo, error)) *MockFileIndex_ListFilesByTakenAtAsc_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListFilesByTakenAtDesc provides a mock function for the type MockFileIndex
+func (_mock *MockFileIndex) ListFilesByTakenAtDesc(ctx context.Context, arg db.ListFilesByTakenAtDescParams) ([]db.FileInfo, error) {
+	ret := _mock.Called(ctx, arg)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListFilesByTakenAtDesc")
+	}
+
+	var r0 []db.FileInfo
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListFilesByTakenAtDescParams) ([]db.FileInfo, error)); ok {
+		return returnFunc(ctx, arg)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, db.ListFilesByTakenAtDescParams) []db.FileInfo); ok {
+		r0 = returnFunc(ctx, arg)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]db.FileInfo)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, db.ListFilesByTakenAtDescParams) error); ok {
+		r1 = returnFunc(ctx, arg)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockFileIndex_ListFilesByTakenAtDesc_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListFilesByTakenAtDesc'
+type MockFileIndex_ListFilesByTakenAtDesc_Call struct {
+	*mock.Call
+}
+
+// ListFilesByTakenAtDesc is a helper method to define mock.On call
+//   - ctx context.Context
+//   - arg db.ListFilesByTakenAtDescParams
+func (_e *MockFileIndex_Expecter) ListFilesByTakenAtDesc(ctx any, arg any) *MockFileIndex_ListFilesByTakenAtDesc_Call {
+	return &MockFileIndex_ListFilesByTakenAtDesc_Call{Call: _e.mock.On("ListFilesByTakenAtDesc", ctx, arg)}
+}
+
+func (_c *MockFileIndex_ListFilesByTakenAtDesc_Call) Run(run func(ctx context.Context, arg db.ListFilesByTakenAtDescParams)) *MockFileIndex_ListFilesByTakenAtDesc_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 db.ListFilesByTakenAtDescParams
+		if args[1] != nil {
+			arg1 = args[1].(db.ListFilesByTakenAtDescParams)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFileIndex_ListFilesByTakenAtDesc_Call) Return(fileInfos []db.FileInfo, err error) *MockFileIndex_ListFilesByTakenAtDesc_Call {
+	_c.Call.Return(fileInfos, err)
+	return _c
+}
+
+func (_c *MockFileIndex_ListFilesByTakenAtDesc_Call) RunAndReturn(run func(ctx context.Context, arg db.ListFilesByTakenAtDescParams) ([]db.FileInfo, error)) *MockFileIndex_ListFilesByTakenAtDesc_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SearchDirectories provides a mock function for the type MockFileIndex
 func (_mock *MockFileIndex) SearchDirectories(ctx context.Context, arg db.SearchDirectoriesParams) ([]string, error) {
 	ret := _mock.Called(ctx, arg)

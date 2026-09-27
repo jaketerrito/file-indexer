@@ -110,9 +110,11 @@ type PageToken struct {
 	// phases) reuses query and last_dir for its page tokens: last_dir is the
 	// last directory path returned, directly usable as the SearchDirectories
 	// query's after argument.
-	Path          string    `protobuf:"bytes,9,opt,name=path,proto3" json:"path,omitempty"`
-	Phase         ListPhase `protobuf:"varint,10,opt,name=phase,proto3,enum=cursor.v1.ListPhase" json:"phase,omitempty"`
-	LastDir       string    `protobuf:"bytes,11,opt,name=last_dir,json=lastDir,proto3" json:"last_dir,omitempty"`
+	Path    string    `protobuf:"bytes,9,opt,name=path,proto3" json:"path,omitempty"`
+	Phase   ListPhase `protobuf:"varint,10,opt,name=phase,proto3,enum=cursor.v1.ListPhase" json:"phase,omitempty"`
+	LastDir string    `protobuf:"bytes,11,opt,name=last_dir,json=lastDir,proto3" json:"last_dir,omitempty"`
+	// Sort value for SORT_FIELD_TAKEN_AT: COALESCE(taken_at, last_modified UTC).
+	TakenAt       *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=taken_at,json=takenAt,proto3" json:"taken_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -224,11 +226,18 @@ func (x *PageToken) GetLastDir() string {
 	return ""
 }
 
+func (x *PageToken) GetTakenAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.TakenAt
+	}
+	return nil
+}
+
 var File_cursor_v1_cursor_proto protoreflect.FileDescriptor
 
 const file_cursor_v1_cursor_proto_rawDesc = "" +
 	"\n" +
-	"\x16cursor/v1/cursor.proto\x12\tcursor.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17service/v1/search.proto\"\x8b\x03\n" +
+	"\x16cursor/v1/cursor.proto\x12\tcursor.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17service/v1/search.proto\"\xc2\x03\n" +
 	"\tPageToken\x124\n" +
 	"\n" +
 	"sort_field\x18\x01 \x01(\x0e2\x15.service.v1.SortFieldR\tsortField\x124\n" +
@@ -243,7 +252,8 @@ const file_cursor_v1_cursor_proto_rawDesc = "" +
 	"\x04path\x18\t \x01(\tR\x04path\x12*\n" +
 	"\x05phase\x18\n" +
 	" \x01(\x0e2\x14.cursor.v1.ListPhaseR\x05phase\x12\x19\n" +
-	"\blast_dir\x18\v \x01(\tR\alastDir*Y\n" +
+	"\blast_dir\x18\v \x01(\tR\alastDir\x125\n" +
+	"\btaken_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\atakenAt*Y\n" +
 	"\tListPhase\x12\x1a\n" +
 	"\x16LIST_PHASE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16LIST_PHASE_DIRECTORIES\x10\x01\x12\x14\n" +
@@ -275,11 +285,12 @@ var file_cursor_v1_cursor_proto_depIdxs = []int32{
 	3, // 1: cursor.v1.PageToken.sort_order:type_name -> service.v1.SortOrder
 	4, // 2: cursor.v1.PageToken.last_modified:type_name -> google.protobuf.Timestamp
 	0, // 3: cursor.v1.PageToken.phase:type_name -> cursor.v1.ListPhase
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	4, // 4: cursor.v1.PageToken.taken_at:type_name -> google.protobuf.Timestamp
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_cursor_v1_cursor_proto_init() }

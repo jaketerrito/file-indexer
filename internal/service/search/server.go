@@ -44,6 +44,8 @@ type FileIndex interface {
 	ListFilesByLastModifiedDesc(ctx context.Context, arg db.ListFilesByLastModifiedDescParams) ([]db.FileInfo, error)
 	ListFilesBySizeAsc(ctx context.Context, arg db.ListFilesBySizeAscParams) ([]db.FileInfo, error)
 	ListFilesBySizeDesc(ctx context.Context, arg db.ListFilesBySizeDescParams) ([]db.FileInfo, error)
+	ListFilesByTakenAtAsc(ctx context.Context, arg db.ListFilesByTakenAtAscParams) ([]db.FileInfo, error)
+	ListFilesByTakenAtDesc(ctx context.Context, arg db.ListFilesByTakenAtDescParams) ([]db.FileInfo, error)
 	ListChildDirectories(ctx context.Context, arg db.ListChildDirectoriesParams) ([]string, error)
 	SearchDirectories(ctx context.Context, arg db.SearchDirectoriesParams) ([]string, error)
 	GetIndexQueueStatuses(ctx context.Context, arg db.GetIndexQueueStatusesParams) ([]db.GetIndexQueueStatusesRow, error)
@@ -278,6 +280,33 @@ func (s *SearchServer) listFiles(ctx context.Context, sortField pb.SortField, so
 			DirPrefix:          dirPrefix,
 			HasCursor:          hasCursor,
 			LastSize:           cur.GetSize(),
+			LastID:             cur.GetLastId(),
+			PageLimit:          int32(limit),
+		})
+	case pb.SortField_SORT_FIELD_TAKEN_AT:
+		if asc {
+			return s.queries.ListFilesByTakenAtAsc(ctx, db.ListFilesByTakenAtAscParams{
+				KeyPattern:         keyPattern,
+				KeyQuery:           query,
+				KeyQueryPattern:    keyQueryPattern,
+				ContentTypePattern: contentTypePattern,
+				DirectOnly:         directOnly,
+				DirPrefix:          dirPrefix,
+				HasCursor:          hasCursor,
+				CursorTakenAt:      takenAtCursor(cur),
+				LastID:             cur.GetLastId(),
+				PageLimit:          int32(limit),
+			})
+		}
+		return s.queries.ListFilesByTakenAtDesc(ctx, db.ListFilesByTakenAtDescParams{
+			KeyPattern:         keyPattern,
+			KeyQuery:           query,
+			KeyQueryPattern:    keyQueryPattern,
+			ContentTypePattern: contentTypePattern,
+			DirectOnly:         directOnly,
+			DirPrefix:          dirPrefix,
+			HasCursor:          hasCursor,
+			CursorTakenAt:      takenAtCursor(cur),
 			LastID:             cur.GetLastId(),
 			PageLimit:          int32(limit),
 		})
@@ -541,6 +570,9 @@ func dbFileToProto(f db.FileInfo) *pb.FileInfo {
 	}
 	if f.LastModified.Valid {
 		info.UpdatedAt = timestamppb.New(f.LastModified.Time)
+	}
+	if f.TakenAt.Valid {
+		info.Exif = &pb.ExifMetadata{TakenAt: timestamppb.New(f.TakenAt.Time)}
 	}
 	return info
 }

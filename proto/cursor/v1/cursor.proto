@@ -44,6 +44,8 @@ message PageToken {
   string path = 9;
   ListPhase phase = 10;
   string last_dir = 11;
+  // Sort value for SORT_FIELD_TAKEN_AT: COALESCE(taken_at, last_modified UTC).
+  google.protobuf.Timestamp taken_at = 12;
 }
 
 // ListPhase distinguishes the two halves of a ListDirectory page: browse

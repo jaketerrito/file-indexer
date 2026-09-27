@@ -166,6 +166,12 @@ func TestListFilesSortDispatch(t *testing.T) {
 		{"size desc", pb.SortField_SORT_FIELD_SIZE, pb.SortOrder_SORT_ORDER_DESC, func(m *MockFileIndex) {
 			m.EXPECT().ListFilesBySizeDesc(mock.Anything, mock.Anything).Return(nil, nil)
 		}},
+		{"taken_at asc", pb.SortField_SORT_FIELD_TAKEN_AT, pb.SortOrder_SORT_ORDER_ASC, func(m *MockFileIndex) {
+			m.EXPECT().ListFilesByTakenAtAsc(mock.Anything, mock.Anything).Return(nil, nil)
+		}},
+		{"taken_at desc", pb.SortField_SORT_FIELD_TAKEN_AT, pb.SortOrder_SORT_ORDER_DESC, func(m *MockFileIndex) {
+			m.EXPECT().ListFilesByTakenAtDesc(mock.Anything, mock.Anything).Return(nil, nil)
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -376,6 +382,25 @@ func TestDbFileToProtoNullFields(t *testing.T) {
 	}
 	if pf.CreatedAt != nil || pf.UpdatedAt != nil {
 		t.Errorf("timestamps = (%v, %v), want unset for NULLs", pf.CreatedAt, pf.UpdatedAt)
+	}
+	if pf.Exif != nil {
+		t.Errorf("Exif = %+v, want unset for NULL taken_at", pf.Exif)
+	}
+}
+
+func TestDbFileToProtoTakenAt(t *testing.T) {
+	taken := time.Date(2024, 3, 15, 10, 30, 0, 0, time.UTC)
+	f := db.FileInfo{
+		ID:      3,
+		Key:     "photo.jpg",
+		TakenAt: pgtype.Timestamp{Time: taken, Valid: true},
+	}
+	pf := dbFileToProto(f)
+	if pf.Exif == nil {
+		t.Fatal("Exif = nil, want populated from taken_at")
+	}
+	if !pf.Exif.TakenAt.AsTime().Equal(taken) {
+		t.Errorf("Exif.TakenAt = %v, want %v", pf.Exif.TakenAt.AsTime(), taken)
 	}
 }
 
