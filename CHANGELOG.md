@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/jaketerrito/file-indexer/compare/v0.4.0...v0.4.1) (2026-09-27)
+
+
+### Bug Fixes
+
+* **deploy:** run migrate Job as ArgoCD Sync hook ([#151](https://github.com/jaketerrito/file-indexer/issues/151)) ([83fcc2f](https://github.com/jaketerrito/file-indexer/commit/83fcc2fcf4697f294323071d261b477e678341e7))
+
 ## [0.4.0](https://github.com/jaketerrito/file-indexer/compare/v0.3.0...v0.4.0) (2026-09-27)
 
 
