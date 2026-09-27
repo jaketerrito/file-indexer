@@ -49,6 +49,8 @@ export function PhotoWall({ onOpenFile }: PhotoWallProps) {
         }),
       initialPageParam: '',
       getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
     })
 
   useFileStatusPoller(data?.pages, ['photos'])

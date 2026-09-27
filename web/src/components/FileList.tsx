@@ -46,6 +46,8 @@ export function FileList({
         }),
       initialPageParam: '',
       getNextPageParam: (lastPage) => lastPage.nextPageToken || undefined,
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
     })
 
   // Categories that actually exist in the index, for the type dropdown.
