@@ -44,12 +44,12 @@ async function deleteFileRow(page: Page, fileName: string) {
 
 async function addFolderAndNavigate(dialog: Locator, name: string) {
   // Ensure we are at the root and the directory list has loaded.
-  await dialog.getByRole('button', { name: 'Bucket root' }).click()
+  await dialog.getByRole('button', { name: 'Home' }).click()
   await expect(dialog.getByText('Loading…')).toHaveCount(0)
 
   await dialog.getByRole('button', { name: 'Add folder' }).click()
   await dialog.getByLabel('New folder name').fill(name)
-  await dialog.getByRole('button', { name: 'Create' }).click()
+  await dialog.locator('form#new-folder-form').getByRole('button', { name: 'Create' }).click()
 
   const targetPath = `${name}/`
   await expect(dialog.locator('code')).toContainText(targetPath)
