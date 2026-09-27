@@ -140,10 +140,10 @@ k8s_yaml(blob('\n---\n'.join(routes)))
 # file paths, not a directory or glob. This way every file dropped into
 # deploy/overlays/local/seed/ is picked up automatically, with no list to keep in sync.
 watch_file('deploy/overlays/local/seed')
-k8s_yaml(local(
-    'kubectl create configmap seed-data --from-file=deploy/overlays/local/seed --dry-run=client -o yaml',
+local(
+    'kubectl create namespace "%s" --dry-run=client -o yaml | kubectl apply -f - && kubectl create configmap seed-data --from-file=deploy/overlays/local/seed --dry-run=client -o yaml | kubectl apply --server-side -f -' % ns,
     quiet=True,
-))
+)
 
 k8s_resource('local-s3', links=['http://s3-console.%s.localhost' % ns])
 

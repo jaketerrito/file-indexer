@@ -22,10 +22,13 @@ resources:
   - ../../base
   - postgres.yaml
   - local-s3.yaml
+  - crawler-job.yaml
+  - preview-gc-job.yaml
 patches:
   - path: seed-sidecar.yaml
   - path: files-public-endpoint.yaml
   - path: web-writable-rootfs.yaml
+  - path: patch-delete-base-cronjobs.yaml
 
 # disableNameSuffixHash is load-bearing: the services reference these secrets
 # by fixed name via envFrom.

@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { expect, type FileChooser, type Locator, type Page, test } from '@playwright/test'
-import { expectAfterReload } from './helpers'
+import { expectAfterReload, openFileActionsMenu, selectMenuItem } from './helpers'
 
 async function uploadFile(page: Page, fileName: string, content: Buffer) {
   let chooser: FileChooser | undefined
@@ -27,38 +27,29 @@ async function uploadFile(page: Page, fileName: string, content: Buffer) {
 }
 
 async function openMoveDialog(page: Page, fileName: string): Promise<Locator> {
-  const row = page.getByRole('row').filter({ hasText: fileName })
+  const menu = await openFileActionsMenu(page, fileName)
+  await selectMenuItem(menu, 'Move')
   const dialog = page.getByRole('alertdialog', { name: 'Move file' })
-  for (let attempt = 0; attempt < 20; attempt++) {
-    await row.getByRole('button', { name: 'Move' }).click()
-    if (await dialog.isVisible().catch(() => false)) return dialog
-    await page.waitForTimeout(200)
-  }
-  throw new Error('Move dialog did not open')
+  await expect(dialog).toBeVisible()
+  return dialog
 }
 
 async function deleteFileRow(page: Page, fileName: string) {
-  const row = page.getByRole('row').filter({ hasText: fileName })
+  const menu = await openFileActionsMenu(page, fileName)
+  await selectMenuItem(menu, 'Delete')
   const confirm = page.getByRole('alertdialog', { name: 'Confirm delete file' })
-  for (let attempt = 0; attempt < 20; attempt++) {
-    await row.getByRole('button', { name: 'Delete' }).click()
-    if (await confirm.isVisible().catch(() => false)) {
-      await confirm.getByRole('button', { name: 'Confirm delete' }).click()
-      return
-    }
-    await page.waitForTimeout(200)
-  }
-  throw new Error('Delete confirmation did not open')
+  await expect(confirm).toBeVisible()
+  await confirm.getByRole('button', { name: 'Confirm delete' }).click()
 }
 
 async function addFolderAndNavigate(dialog: Locator, name: string) {
   // Ensure we are at the root and the directory list has loaded.
-  await dialog.getByRole('button', { name: 'Bucket root' }).click()
+  await dialog.getByRole('button', { name: 'Home' }).click()
   await expect(dialog.getByText('Loading…')).toHaveCount(0)
 
   await dialog.getByRole('button', { name: 'Add folder' }).click()
   await dialog.getByLabel('New folder name').fill(name)
-  await dialog.getByRole('button', { name: 'Create' }).click()
+  await dialog.locator('form#new-folder-form').getByRole('button', { name: 'Create' }).click()
 
   const targetPath = `${name}/`
   await expect(dialog.locator('code')).toContainText(targetPath)
@@ -85,10 +76,10 @@ test('move file to another folder round-trip', async ({ page }) => {
   // Move it to a fresh destination folder created via the dialog.
   let dialog = await openMoveDialog(page, fileName)
   await addFolderAndNavigate(dialog, destFolderName)
-  await dialog.getByRole('button', { name: 'Move here' }).click()
-  await expect(page.getByRole('alertdialog', { name: 'Move file' })).toHaveCount(0, {
-    timeout: 60_000,
-  })
+  const moveButton = dialog.getByRole('button', { name: 'Move here' })
+  await expect(moveButton).toBeEnabled()
+  await moveButton.click()
+  await expect(dialog).not.toBeVisible()
 
   // The file is now under the destination folder and absent from the source.
   await page.goto(browseUrl(destPath))
@@ -111,7 +102,10 @@ test('move file to another folder round-trip', async ({ page }) => {
 
   dialog = await openMoveDialog(page, fileName)
   await addFolderAndNavigate(dialog, destFolderName)
-  await dialog.getByRole('button', { name: 'Move here' }).click()
+  const collisionMoveButton = dialog.getByRole('button', { name: 'Move here' })
+  await expect(collisionMoveButton).toBeEnabled()
+  await collisionMoveButton.click()
+  await expect(dialog.getByRole('alert')).toBeVisible()
 
   await expect(dialog.getByRole('alert')).toContainText(/already exists/i, {
     timeout: 10_000,

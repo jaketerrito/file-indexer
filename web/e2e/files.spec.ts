@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { expectAfterReload } from './helpers'
+import { clickUntilURL, clickUntilVisible, expectAfterReload, waitForHydrated } from './helpers'
 
 // Objects seeded into the bucket by the local overlay
 // (deploy/overlays/local/seed/, uploaded by the local-s3 seed sidecar) and
@@ -15,10 +15,10 @@ const SEED_KEYS = [...SEED_TEXT_KEYS, ...SEED_PHOTO_KEYS]
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
+  await waitForHydrated(page)
 })
 
 test('seeded files are indexed and listed', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: 'Files' })).toBeVisible()
   await expectAfterReload(page, async () => {
     for (const key of SEED_KEYS) {
       await expect(page.getByText(key, { exact: true })).toBeVisible()
@@ -30,6 +30,7 @@ test('type filter narrows the list to one content-type category', async ({ page 
   // The Type filter lives on the search results page; an empty query lists
   // every indexed file there.
   await page.goto('/search')
+  await waitForHydrated(page)
   // The category options come from the indexed content types, so wait for
   // the full seed set first.
   await expectAfterReload(page, async () => {
@@ -54,6 +55,7 @@ test('Enter in the header search opens the full results page', async ({ page }) 
   await box.press('Enter')
 
   await expect(page).toHaveURL(/\/search\?query=notes/)
+  await waitForHydrated(page)
   await expect(page.getByRole('heading', { name: 'Search results' })).toBeVisible()
   await expectAfterReload(page, async () => {
     await expect(page.getByText('notes.txt', { exact: true })).toBeVisible()
@@ -67,12 +69,18 @@ test('header search finds a file and opens its metadata page', async ({ page }) 
   })
 
   await page.getByRole('searchbox', { name: 'Search files and folders' }).fill('notes')
-  await page.getByRole('button', { name: 'notes.txt' }).click()
+  const result = page.getByRole('button', { name: 'notes.txt' })
+  await expect(result).toBeVisible()
+  await clickUntilURL(page, result, /\/file\/[^/]+$/, { label: 'notes.txt result' })
 
   await expect(page).toHaveURL(/\/file\/[^/]+$/)
   await expect(page.getByRole('heading', { name: 'notes.txt' })).toBeVisible()
-  // Base stat row from the metadata table (stat indexing must have completed).
-  await expect(page.getByRole('row', { name: 'Content type text/plain' })).toBeVisible()
+
+  // The metadata table lives in a modal opened from the file page.
+  const metadataButton = page.getByRole('button', { name: 'Metadata' })
+  const metadataDialog = page.getByRole('dialog', { name: 'File metadata' })
+  await clickUntilVisible(page, metadataButton, metadataDialog, { label: 'Metadata button' })
+  await expect(metadataDialog.getByRole('row', { name: 'Content type text/plain' })).toBeVisible()
 })
 
 test('header search finds a folder and opens its browse view', async ({ page }) => {
@@ -80,14 +88,18 @@ test('header search finds a folder and opens its browse view', async ({ page }) 
   // / is browse-only, so the full key is only listed on the /search results
   // page — wait there for indexing to complete before going back to /.
   await page.goto('/search')
+  await waitForHydrated(page)
   await expectAfterReload(page, async () => {
     await expect(page.getByText('docs/todo.txt', { exact: true })).toBeVisible()
   })
   await page.goto('/')
+  await waitForHydrated(page)
 
   await page.getByRole('searchbox', { name: 'Search files and folders' }).fill('docs')
   // exact: 'docs/todo.txt' also contains 'docs/'.
-  await page.getByRole('button', { name: 'docs/', exact: true }).click()
+  const result = page.getByRole('button', { name: 'docs/', exact: true })
+  await expect(result).toBeVisible()
+  await clickUntilURL(page, result, /\?path=docs/, { label: 'docs/ result' })
 
   await expect(page).toHaveURL(/\?path=docs/)
   // Browse mode lists the folder's direct children by basename.
