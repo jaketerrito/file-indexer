@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { expect, type FileChooser, type Locator, type Page, test } from '@playwright/test'
-import { clickUntil, expectAfterReload, openFileActionsMenu, selectMenuItem } from './helpers'
+import { expectAfterReload, openFileActionsMenu, selectMenuItem } from './helpers'
 
 async function uploadFile(page: Page, fileName: string, content: Buffer) {
   let chooser: FileChooser | undefined
@@ -76,12 +76,10 @@ test('move file to another folder round-trip', async ({ page }) => {
   // Move it to a fresh destination folder created via the dialog.
   let dialog = await openMoveDialog(page, fileName)
   await addFolderAndNavigate(dialog, destFolderName)
-  await clickUntil(
-    page,
-    dialog.getByRole('button', { name: 'Move here' }),
-    async () => (await page.getByRole('alertdialog', { name: 'Move file' }).count()) === 0,
-    { label: 'Move here' },
-  )
+  const moveButton = dialog.getByRole('button', { name: 'Move here' })
+  await expect(moveButton).toBeEnabled()
+  await moveButton.click()
+  await expect(dialog).not.toBeVisible()
 
   // The file is now under the destination folder and absent from the source.
   await page.goto(browseUrl(destPath))
@@ -104,12 +102,10 @@ test('move file to another folder round-trip', async ({ page }) => {
 
   dialog = await openMoveDialog(page, fileName)
   await addFolderAndNavigate(dialog, destFolderName)
-  await clickUntil(
-    page,
-    dialog.getByRole('button', { name: 'Move here' }),
-    async () => (await dialog.getByRole('alert').count()) > 0,
-    { label: 'Move here collision' },
-  )
+  const collisionMoveButton = dialog.getByRole('button', { name: 'Move here' })
+  await expect(collisionMoveButton).toBeEnabled()
+  await collisionMoveButton.click()
+  await expect(dialog.getByRole('alert')).toBeVisible()
 
   await expect(dialog.getByRole('alert')).toContainText(/already exists/i, {
     timeout: 10_000,
