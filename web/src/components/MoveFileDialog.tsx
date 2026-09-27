@@ -150,7 +150,7 @@ export function MoveFileDialog({
               aria-current={viewPath === '' ? 'true' : undefined}
               style={viewPath === '' ? { fontWeight: 'bold' } : undefined}
             >
-              Bucket root
+              Home
             </button>
             {segments.map((segment, index) => {
               const target = `${segments.slice(0, index + 1).join('/')}/`

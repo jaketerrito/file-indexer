@@ -112,6 +112,16 @@ interface FileMetadataTableProps {
 }
 
 /**
+ * Compact inline display of the basic file stats. Rendered next to the file
+ * name on the file page; the full metadata table lives in a modal.
+ */
+export function FileBasicInfo({ file }: FileMetadataTableProps) {
+  return (
+    <span style={{ fontSize: '0.9rem', color: '#555' }}>Updated {formatDate(file.updatedAt)}</span>
+  )
+}
+
+/**
  * Metadata display for the standalone file page (routes/file.$id.tsx): the
  * base stat columns plus EXIF/XMP sections when present. Also the home of
  * formatBytes, reused by the delete-folder confirmation.

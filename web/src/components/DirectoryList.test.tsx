@@ -233,7 +233,7 @@ describe('DirectoryList', () => {
       true,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Bucket root' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
     await waitFor(() => expect(screen.getByText(/Destination:/).textContent).toContain('a.txt'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Move here' }))
@@ -258,7 +258,7 @@ describe('DirectoryList', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Move' }))
     await screen.findByRole('alertdialog')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Bucket root' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Home' }))
     await waitFor(() => expect(screen.getByText(/Destination:/).textContent).toContain('a.txt'))
 
     fireEvent.click(screen.getByRole('button', { name: 'Move here' }))
