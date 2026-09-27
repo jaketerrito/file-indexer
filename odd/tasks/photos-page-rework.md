@@ -47,3 +47,10 @@ clicking a preview opens the file page.
 - `go test ./...`
 - `go test -tags=integration ./internal/service/search/... ./internal/db/...`
 - `npm --prefix web test -- --run` (vitest unit tests)
+
+## Evidence
+
+- Backend: `28489a6` feat(search): add takenAt sort with exif fallback
+- Web API mapping: `abaf62e` feat(web): expose takenAt and updatedAt in FileDto
+- Frontend: `4eca0ad` feat(web): photo wall with day separators
+- Fix: `a8f0248` fix(search): epoch fallback for takenAt cursor pagination
