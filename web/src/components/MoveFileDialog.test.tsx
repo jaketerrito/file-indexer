@@ -90,7 +90,7 @@ describe('MoveFileDialog', () => {
     })
     renderDialog('docs/report.pdf')
 
-    expect(await screen.findByRole('button', { name: 'Bucket root' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Home' })).toBeTruthy()
     expect(screen.getByText('docs', { exact: true })).toBeTruthy()
     expect(screen.getByText('Destination:')).toBeTruthy()
     expect(screen.getByText(/Destination:/).textContent).toContain('docs/report.pdf')
@@ -175,7 +175,7 @@ describe('MoveFileDialog', () => {
     })
     renderDialog('docs/work/report.pdf')
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Bucket root' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Home' }))
     await waitFor(() =>
       expect(screen.getByText(/Destination:/).textContent).toContain('report.pdf'),
     )
