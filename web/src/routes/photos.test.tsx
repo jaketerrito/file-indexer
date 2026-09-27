@@ -25,17 +25,28 @@ import { listContentTypes, listFiles } from '../server/files'
 const listFilesMock = vi.mocked(listFiles)
 const listContentTypesMock = vi.mocked(listContentTypes)
 
-function file(id: string, key: string): FileDto {
+function file(
+  id: string,
+  key: string,
+  overrides: {
+    takenAt?: string
+    updatedAt?: string
+    previewUrl?: string
+    previewStatus?: number
+  } = {},
+): FileDto {
   return {
     id,
     key,
     contentType: 'image/jpeg',
     sizeBytes: 1,
     createdAt: null,
-    previewUrl: null,
+    updatedAt: overrides.updatedAt ?? null,
+    takenAt: overrides.takenAt ?? null,
+    previewUrl: overrides.previewUrl ?? null,
     previewWidth: null,
     previewHeight: null,
-    previewStatus: PreviewStatus.NONE,
+    previewStatus: overrides.previewStatus ?? PreviewStatus.NONE,
   }
 }
 
@@ -71,40 +82,61 @@ afterEach(() => {
 })
 
 describe('photos page', () => {
-  it('renders filtered to image types with lastModified descending', async () => {
-    listFilesMock.mockResolvedValue({ files: [file('1', 'photo.jpg')], nextPageToken: '' })
+  it('renders filtered to image types sorted by takenAt descending', async () => {
+    listFilesMock.mockResolvedValue({
+      files: [file('1', 'photo.jpg', { previewUrl: 'https://example.com/preview-1' })],
+      nextPageToken: '',
+    })
 
     renderRoute('/photos')
 
-    expect(await screen.findByText('photo.jpg')).toBeDefined()
+    expect(await screen.findByRole('img')).toBeDefined()
     expect(listFilesMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           query: '',
           contentType: 'image/',
-          sortField: 'lastModified',
+          sortField: 'takenAt',
           sortOrder: 'desc',
         }),
       }),
     )
   })
 
-  it('hides the type filter', async () => {
-    listFilesMock.mockResolvedValue({ files: [file('1', 'photo.jpg')], nextPageToken: '' })
+  it('renders day separators from effective dates', async () => {
+    listFilesMock.mockResolvedValue({
+      files: [
+        file('1', 'a.jpg', {
+          takenAt: '2025-06-01T12:00:00.000Z',
+          previewUrl: 'https://example.com/preview-1',
+        }),
+        file('2', 'b.jpg', {
+          takenAt: '2025-06-01T10:00:00.000Z',
+          previewUrl: 'https://example.com/preview-2',
+        }),
+        file('3', 'c.jpg', {
+          takenAt: '2025-05-31T08:00:00.000Z',
+          previewUrl: 'https://example.com/preview-3',
+        }),
+      ],
+      nextPageToken: '',
+    })
 
     renderRoute('/photos')
-    await screen.findByText('photo.jpg')
 
-    expect(screen.queryByLabelText(/Type/)).toBeNull()
+    expect(await screen.findByText('Jun 1, 2025')).toBeDefined()
+    expect(screen.getByText('May 31, 2025')).toBeDefined()
+    expect(screen.getAllByRole('img')).toHaveLength(3)
   })
 
-  it('has no sort or type controls', async () => {
-    listFilesMock.mockResolvedValue({ files: [file('1', 'photo.jpg')], nextPageToken: '' })
+  it('falls back to updatedAt for grouping when takenAt is absent', async () => {
+    listFilesMock.mockResolvedValue({
+      files: [file('1', 'a.jpg', { updatedAt: '2025-06-02T12:00:00.000Z' })],
+      nextPageToken: '',
+    })
 
     renderRoute('/photos')
-    await screen.findByText('photo.jpg')
 
-    expect(screen.queryByLabelText(/Sort by/)).toBeNull()
-    expect(screen.queryByLabelText(/Type/)).toBeNull()
+    expect(await screen.findByText('Jun 2, 2025')).toBeDefined()
   })
 })
