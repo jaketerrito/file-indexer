@@ -83,16 +83,33 @@ export function PhotoWall({ onOpenFile }: PhotoWallProps) {
 
   return (
     <div>
+      <style>{`.photo-wall-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(5, 1fr);
+}
+
+@media (min-width: 480px) {
+  .photo-wall-grid {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  }
+}
+
+@media (min-width: 768px) {
+  .photo-wall-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .photo-wall-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+}`}</style>
       {groups.map((group) => (
         <section key={group.date} style={{ marginBottom: '1.5rem' }}>
           <h2 style={{ margin: '0.5rem 0', fontSize: '1.1rem' }}>{group.date}</h2>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-              gap: '0.5rem',
-            }}
-          >
+          <div className="photo-wall-grid" data-testid="photo-grid">
             {group.files.map((file) => (
               <button
                 key={file.id}
