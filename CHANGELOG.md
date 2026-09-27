@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/jaketerrito/file-indexer/compare/v0.4.1...v0.4.2) (2026-09-27)
+
+
+### Bug Fixes
+
+* **web:** repair Photos infinite scroll sentinel and expand local seed photos ([#153](https://github.com/jaketerrito/file-indexer/issues/153)) ([22135dd](https://github.com/jaketerrito/file-indexer/commit/22135ddcd87e6e7459b43cd2c32fb241af7e0897))
+
 ## [0.4.1](https://github.com/jaketerrito/file-indexer/compare/v0.4.0...v0.4.1) (2026-09-27)
 
 
