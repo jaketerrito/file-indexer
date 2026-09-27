@@ -330,6 +330,51 @@ func createListFileWithTakenAt(t *testing.T, conn *pgx.Conn, key, contentType st
 	return refetched
 }
 
+func coalesceTakenAtCursor(f FileInfo) pgtype.Timestamp {
+	if f.TakenAt.Valid {
+		return f.TakenAt
+	}
+	if f.LastModified.Valid {
+		return pgtype.Timestamp{Time: f.LastModified.Time.UTC(), Valid: true}
+	}
+	return pgtype.Timestamp{Time: time.Unix(0, 0).UTC(), Valid: true}
+}
+
+func TestListFilesByTakenAtNullFallback(t *testing.T) {
+	conn := testConn(t)
+	q := New(conn)
+	ctx := context.Background()
+	prefix := uniqueKey(t) + "/"
+	base := time.Now().UTC().Truncate(time.Second)
+
+	// Fully stat-indexed file with a recent last_modified but no EXIF row.
+	createListFile(t, conn, prefix+"recent.jpg", "image/jpeg", 100, base.Add(time.Minute))
+	// Inserted but never stat or exif indexed: both taken_at and last_modified are NULL.
+	_ = insertTestFile(t, conn, prefix+"unindexed.txt")
+
+	page1, err := q.ListFilesByTakenAtDesc(ctx, ListFilesByTakenAtDescParams{
+		KeyPattern: prefix + "%",
+		PageLimit:  1,
+	})
+	if err != nil {
+		t.Fatalf("page 1: %v", err)
+	}
+	assertKeys(t, page1, prefix+"recent.jpg")
+
+	last := page1[0]
+	page2, err := q.ListFilesByTakenAtDesc(ctx, ListFilesByTakenAtDescParams{
+		KeyPattern:    prefix + "%",
+		HasCursor:     true,
+		CursorTakenAt: coalesceTakenAtCursor(last),
+		LastID:        last.ID,
+		PageLimit:     1,
+	})
+	if err != nil {
+		t.Fatalf("page 2: %v", err)
+	}
+	assertKeys(t, page2, prefix+"unindexed.txt")
+}
+
 func TestListFilesByTakenAtOrder(t *testing.T) {
 	conn := testConn(t)
 	q := New(conn)

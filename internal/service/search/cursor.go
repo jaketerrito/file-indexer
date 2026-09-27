@@ -88,9 +88,9 @@ func setSortValue(c *cursor, sortField pb.SortField, last db.FileInfo) {
 		// sorts as zero.
 		c.Size = last.SizeBytes.Int64
 	case pb.SortField_SORT_FIELD_TAKEN_AT:
-		// Matches COALESCE(taken_at, last_modified AT TIME ZONE 'UTC') in
-		// the list queries: a file with neither EXIF nor stat index sorts
-		// at the epoch.
+		// Matches COALESCE(taken_at, last_modified AT TIME ZONE 'UTC',
+		// 'epoch'::timestamp) in the list queries: a file with neither EXIF
+		// nor stat index sorts at the epoch.
 		c.TakenAt = timestamppb.New(coalesceTakenAt(last))
 	}
 }
@@ -106,9 +106,10 @@ func coalesceLastModified(f db.FileInfo) time.Time {
 }
 
 // coalesceTakenAt mirrors the list queries' COALESCE(taken_at,
-// last_modified AT TIME ZONE 'UTC') so cursor comparisons see the same sort
-// value the database used. taken_at is a naive TIMESTAMP; the fallback
-// converts last_modified to UTC before stripping the zone.
+// last_modified AT TIME ZONE 'UTC', 'epoch'::timestamp) so cursor comparisons
+// see the same sort value the database used. taken_at is a naive TIMESTAMP;
+// the fallback converts last_modified to UTC before stripping the zone, and
+// the final 'epoch'::timestamp fallback covers rows where both are NULL.
 func coalesceTakenAt(f db.FileInfo) time.Time {
 	if f.TakenAt.Valid {
 		return f.TakenAt.Time

@@ -648,8 +648,8 @@ WHERE key LIKE $1
   AND ($2::text = '' OR key ILIKE $3 OR key %> $2)
   AND ($4::text = '' OR content_type LIKE $4)
   AND (NOT $5::bool OR strpos(substr(key, char_length($6::text) + 1), '/') = 0)
-  AND (NOT $7::bool OR (COALESCE(taken_at, last_modified AT TIME ZONE 'UTC'), id) > ($8::timestamp, $9::bigint))
-ORDER BY COALESCE(taken_at, last_modified AT TIME ZONE 'UTC') ASC, id ASC
+  AND (NOT $7::bool OR (COALESCE(taken_at, last_modified AT TIME ZONE 'UTC', 'epoch'::timestamp), id) > ($8::timestamp, $9::bigint))
+ORDER BY COALESCE(taken_at, last_modified AT TIME ZONE 'UTC', 'epoch'::timestamp) ASC, id ASC
 LIMIT $10
 `
 
@@ -714,8 +714,8 @@ WHERE key LIKE $1
   AND ($2::text = '' OR key ILIKE $3 OR key %> $2)
   AND ($4::text = '' OR content_type LIKE $4)
   AND (NOT $5::bool OR strpos(substr(key, char_length($6::text) + 1), '/') = 0)
-  AND (NOT $7::bool OR (COALESCE(taken_at, last_modified AT TIME ZONE 'UTC'), id) < ($8::timestamp, $9::bigint))
-ORDER BY COALESCE(taken_at, last_modified AT TIME ZONE 'UTC') DESC, id DESC
+  AND (NOT $7::bool OR (COALESCE(taken_at, last_modified AT TIME ZONE 'UTC', 'epoch'::timestamp), id) < ($8::timestamp, $9::bigint))
+ORDER BY COALESCE(taken_at, last_modified AT TIME ZONE 'UTC', 'epoch'::timestamp) DESC, id DESC
 LIMIT $10
 `
 

@@ -294,6 +294,55 @@ func TestListFilesIntegrationPaging(t *testing.T) {
 	}
 }
 
+func TestListFilesIntegrationSortByTakenAtNullFallback(t *testing.T) {
+	pool := testPool(t)
+	q := db.New(pool)
+	ctx := context.Background()
+	prefix := uniqueKey(t) + "/"
+	base := time.Now().UTC().Truncate(time.Second)
+
+	// Fully stat-indexed file with a recent last_modified but no EXIF row.
+	createListFile(t, pool, prefix+"recent.jpg", "image/jpeg", 100, base.Add(time.Minute))
+
+	// Inserted but never stat or exif indexed: both taken_at and last_modified are NULL.
+	if _, err := q.UpsertFiles(ctx, db.UpsertFilesParams{
+		Keys:      []string{prefix + "unindexed.txt"},
+		MarkedAts: []pgtype.Timestamptz{{Time: time.Now().UTC(), Valid: true}},
+	}); err != nil {
+		t.Fatalf("UpsertFiles: %v", err)
+	}
+	var unindexedID int64
+	if err := pool.QueryRow(ctx, `SELECT id FROM files WHERE key = $1`, prefix+"unindexed.txt").Scan(&unindexedID); err != nil {
+		t.Fatalf("get unindexed id: %v", err)
+	}
+	t.Cleanup(func() { _, _ = q.DeleteFile(context.Background(), unindexedID) })
+
+	client := searchClient(t, pool)
+
+	page1 := mustListFiles(t, client, &pb.ListFilesRequest{
+		Query:     prefix,
+		SortField: pb.SortField_SORT_FIELD_TAKEN_AT,
+		SortOrder: pb.SortOrder_SORT_ORDER_DESC,
+		PageSize:  1,
+	})
+	assertInfoKeys(t, page1.GetFiles(), prefix+"recent.jpg")
+	if page1.GetNextPageToken() == "" {
+		t.Fatal("page 1 NextPageToken empty, want token for page 2")
+	}
+
+	page2 := mustListFiles(t, client, &pb.ListFilesRequest{
+		Query:     prefix,
+		SortField: pb.SortField_SORT_FIELD_TAKEN_AT,
+		SortOrder: pb.SortOrder_SORT_ORDER_DESC,
+		PageSize:  1,
+		PageToken: page1.GetNextPageToken(),
+	})
+	assertInfoKeys(t, page2.GetFiles(), prefix+"unindexed.txt")
+	if page2.GetNextPageToken() != "" {
+		t.Errorf("page 2 NextPageToken = %q, want empty", page2.GetNextPageToken())
+	}
+}
+
 func TestListFilesIntegrationSortByTakenAt(t *testing.T) {
 	pool := testPool(t)
 	prefix := uniqueKey(t) + "/"
