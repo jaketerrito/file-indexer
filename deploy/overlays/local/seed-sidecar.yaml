@@ -35,7 +35,18 @@ spec:
               # so a recursive copy would follow hidden dirs and create junk keys.
               # A plain glob skips dotfiles, seeing only real keys.
               for f in /seed/*; do
-                aws --endpoint-url http://127.0.0.1:9000 s3 cp "$f" "s3://$S3_BUCKET/$(basename "$f")"
+                key=$(basename "$f")
+                # The single extra source image is duplicated below; don't
+                # publish it under its raw filename.
+                case "$key" in
+                  photo-extra-source.jpg) continue ;;
+                esac
+                aws --endpoint-url http://127.0.0.1:9000 s3 cp "$f" "s3://$S3_BUCKET/$key"
+              done
+              # Expand the one source image into 30 numbered keys for
+              # infinite-scroll testing.
+              for key in $(seq -f 'photo-extra-%03g.jpg' 1 30); do
+                aws --endpoint-url http://127.0.0.1:9000 s3 cp /seed/photo-extra-source.jpg "s3://$S3_BUCKET/$key"
               done
               # One nested object so a folder exists to browse/search
               aws --endpoint-url http://127.0.0.1:9000 s3 cp /seed/todo.txt "s3://$S3_BUCKET/docs/todo.txt"
