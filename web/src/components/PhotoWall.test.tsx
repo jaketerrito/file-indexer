@@ -219,4 +219,20 @@ describe('PhotoWall', () => {
 
     expect((await screen.findByRole('alert')).textContent).toContain('service unavailable')
   })
+
+  it('renders the photo grid with responsive layout class and scoped style', async () => {
+    listFilesMock.mockResolvedValue({
+      files: [file('1', 'photo.jpg', { takenAt: '2025-06-01T12:00:00.000Z' })],
+      nextPageToken: '',
+    })
+
+    renderPhotoWall()
+
+    const grid = await screen.findByTestId('photo-grid')
+    expect(grid.classList.contains('photo-wall-grid')).toBe(true)
+
+    const style = document.querySelector('style')
+    expect(style?.textContent).toContain('repeat(5, 1fr)')
+    expect(style?.textContent).toContain('@media')
+  })
 })
