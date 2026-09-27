@@ -6,7 +6,7 @@ import { useFileStatusPoller } from '../lib/useFileStatusPoller'
 import { listFiles } from '../server/files'
 import type { FileDto } from '../server/impl'
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 24
 
 interface PhotoWallProps {
   /** Opens a file's standalone page. */
@@ -59,11 +59,14 @@ export function PhotoWall({ onOpenFile }: PhotoWallProps) {
   useEffect(() => {
     const sentinel = sentinelRef.current
     if (!sentinel) return
-    const observer = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting) && hasNextPage && !isFetchingNextPage) {
-        void fetchNextPage()
-      }
-    })
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting) && hasNextPage && !isFetchingNextPage) {
+          void fetchNextPage()
+        }
+      },
+      { rootMargin: '200px' },
+    )
     observer.observe(sentinel)
     return () => observer.disconnect()
   }, [fetchNextPage, hasNextPage, isFetchingNextPage])
@@ -137,7 +140,7 @@ export function PhotoWall({ onOpenFile }: PhotoWallProps) {
           </div>
         </section>
       ))}
-      <div ref={sentinelRef} data-testid="scroll-sentinel" />
+      <div ref={sentinelRef} data-testid="scroll-sentinel" style={{ height: '1px' }} />
       {isFetchingNextPage ? <p>Loading more…</p> : null}
     </div>
   )

@@ -10,6 +10,7 @@ const SEED_PHOTO_KEYS = [
   'photo-gps-2.jpg',
   'photo-no-exif.jpg',
   'photo-plain.jpg',
+  ...Array.from({ length: 30 }, (_, i) => `photo-extra-${String(i + 1).padStart(3, '0')}.jpg`),
 ]
 const SEED_KEYS = [...SEED_TEXT_KEYS, ...SEED_PHOTO_KEYS]
 

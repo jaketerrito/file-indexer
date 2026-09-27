@@ -49,16 +49,21 @@ function file(
 }
 
 let intersectionCallback: IntersectionObserverCallback | undefined
+let lastObservedElement: Element | undefined
+let lastObserverOptions: IntersectionObserverInit | undefined
 
 class FakeIntersectionObserver implements IntersectionObserver {
-  readonly root = null
+  readonly root: Element | Document | null = null
   readonly rootMargin = ''
   readonly scrollMargin = ''
-  readonly thresholds = []
-  constructor(callback: IntersectionObserverCallback) {
+  readonly thresholds: number[] = []
+  constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
     intersectionCallback = callback
+    lastObserverOptions = options
   }
-  observe() {}
+  observe(target: Element) {
+    lastObservedElement = target
+  }
   unobserve() {}
   disconnect() {}
   takeRecords(): IntersectionObserverEntry[] {
@@ -94,6 +99,8 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.clearAllMocks()
   intersectionCallback = undefined
+  lastObservedElement = undefined
+  lastObserverOptions = undefined
 })
 
 describe('PhotoWall', () => {
@@ -105,7 +112,7 @@ describe('PhotoWall', () => {
     await waitFor(() => {
       expect(listFilesMock).toHaveBeenCalledWith({
         data: {
-          pageSize: 50,
+          pageSize: 24,
           pageToken: '',
           query: '',
           contentType: 'image/',
@@ -195,7 +202,10 @@ describe('PhotoWall', () => {
 
     renderPhotoWall()
 
-    await screen.findByRole('button', { name: 'page1.jpg' })
+    const sentinel = await screen.findByTestId('scroll-sentinel')
+    expect((sentinel as HTMLElement).style.height).toBe('1px')
+    expect(lastObservedElement).toBe(sentinel)
+    expect(lastObserverOptions).toEqual({ rootMargin: '200px' })
     triggerIntersection()
 
     await waitFor(() => {
