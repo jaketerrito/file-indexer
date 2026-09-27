@@ -172,6 +172,26 @@ WHERE key LIKE sqlc.arg(key_pattern)
 ORDER BY COALESCE(size_bytes, 0) DESC, id DESC
 LIMIT sqlc.arg(page_limit);
 
+-- name: ListFilesByTakenAtAsc :many
+SELECT * FROM file_infos
+WHERE key LIKE sqlc.arg(key_pattern)
+  AND (sqlc.arg(key_query)::text = '' OR key ILIKE sqlc.arg(key_query_pattern) OR key %> sqlc.arg(key_query))
+  AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
+  AND (NOT sqlc.arg(direct_only)::bool OR strpos(substr(key, char_length(sqlc.arg(dir_prefix)::text) + 1), '/') = 0)
+  AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(taken_at, last_modified AT TIME ZONE 'UTC', 'epoch'::timestamp), id) > (sqlc.arg(cursor_taken_at)::timestamp, sqlc.arg(last_id)::bigint))
+ORDER BY COALESCE(taken_at, last_modified AT TIME ZONE 'UTC', 'epoch'::timestamp) ASC, id ASC
+LIMIT sqlc.arg(page_limit);
+
+-- name: ListFilesByTakenAtDesc :many
+SELECT * FROM file_infos
+WHERE key LIKE sqlc.arg(key_pattern)
+  AND (sqlc.arg(key_query)::text = '' OR key ILIKE sqlc.arg(key_query_pattern) OR key %> sqlc.arg(key_query))
+  AND (sqlc.arg(content_type_pattern)::text = '' OR content_type LIKE sqlc.arg(content_type_pattern))
+  AND (NOT sqlc.arg(direct_only)::bool OR strpos(substr(key, char_length(sqlc.arg(dir_prefix)::text) + 1), '/') = 0)
+  AND (NOT sqlc.arg(has_cursor)::bool OR (COALESCE(taken_at, last_modified AT TIME ZONE 'UTC', 'epoch'::timestamp), id) < (sqlc.arg(cursor_taken_at)::timestamp, sqlc.arg(last_id)::bigint))
+ORDER BY COALESCE(taken_at, last_modified AT TIME ZONE 'UTC', 'epoch'::timestamp) DESC, id DESC
+LIMIT sqlc.arg(page_limit);
+
 -- name: ListContentTypeCategories :many
 -- Distinct top-level MIME categories in the stat index, each with a trailing
 -- "/" so values plug straight into the content_type_pattern prefix semantics

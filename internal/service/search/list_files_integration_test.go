@@ -113,6 +113,26 @@ func seedListFiles(t *testing.T, pool *pgxpool.Pool) string {
 	return prefix
 }
 
+// createListFileWithTakenAt inserts, stat-indexes, and EXIF-indexes a file
+// with the given naive capture time.
+func createListFileWithTakenAt(t *testing.T, pool *pgxpool.Pool, key, contentType string, size int64, lastModified, takenAt time.Time) {
+	t.Helper()
+	createListFile(t, pool, key, contentType, size, lastModified)
+	ctx := context.Background()
+	var id int64
+	if err := pool.QueryRow(ctx, `SELECT id FROM files WHERE key = $1`, key).Scan(&id); err != nil {
+		t.Fatalf("get file id for %q: %v", key, err)
+	}
+	q := db.New(pool)
+	if err := q.UpsertIndexExifResult(ctx, db.UpsertIndexExifResultParams{
+		FileID:  id,
+		TakenAt: pgtype.Timestamp{Time: takenAt, Valid: true},
+		HasExif: true,
+	}); err != nil {
+		t.Fatalf("UpsertIndexExifResult: %v", err)
+	}
+}
+
 // searchClient serves a real SearchServer (the same composition as
 // cmd/search/main.go) on an ephemeral port and returns a client connected
 // to it. Serve has no shutdown; the leaked goroutine dies with the test
@@ -272,6 +292,98 @@ func TestListFilesIntegrationPaging(t *testing.T) {
 	if code := status.Code(err); code != codes.InvalidArgument {
 		t.Errorf("garbage token: code = %v, want InvalidArgument (err=%v)", code, err)
 	}
+}
+
+func TestListFilesIntegrationSortByTakenAtNullFallback(t *testing.T) {
+	pool := testPool(t)
+	q := db.New(pool)
+	ctx := context.Background()
+	prefix := uniqueKey(t) + "/"
+	base := time.Now().UTC().Truncate(time.Second)
+
+	// Fully stat-indexed file with a recent last_modified but no EXIF row.
+	createListFile(t, pool, prefix+"recent.jpg", "image/jpeg", 100, base.Add(time.Minute))
+
+	// Inserted but never stat or exif indexed: both taken_at and last_modified are NULL.
+	if _, err := q.UpsertFiles(ctx, db.UpsertFilesParams{
+		Keys:      []string{prefix + "unindexed.txt"},
+		MarkedAts: []pgtype.Timestamptz{{Time: time.Now().UTC(), Valid: true}},
+	}); err != nil {
+		t.Fatalf("UpsertFiles: %v", err)
+	}
+	var unindexedID int64
+	if err := pool.QueryRow(ctx, `SELECT id FROM files WHERE key = $1`, prefix+"unindexed.txt").Scan(&unindexedID); err != nil {
+		t.Fatalf("get unindexed id: %v", err)
+	}
+	t.Cleanup(func() { _, _ = q.DeleteFile(context.Background(), unindexedID) })
+
+	client := searchClient(t, pool)
+
+	page1 := mustListFiles(t, client, &pb.ListFilesRequest{
+		Query:     prefix,
+		SortField: pb.SortField_SORT_FIELD_TAKEN_AT,
+		SortOrder: pb.SortOrder_SORT_ORDER_DESC,
+		PageSize:  1,
+	})
+	assertInfoKeys(t, page1.GetFiles(), prefix+"recent.jpg")
+	if page1.GetNextPageToken() == "" {
+		t.Fatal("page 1 NextPageToken empty, want token for page 2")
+	}
+
+	page2 := mustListFiles(t, client, &pb.ListFilesRequest{
+		Query:     prefix,
+		SortField: pb.SortField_SORT_FIELD_TAKEN_AT,
+		SortOrder: pb.SortOrder_SORT_ORDER_DESC,
+		PageSize:  1,
+		PageToken: page1.GetNextPageToken(),
+	})
+	assertInfoKeys(t, page2.GetFiles(), prefix+"unindexed.txt")
+	if page2.GetNextPageToken() != "" {
+		t.Errorf("page 2 NextPageToken = %q, want empty", page2.GetNextPageToken())
+	}
+}
+
+func TestListFilesIntegrationSortByTakenAt(t *testing.T) {
+	pool := testPool(t)
+	prefix := uniqueKey(t) + "/"
+	base := time.Now().UTC().Truncate(time.Second)
+
+	// EXIF capture date older than every fallback last_modified.
+	createListFileWithTakenAt(t, pool, prefix+"exif-old.jpg", "image/jpeg", 100, base.Add(1*time.Hour), base.Add(-24*time.Hour))
+	// No EXIF row: sorts by last_modified fallback.
+	createListFile(t, pool, prefix+"no-exif.txt", "text/plain", 200, base.Add(1*time.Second))
+	// EXIF capture date newer than the no-exif fallback.
+	createListFileWithTakenAt(t, pool, prefix+"exif-new.jpg", "image/jpeg", 150, base.Add(-1*time.Hour), base.Add(1*time.Minute))
+
+	client := searchClient(t, pool)
+
+	resp := mustListFiles(t, client, &pb.ListFilesRequest{
+		Query:     prefix,
+		SortField: pb.SortField_SORT_FIELD_TAKEN_AT,
+		SortOrder: pb.SortOrder_SORT_ORDER_ASC,
+	})
+	assertInfoKeys(t, resp.GetFiles(), prefix+"exif-old.jpg", prefix+"no-exif.txt", prefix+"exif-new.jpg")
+
+	// Files with EXIF expose TakenAt; the fallback file leaves Exif unset.
+	for _, f := range resp.GetFiles() {
+		switch f.GetKey() {
+		case prefix + "exif-old.jpg", prefix + "exif-new.jpg":
+			if f.GetExif() == nil || f.GetExif().GetTakenAt() == nil {
+				t.Errorf("%s: want Exif.TakenAt set, got %v", f.GetKey(), f.GetExif())
+			}
+		case prefix + "no-exif.txt":
+			if f.GetExif() != nil {
+				t.Errorf("%s: want Exif unset, got %v", f.GetKey(), f.GetExif())
+			}
+		}
+	}
+
+	resp = mustListFiles(t, client, &pb.ListFilesRequest{
+		Query:     prefix,
+		SortField: pb.SortField_SORT_FIELD_TAKEN_AT,
+		SortOrder: pb.SortOrder_SORT_ORDER_DESC,
+	})
+	assertInfoKeys(t, resp.GetFiles(), prefix+"exif-new.jpg", prefix+"no-exif.txt", prefix+"exif-old.jpg")
 }
 
 func TestListFilesIntegrationFilters(t *testing.T) {

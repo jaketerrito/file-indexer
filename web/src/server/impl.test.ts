@@ -9,6 +9,7 @@ import {
   DeleteDirectoryResponseSchema,
   DeleteFileResponseSchema,
   DownloadURLSpecSchema,
+  type ExifMetadata,
   ExifMetadataSchema,
   FileInfoSchema,
   type FilesService,
@@ -69,26 +70,33 @@ import {
 
 const CREATED_AT = new Date('2026-01-02T03:04:05.000Z')
 
+const UPDATED_AT = new Date('2026-01-03T06:07:08.000Z')
+
 function fileInfo(
   overrides: {
     id?: bigint
     key?: string
+    contentType?: string
     previewKey?: string
     previewWidth?: number
     previewHeight?: number
     previewStatus?: number
+    updatedAt?: Date
+    exif?: ExifMetadata
   } = {},
 ) {
   return create(FileInfoSchema, {
     id: overrides.id ?? 1n,
     key: overrides.key ?? 'docs/report.pdf',
-    contentType: 'application/pdf',
+    contentType: overrides.contentType ?? 'application/pdf',
     sizeBytes: 1024n,
     createdAt: timestampFromDate(CREATED_AT),
+    updatedAt: overrides.updatedAt ? timestampFromDate(overrides.updatedAt) : undefined,
     previewKey: overrides.previewKey ?? '',
     previewWidth: overrides.previewWidth ?? 0,
     previewHeight: overrides.previewHeight ?? 0,
     previewStatus: overrides.previewStatus ?? 0,
+    exif: overrides.exif,
   })
 }
 
@@ -109,6 +117,8 @@ describe('toFileDto', () => {
       contentType: 'application/pdf',
       sizeBytes: 1024,
       createdAt: '2026-01-02T03:04:05.000Z',
+      updatedAt: null,
+      takenAt: null,
       previewUrl: null,
       previewWidth: null,
       previewHeight: null,
@@ -129,6 +139,25 @@ describe('toFileDto', () => {
     expect(dto.previewHeight).toBe(160)
     // previewUrl is resolved later by listFilesImpl, not by toFileDto itself.
     expect(dto.previewUrl).toBeNull()
+  })
+
+  it('maps takenAt from exif and updatedAt from file metadata', () => {
+    const dto = toFileDto(
+      fileInfo({
+        id: 7n,
+        key: 'photo.jpg',
+        contentType: 'image/jpeg',
+        updatedAt: UPDATED_AT,
+        exif: create(ExifMetadataSchema, {
+          takenAt: timestampFromDate(TAKEN_AT),
+          hasExif: true,
+          hasXmp: false,
+          xmpKeywords: [],
+        }),
+      }),
+    )
+    expect(dto.takenAt).toBe('2025-06-01T12:00:00.000Z')
+    expect(dto.updatedAt).toBe('2026-01-03T06:07:08.000Z')
   })
 
   it('reports null preview dimensions when the file has no preview', () => {

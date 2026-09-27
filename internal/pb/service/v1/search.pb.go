@@ -32,6 +32,10 @@ const (
 	// indexed, sorting those files first ascending.
 	SortField_SORT_FIELD_LAST_MODIFIED SortField = 2
 	SortField_SORT_FIELD_SIZE          SortField = 3
+	// Capture time from the EXIF index when present, otherwise the object's
+	// S3 last-modified time. Unset for files not yet stat-indexed, sorting
+	// those files first ascending alongside any missing EXIF date.
+	SortField_SORT_FIELD_TAKEN_AT SortField = 4
 )
 
 // Enum value maps for SortField.
@@ -41,12 +45,14 @@ var (
 		1: "SORT_FIELD_KEY",
 		2: "SORT_FIELD_LAST_MODIFIED",
 		3: "SORT_FIELD_SIZE",
+		4: "SORT_FIELD_TAKEN_AT",
 	}
 	SortField_value = map[string]int32{
 		"SORT_FIELD_UNSPECIFIED":   0,
 		"SORT_FIELD_KEY":           1,
 		"SORT_FIELD_LAST_MODIFIED": 2,
 		"SORT_FIELD_SIZE":          3,
+		"SORT_FIELD_TAKEN_AT":      4,
 	}
 )
 
@@ -689,12 +695,13 @@ const file_service_v1_search_proto_rawDesc = "" +
 	"page_token\x18\x03 \x01(\tR\tpageToken\"e\n" +
 	"\x19SearchDirectoriesResponse\x12 \n" +
 	"\vdirectories\x18\x01 \x03(\tR\vdirectories\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*n\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*\x87\x01\n" +
 	"\tSortField\x12\x1a\n" +
 	"\x16SORT_FIELD_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSORT_FIELD_KEY\x10\x01\x12\x1c\n" +
 	"\x18SORT_FIELD_LAST_MODIFIED\x10\x02\x12\x13\n" +
-	"\x0fSORT_FIELD_SIZE\x10\x03*P\n" +
+	"\x0fSORT_FIELD_SIZE\x10\x03\x12\x17\n" +
+	"\x13SORT_FIELD_TAKEN_AT\x10\x04*P\n" +
 	"\tSortOrder\x12\x1a\n" +
 	"\x16SORT_ORDER_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSORT_ORDER_ASC\x10\x01\x12\x13\n" +

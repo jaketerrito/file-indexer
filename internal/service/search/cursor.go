@@ -87,6 +87,11 @@ func setSortValue(c *cursor, sortField pb.SortField, last db.FileInfo) {
 		// Matches COALESCE(size_bytes, 0) in the list queries: a NULL size
 		// sorts as zero.
 		c.Size = last.SizeBytes.Int64
+	case pb.SortField_SORT_FIELD_TAKEN_AT:
+		// Matches COALESCE(taken_at, last_modified AT TIME ZONE 'UTC',
+		// 'epoch'::timestamp) in the list queries: a file with neither EXIF
+		// nor stat index sorts at the epoch.
+		c.TakenAt = timestamppb.New(coalesceTakenAt(last))
 	}
 }
 
@@ -96,6 +101,21 @@ func setSortValue(c *cursor, sortField pb.SortField, last db.FileInfo) {
 func coalesceLastModified(f db.FileInfo) time.Time {
 	if f.LastModified.Valid {
 		return f.LastModified.Time
+	}
+	return time.Unix(0, 0).UTC()
+}
+
+// coalesceTakenAt mirrors the list queries' COALESCE(taken_at,
+// last_modified AT TIME ZONE 'UTC', 'epoch'::timestamp) so cursor comparisons
+// see the same sort value the database used. taken_at is a naive TIMESTAMP;
+// the fallback converts last_modified to UTC before stripping the zone, and
+// the final 'epoch'::timestamp fallback covers rows where both are NULL.
+func coalesceTakenAt(f db.FileInfo) time.Time {
+	if f.TakenAt.Valid {
+		return f.TakenAt.Time
+	}
+	if f.LastModified.Valid {
+		return f.LastModified.Time.UTC()
 	}
 	return time.Unix(0, 0).UTC()
 }
@@ -130,4 +150,14 @@ func lastModifiedCursor(c *cursor) pgtype.Timestamptz {
 		return pgtype.Timestamptz{}
 	}
 	return pgtype.Timestamptz{Time: c.GetLastModified().AsTime(), Valid: true}
+}
+
+// takenAtCursor adapts the cursor's timestamp for the taken_at list queries.
+// It returns a pgtype.Timestamp (naive, matching the view's taken_at column
+// and the sqlc cast to ::timestamp).
+func takenAtCursor(c *cursor) pgtype.Timestamp {
+	if c == nil {
+		return pgtype.Timestamp{}
+	}
+	return pgtype.Timestamp{Time: c.GetTakenAt().AsTime(), Valid: true}
 }

@@ -22,6 +22,10 @@ enum SortField {
   // indexed, sorting those files first ascending.
   SORT_FIELD_LAST_MODIFIED = 2;
   SORT_FIELD_SIZE = 3;
+  // Capture time from the EXIF index when present, otherwise the object's
+  // S3 last-modified time. Unset for files not yet stat-indexed, sorting
+  // those files first ascending alongside any missing EXIF date.
+  SORT_FIELD_TAKEN_AT = 4;
 }
 
 // SortOrder selects the direction ListFiles orders results in.

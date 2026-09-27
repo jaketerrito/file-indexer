@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file cursor/v1/cursor.proto.
  */
 export const file_cursor_v1_cursor: GenFile = /*@__PURE__*/
-  fileDesc("ChZjdXJzb3IvdjEvY3Vyc29yLnByb3RvEgljdXJzb3IudjEiqgIKCVBhZ2VUb2tlbhIpCgpzb3J0X2ZpZWxkGAEgASgOMhUuc2VydmljZS52MS5Tb3J0RmllbGQSKQoKc29ydF9vcmRlchgCIAEoDjIVLnNlcnZpY2UudjEuU29ydE9yZGVyEg8KB2xhc3RfaWQYAyABKAMSCwoDa2V5GAQgASgJEjEKDWxhc3RfbW9kaWZpZWQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBHNpemUYBiABKAMSDQoFcXVlcnkYByABKAkSFAoMY29udGVudF90eXBlGAggASgJEgwKBHBhdGgYCSABKAkSIwoFcGhhc2UYCiABKA4yFC5jdXJzb3IudjEuTGlzdFBoYXNlEhAKCGxhc3RfZGlyGAsgASgJKlkKCUxpc3RQaGFzZRIaChZMSVNUX1BIQVNFX1VOU1BFQ0lGSUVEEAASGgoWTElTVF9QSEFTRV9ESVJFQ1RPUklFUxABEhQKEExJU1RfUEhBU0VfRklMRVMQAkItWitmaWxlLWluZGV4ZXIvaW50ZXJuYWwvcGIvY3Vyc29yL3YxO2N1cnNvcnYxYgZwcm90bzM", [file_google_protobuf_timestamp, file_service_v1_search]);
+  fileDesc("ChZjdXJzb3IvdjEvY3Vyc29yLnByb3RvEgljdXJzb3IudjEi2AIKCVBhZ2VUb2tlbhIpCgpzb3J0X2ZpZWxkGAEgASgOMhUuc2VydmljZS52MS5Tb3J0RmllbGQSKQoKc29ydF9vcmRlchgCIAEoDjIVLnNlcnZpY2UudjEuU29ydE9yZGVyEg8KB2xhc3RfaWQYAyABKAMSCwoDa2V5GAQgASgJEjEKDWxhc3RfbW9kaWZpZWQYBSABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wEgwKBHNpemUYBiABKAMSDQoFcXVlcnkYByABKAkSFAoMY29udGVudF90eXBlGAggASgJEgwKBHBhdGgYCSABKAkSIwoFcGhhc2UYCiABKA4yFC5jdXJzb3IudjEuTGlzdFBoYXNlEhAKCGxhc3RfZGlyGAsgASgJEiwKCHRha2VuX2F0GAwgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcCpZCglMaXN0UGhhc2USGgoWTElTVF9QSEFTRV9VTlNQRUNJRklFRBAAEhoKFkxJU1RfUEhBU0VfRElSRUNUT1JJRVMQARIUChBMSVNUX1BIQVNFX0ZJTEVTEAJCLVorZmlsZS1pbmRleGVyL2ludGVybmFsL3BiL2N1cnNvci92MTtjdXJzb3J2MWIGcHJvdG8z", [file_google_protobuf_timestamp, file_service_v1_search]);
 
 /**
  * PageToken is the internal wire format of a ListFiles page token. It is
@@ -104,6 +104,13 @@ export type PageToken = Message<"cursor.v1.PageToken"> & {
    * @generated from field: string last_dir = 11;
    */
   lastDir: string;
+
+  /**
+   * Sort value for SORT_FIELD_TAKEN_AT: COALESCE(taken_at, last_modified UTC).
+   *
+   * @generated from field: google.protobuf.Timestamp taken_at = 12;
+   */
+  takenAt?: Timestamp | undefined;
 };
 
 /**

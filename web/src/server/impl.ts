@@ -23,6 +23,12 @@ export interface FileDto {
   contentType: string
   sizeBytes: number
   createdAt: string | null
+  updatedAt?: string | null
+  /**
+   * Best-effort capture timestamp from EXIF, or null when unavailable. Used
+   * by photo views to group images by the day they were taken.
+   */
+  takenAt?: string | null
   /**
    * Presigned inline URL for this file's preview image, or null when the file
    * has no preview. Resolved server-side by listFilesImpl so the browser needs
@@ -146,7 +152,7 @@ export function toFileMetadataDto(file: FileInfo): FileMetadataDto {
   }
 }
 
-export const SORT_FIELDS = ['key', 'lastModified', 'size'] as const
+export const SORT_FIELDS = ['key', 'lastModified', 'size', 'takenAt'] as const
 export type SortFieldInput = (typeof SORT_FIELDS)[number]
 
 export const SORT_ORDERS = ['asc', 'desc'] as const
@@ -156,6 +162,7 @@ const SORT_FIELD_PB: Record<SortFieldInput, SortField> = {
   key: SortField.KEY,
   lastModified: SortField.LAST_MODIFIED,
   size: SortField.SIZE,
+  takenAt: SortField.TAKEN_AT,
 }
 
 const SORT_ORDER_PB: Record<SortOrderInput, SortOrder> = {
@@ -188,6 +195,8 @@ export function toFileDto(file: FileInfo): FileDto {
     contentType: file.contentType,
     sizeBytes: Number(file.sizeBytes),
     createdAt: file.createdAt ? timestampDate(file.createdAt).toISOString() : null,
+    updatedAt: file.updatedAt ? timestampDate(file.updatedAt).toISOString() : null,
+    takenAt: file.exif?.takenAt ? timestampDate(file.exif.takenAt).toISOString() : null,
     // Filled in by listFilesImpl; toFileDto has no storage client.
     previewUrl: null,
     previewWidth: hasPreview ? file.previewWidth : null,

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 // createListFile inserts a file and stat-indexes it with explicit content
@@ -307,6 +308,104 @@ func TestListFilesKeysetPaginationDescBySize(t *testing.T) {
 		t.Fatalf("page 2: %v", err)
 	}
 	assertKeys(t, page2, prefix+"b.png")
+}
+
+// createListFileWithTakenAt inserts and stat-indexes a file, then writes
+// an EXIF result with the given naive capture time.
+func createListFileWithTakenAt(t *testing.T, conn *pgx.Conn, key, contentType string, size int64, lastModified, takenAt time.Time) FileInfo {
+	t.Helper()
+	file := createListFile(t, conn, key, contentType, size, lastModified)
+	q := New(conn)
+	if err := q.UpsertIndexExifResult(context.Background(), UpsertIndexExifResultParams{
+		FileID:  file.ID,
+		TakenAt: pgtype.Timestamp{Time: takenAt, Valid: true},
+		HasExif: true,
+	}); err != nil {
+		t.Fatalf("UpsertIndexExifResult: %v", err)
+	}
+	refetched, err := q.GetFile(context.Background(), file.ID)
+	if err != nil {
+		t.Fatalf("GetFile after exif upsert: %v", err)
+	}
+	return refetched
+}
+
+func coalesceTakenAtCursor(f FileInfo) pgtype.Timestamp {
+	if f.TakenAt.Valid {
+		return f.TakenAt
+	}
+	if f.LastModified.Valid {
+		return pgtype.Timestamp{Time: f.LastModified.Time.UTC(), Valid: true}
+	}
+	return pgtype.Timestamp{Time: time.Unix(0, 0).UTC(), Valid: true}
+}
+
+func TestListFilesByTakenAtNullFallback(t *testing.T) {
+	conn := testConn(t)
+	q := New(conn)
+	ctx := context.Background()
+	prefix := uniqueKey(t) + "/"
+	base := time.Now().UTC().Truncate(time.Second)
+
+	// Fully stat-indexed file with a recent last_modified but no EXIF row.
+	createListFile(t, conn, prefix+"recent.jpg", "image/jpeg", 100, base.Add(time.Minute))
+	// Inserted but never stat or exif indexed: both taken_at and last_modified are NULL.
+	_ = insertTestFile(t, conn, prefix+"unindexed.txt")
+
+	page1, err := q.ListFilesByTakenAtDesc(ctx, ListFilesByTakenAtDescParams{
+		KeyPattern: prefix + "%",
+		PageLimit:  1,
+	})
+	if err != nil {
+		t.Fatalf("page 1: %v", err)
+	}
+	assertKeys(t, page1, prefix+"recent.jpg")
+
+	last := page1[0]
+	page2, err := q.ListFilesByTakenAtDesc(ctx, ListFilesByTakenAtDescParams{
+		KeyPattern:    prefix + "%",
+		HasCursor:     true,
+		CursorTakenAt: coalesceTakenAtCursor(last),
+		LastID:        last.ID,
+		PageLimit:     1,
+	})
+	if err != nil {
+		t.Fatalf("page 2: %v", err)
+	}
+	assertKeys(t, page2, prefix+"unindexed.txt")
+}
+
+func TestListFilesByTakenAtOrder(t *testing.T) {
+	conn := testConn(t)
+	q := New(conn)
+	ctx := context.Background()
+	prefix := uniqueKey(t) + "/"
+	base := time.Now().UTC().Truncate(time.Second)
+
+	// EXIF capture date older than every fallback last_modified.
+	createListFileWithTakenAt(t, conn, prefix+"exif-old.jpg", "image/jpeg", 100, base.Add(1*time.Hour), base.Add(-24*time.Hour))
+	// No EXIF row: sorts by last_modified fallback.
+	createListFile(t, conn, prefix+"no-exif.txt", "text/plain", 200, base.Add(1*time.Second))
+	// EXIF capture date newer than the no-exif fallback.
+	createListFileWithTakenAt(t, conn, prefix+"exif-new.jpg", "image/jpeg", 150, base.Add(-1*time.Hour), base.Add(1*time.Minute))
+
+	asc, err := q.ListFilesByTakenAtAsc(ctx, ListFilesByTakenAtAscParams{
+		KeyPattern: prefix + "%",
+		PageLimit:  10,
+	})
+	if err != nil {
+		t.Fatalf("ListFilesByTakenAtAsc: %v", err)
+	}
+	assertKeys(t, asc, prefix+"exif-old.jpg", prefix+"no-exif.txt", prefix+"exif-new.jpg")
+
+	desc, err := q.ListFilesByTakenAtDesc(ctx, ListFilesByTakenAtDescParams{
+		KeyPattern: prefix + "%",
+		PageLimit:  10,
+	})
+	if err != nil {
+		t.Fatalf("ListFilesByTakenAtDesc: %v", err)
+	}
+	assertKeys(t, desc, prefix+"exif-new.jpg", prefix+"no-exif.txt", prefix+"exif-old.jpg")
 }
 
 func TestListContentTypeCategories(t *testing.T) {
