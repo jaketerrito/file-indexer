@@ -1,6 +1,11 @@
 import { Buffer } from 'node:buffer'
 import { expect, type FileChooser, type Locator, type Page, test } from '@playwright/test'
-import { clickUntil, clickUntilVisible, expectAfterReload } from './helpers'
+import {
+  clickUntil,
+  expectAfterReload,
+  openFileActionsMenu,
+  selectMenuItem,
+} from './helpers'
 
 async function uploadFile(page: Page, fileName: string, content: Buffer) {
   let chooser: FileChooser | undefined
@@ -27,20 +32,18 @@ async function uploadFile(page: Page, fileName: string, content: Buffer) {
 }
 
 async function openMoveDialog(page: Page, fileName: string): Promise<Locator> {
-  const row = page.getByRole('row').filter({ hasText: fileName })
+  const menu = await openFileActionsMenu(page, fileName)
+  await selectMenuItem(menu, 'Move')
   const dialog = page.getByRole('alertdialog', { name: 'Move file' })
-  await clickUntilVisible(page, row.getByRole('button', { name: 'Move' }), dialog, {
-    label: 'Move dialog',
-  })
+  await expect(dialog).toBeVisible()
   return dialog
 }
 
 async function deleteFileRow(page: Page, fileName: string) {
-  const row = page.getByRole('row').filter({ hasText: fileName })
+  const menu = await openFileActionsMenu(page, fileName)
+  await selectMenuItem(menu, 'Delete')
   const confirm = page.getByRole('alertdialog', { name: 'Confirm delete file' })
-  await clickUntilVisible(page, row.getByRole('button', { name: 'Delete' }), confirm, {
-    label: 'Delete confirmation',
-  })
+  await expect(confirm).toBeVisible()
   await confirm.getByRole('button', { name: 'Confirm delete' }).click()
 }
 

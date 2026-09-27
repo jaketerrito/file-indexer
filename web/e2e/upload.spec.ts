@@ -1,6 +1,12 @@
 import { Buffer } from 'node:buffer'
 import { expect, type FileChooser, test } from '@playwright/test'
-import { clickUntilURL, clickUntilVisible, expectAfterReload, waitForHydrated } from './helpers'
+import {
+  clickUntilURL,
+  clickUntilVisible,
+  expectAfterReload,
+  getFileRow,
+  waitForHydrated,
+} from './helpers'
 
 // Full write-path round-trip against the deployed stack: presigned PUT to
 // MinIO through the gateway, CommitUpload, async indexing, browse listing,
@@ -49,12 +55,9 @@ test('upload, browse, and delete round-trip', async ({ page }) => {
     await expect(page.getByText(key, { exact: true })).toBeVisible()
   })
 
-  // Open the file's page and delete it there (two-step confirm).
-  const metadataButton = page
-    .getByRole('row')
-    .filter({ hasText: key })
-    .getByRole('button', { name: 'Metadata' })
-  await clickUntilURL(page, metadataButton, /\/file\/[^/]+$/, { label: 'Metadata button' })
+  // Open the file's page by clicking the row, then delete it there (two-step confirm).
+  const fileRow = getFileRow(page, key)
+  await clickUntilURL(page, fileRow, /\/file\/[^/]+$/, { label: 'file row' })
   await expect(page.getByRole('heading', { name: key })).toBeVisible()
 
   const deleteButton = page.getByRole('button', { name: 'Delete', exact: true })

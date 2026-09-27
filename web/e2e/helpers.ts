@@ -72,6 +72,38 @@ export async function clickUntilVisible(
 }
 
 /**
+ * Returns the table row that contains `fileName`.
+ */
+export function getFileRow(page: Page, fileName: string): Locator {
+  return page.getByRole('row').filter({ hasText: fileName })
+}
+
+/**
+ * Opens the "File actions" ⋯ menu on the row containing `fileName` and
+ * returns the menu locator. Retries clicks to survive the hydration gap on
+ * SSR'd interactive elements.
+ */
+export async function openFileActionsMenu(
+  page: Page,
+  fileName: string,
+): Promise<Locator> {
+  const row = getFileRow(page, fileName)
+  const menuButton = row.getByRole('button', { name: 'File actions' })
+  const menu = row.getByRole('menu')
+  await clickUntilVisible(page, menuButton, menu, {
+    label: `File actions menu for ${fileName}`,
+  })
+  return menu
+}
+
+/**
+ * Clicks a menu item inside an already-open actions menu.
+ */
+export async function selectMenuItem(menu: Locator, itemName: string): Promise<void> {
+  await menu.getByRole('menuitem', { name: itemName }).click()
+}
+
+/**
  * Reloads `page` until `assertion` passes. Indexing (crawler -> index
  * workers -> search) and the UI's own status polling are asynchronous, so
  * data-dependent expectations retry through reloads instead of fixed sleeps.

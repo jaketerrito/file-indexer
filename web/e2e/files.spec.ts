@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { clickUntilURL, expectAfterReload, waitForHydrated } from './helpers'
+import { clickUntilURL, clickUntilVisible, expectAfterReload, waitForHydrated } from './helpers'
 
 // Objects seeded into the bucket by the local overlay
 // (deploy/overlays/local/seed/, uploaded by the local-s3 seed sidecar) and
@@ -19,7 +19,6 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('seeded files are indexed and listed', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: 'Files' })).toBeVisible()
   await expectAfterReload(page, async () => {
     for (const key of SEED_KEYS) {
       await expect(page.getByText(key, { exact: true })).toBeVisible()
@@ -76,8 +75,14 @@ test('header search finds a file and opens its metadata page', async ({ page }) 
 
   await expect(page).toHaveURL(/\/file\/[^/]+$/)
   await expect(page.getByRole('heading', { name: 'notes.txt' })).toBeVisible()
-  // Base stat row from the metadata table (stat indexing must have completed).
-  await expect(page.getByRole('row', { name: 'Content type text/plain' })).toBeVisible()
+
+  // The metadata table lives in a modal opened from the file page.
+  const metadataButton = page.getByRole('button', { name: 'Metadata' })
+  const metadataDialog = page.getByRole('dialog', { name: 'File metadata' })
+  await clickUntilVisible(page, metadataButton, metadataDialog, { label: 'Metadata button' })
+  await expect(
+    metadataDialog.getByRole('row', { name: 'Content type text/plain' }),
+  ).toBeVisible()
 })
 
 test('header search finds a folder and opens its browse view', async ({ page }) => {
