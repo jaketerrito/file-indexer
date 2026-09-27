@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0](https://github.com/jaketerrito/file-indexer/compare/v0.3.0...v0.4.0) (2026-09-27)
+
+
+### Features
+
+* **deploy:** configure crawler and preview-gc as production CronJobs ([#150](https://github.com/jaketerrito/file-indexer/issues/150)) ([79823b0](https://github.com/jaketerrito/file-indexer/commit/79823b0e4bce48f22c7b459d1c1c8634902ee829))
+
+
+### Bug Fixes
+
+* **photos:** stop redundant refetches and index taken_at sort ([#149](https://github.com/jaketerrito/file-indexer/issues/149)) ([92a223b](https://github.com/jaketerrito/file-indexer/commit/92a223bf5c198dbfd1c25384f41e7d48b5c3c21d))
+* **web:** responsive photo grid with at least 5 columns on mobile ([#147](https://github.com/jaketerrito/file-indexer/issues/147)) ([3e9c9bd](https://github.com/jaketerrito/file-indexer/commit/3e9c9bdcb5eff4f5305d86ce65c131e8de2fae17))
+
 ## [0.3.0](https://github.com/jaketerrito/file-indexer/compare/v0.2.0...v0.3.0) (2026-09-27)
 
 
