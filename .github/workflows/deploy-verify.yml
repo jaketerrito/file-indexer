@@ -60,13 +60,13 @@ jobs:
     timeout-minutes: 25
     env:
       # renovate: datasource=github-releases depName=casey/just
-      JUST_VERSION: "1.58.0"
+      JUST_VERSION: "1.59.0"
       # renovate: datasource=github-releases depName=kubernetes-sigs/kind
       KIND_VERSION: "0.33.0"
       # renovate: datasource=github-releases depName=tilt-dev/ctlptl
       CTLPTL_VERSION: "0.9.6"
       # renovate: datasource=github-releases depName=tilt-dev/tilt
-      TILT_VERSION: "0.37.7"
+      TILT_VERSION: "0.37.8"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: ./.github/actions/setup-go-cache
@@ -91,7 +91,7 @@ jobs:
         run: echo "$HOME/.tools" >> "$GITHUB_PATH"
       # tilt ci runs the test-web local resource and builds the web image,
       # both of which need npm.
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: npm
@@ -127,7 +127,7 @@ jobs:
         run: just ci
       - name: Upload coverage profile
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage
           path: coverage.out
@@ -136,7 +136,7 @@ jobs:
       # resource runs them on the runner, so the files are local).
       - name: Upload Playwright failure artifacts
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-e2e
           path: |
