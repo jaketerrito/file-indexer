@@ -1,4 +1,4 @@
-FROM node:24.20.0-alpine3.24@sha256:e67514e5d0f6c46656005e1b693b2ec9d52e80b641307de684d4a015ba7a4eaf AS node-base
+FROM node:24.22.2-alpine3.24@sha256:8a32c8cf649a49915a66e81e7a609223c708d0adabf288ee3f4077d765542f85 AS node-base
 
 # Build stage: install all deps, build client + SSR server bundles.
 FROM node-base AS build
