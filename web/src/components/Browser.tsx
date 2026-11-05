@@ -30,6 +30,8 @@ const multipartDeps: MultipartUploadDeps = {
   abortMultipartUpload: async (input) => {
     await abortMultipartUpload({ data: input })
   },
+  // Each part is PUT directly to S3 from the browser, so the bucket must
+  // allow CORS for the web origin and the PUT / Content-Type headers.
   putPart: async (url, body, signal) => {
     const res = await fetch(url, { method: 'PUT', body, signal })
     if (!res.ok) {
@@ -78,6 +80,8 @@ export function Browser({ filters, onFiltersChange, onOpenFile }: BrowserProps) 
             )
           } else {
             const { url } = await getUploadUrl({ data: { key } })
+            // PUT directly to the presigned S3 URL; the bucket must allow
+            // CORS for the web origin and PUT with Content-Type.
             const res = await fetch(url, {
               method: 'PUT',
               body: file,
