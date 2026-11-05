@@ -35,7 +35,7 @@ require (
 	4d63.com/gochecknoglobals v0.2.2 // indirect
 	buf.build/gen/go/bufbuild/bufplugin/protocolbuffers/go v1.36.12-20261002170247-538130002972.2 // indirect
 	buf.build/gen/go/bufbuild/protodescriptor/protocolbuffers/go v1.36.12-20261012172039-ff528c23443f.2 // indirect
-	buf.build/gen/go/bufbuild/registry/connectrpc/go v1.20.0-20260831211851-b4432e12a6e7.1 // indirect
+	buf.build/gen/go/bufbuild/registry/connectrpc/go/v2 v2.0.1-20261015154428-c661e2f1fba9.1 // indirect
 	buf.build/gen/go/bufbuild/registry/protocolbuffers/go v1.36.12-20261015154428-c661e2f1fba9.2 // indirect
 	buf.build/gen/go/pluginrpc/pluginrpc/protocolbuffers/go v1.36.12-20241007202033-cf42259fcbfc.2 // indirect
 	buf.build/go/app v0.3.0 // indirect
@@ -50,7 +50,7 @@ require (
 	charm.land/lipgloss/v2 v2.0.6 // indirect
 	codeberg.org/chavacava/garif v0.2.1 // indirect
 	codeberg.org/polyfloyd/go-errorlint v1.9.0 // indirect
-	connectrpc.com/connect v1.20.0 // indirect
+	connectrpc.com/connect/v2 v2.0.2 // indirect
 	connectrpc.com/otelconnect v0.11.0 // indirect
 	dev.gaijin.team/go/exhaustruct/v4 v4.0.0 // indirect
 	dev.gaijin.team/go/exhaustruct/v5 v5.2.0 // indirect
@@ -155,18 +155,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-openapi/jsonpointer v1.0.0 // indirect
 	github.com/go-openapi/jsonreference v1.0.0 // indirect
-	github.com/go-openapi/swag v0.25.4 // indirect
-	github.com/go-openapi/swag/cmdutils v0.25.4 // indirect
-	github.com/go-openapi/swag/conv v0.27.1 // indirect
-	github.com/go-openapi/swag/fileutils v0.25.4 // indirect
-	github.com/go-openapi/swag/jsonname v0.25.4 // indirect
-	github.com/go-openapi/swag/jsonutils v0.27.1 // indirect
-	github.com/go-openapi/swag/loading v0.25.4 // indirect
-	github.com/go-openapi/swag/mangling v0.25.4 // indirect
-	github.com/go-openapi/swag/netutils v0.25.4 // indirect
-	github.com/go-openapi/swag/stringutils v0.25.4 // indirect
-	github.com/go-openapi/swag/typeutils v0.27.1 // indirect
-	github.com/go-openapi/swag/yamlutils v0.25.4 // indirect
 	github.com/go-sql-driver/mysql v1.10.1 // indirect
 	github.com/go-toolsmith/astcast v1.1.0 // indirect
 	github.com/go-toolsmith/astcopy v1.1.0 // indirect
@@ -181,7 +169,6 @@ require (
 	github.com/godoc-lint/godoc-lint v0.11.4 // indirect
 	github.com/gofrs/flock v0.13.1 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
-	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golangci/asciicheck v0.5.0 // indirect
 	github.com/golangci/canonicalheader v0.0.0-20260928145534-e18e5c5a078f // indirect
 	github.com/golangci/dupl v0.0.0-20260401084720-c99c5cf5c202 // indirect
@@ -261,7 +248,6 @@ require (
 	github.com/mattn/go-colorable v0.1.16 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mattn/go-runewidth v0.0.24 // indirect
-	github.com/matttproud/golang_protobuf_extensions v1.0.1 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/mgechev/revive v1.17.1 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
@@ -382,6 +368,7 @@ require (
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0 // indirect
 	go.opentelemetry.io/otel v1.47.0 // indirect
+	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/otel/metric v1.47.0 // indirect
 	go.opentelemetry.io/otel/trace v1.47.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
