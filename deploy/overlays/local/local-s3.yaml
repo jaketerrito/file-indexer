@@ -42,6 +42,8 @@ spec:
               value: 0.0.0.0:9001
               # Browser uploads PUT directly to the S3 endpoint from the web
               # origin; MinIO's default CORS was '*', RustFS's is empty.
+              # Production buckets need an equivalent CORS rule; see
+              # README.md "Production deployment notes / S3 bucket CORS".
             - name: RUSTFS_CORS_ALLOWED_ORIGINS
               value: '*'
             - name: RUSTFS_ACCESS_KEY
