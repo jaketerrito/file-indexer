@@ -31,6 +31,19 @@ history is the archive.
   Router loader + react-query SSR integration so the first page renders
   server-side.
 
+## Documentation
+
+- **Choose and add a license**: README's license section is a TODO
+  placeholder; no LICENSE file exists yet.
+- **README placeholders**: the screenshot/demo-recording and usage-guide
+  TODOs in README.md still need real content.
+- **Validate and expand the deployment guide** (docs/deployment.md): the
+  WIP placeholders there — plain-kubectl apply ordering, ingress/TLS
+  examples, upgrades/rollback/uninstall, backups — need validation against
+  a clean external cluster before they become real procedures.
+- **`photo-extra-source.jpg` provenance**: unverified seed image; document
+  its source or replace it (details in deploy/overlays/local/seed.md).
+
 ## Known limitations (not scheduled)
 
 - **No HEIC/AVIF previews** (7/26/26): no pure-Go decoder exists and the
