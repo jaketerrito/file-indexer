@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.3](https://github.com/jaketerrito/file-indexer/compare/v0.4.2...v0.4.3) (2026-11-07)
+
+
+### Bug Fixes
+
+* **deps:** update all non-major ([#155](https://github.com/jaketerrito/file-indexer/issues/155)) ([964d970](https://github.com/jaketerrito/file-indexer/commit/964d97060d162e1c99baace88a495f200bf494d8))
+* **test:** handle health-check serve errors ([#161](https://github.com/jaketerrito/file-indexer/issues/161)) ([be48b6b](https://github.com/jaketerrito/file-indexer/commit/be48b6be5984f0f3f0b2b918b24e5b2796f35ff4))
+
 ## [0.4.2](https://github.com/jaketerrito/file-indexer/compare/v0.4.1...v0.4.2) (2026-09-27)
 
 
