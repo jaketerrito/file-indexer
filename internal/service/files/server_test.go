@@ -1597,7 +1597,10 @@ func TestHealthCheckServing(t *testing.T) {
 	t.Cleanup(func() {
 		_ = lis.Close()
 		select {
-		case <-errCh:
+		case err := <-errCh:
+			// Closing the listener makes serveOn return (usually with a non-nil
+			// error); the cleanup only needs the serve goroutine drained.
+			t.Logf("serveOn returned after listener close: %v", err)
 		case <-time.After(2 * time.Second):
 		}
 	})
