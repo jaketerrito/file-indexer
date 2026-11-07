@@ -1,138 +1,52 @@
 # file-indexer
 [![trivy](https://github.com/jaketerrito/file-indexer/actions/workflows/trivy.yml/badge.svg)](https://github.com/jaketerrito/file-indexer/actions/workflows/trivy.yml)
 
-## Components
-### Stat
-Builds searchable database from basic file metadata (content type, size, last modified) in s3 bucket
+A searchable web file manager for an S3-compatible bucket. The bucket is the
+single source of truth: file-indexer crawls it and builds a Postgres-backed
+search index (file metadata, EXIF, preview thumbnails) so you can browse,
+search, and manage your files from a web UI.
 
-### Preview
-Generates downscaled preview images for image files, written back to the same s3 bucket under a
-configurable key prefix (`INDEX_PREFIX`) that the crawler ignores
+## Features
 
-### Exif
-Extracts EXIF and XMP metadata (camera make/model, capture time, exposure settings, GPS, XMP
-title/rating/keywords) from image and camera-RAW files (JPEG, TIFF, PNG, HEIC/HEIF/AVIF,
-CR2/CR3/CRW, DNG, NEF, ARW, RW2). Files with neither EXIF nor XMP are marked done with no result
-row.
+- Browse, upload, and delete files — uploads go straight to the bucket via
+  presigned URLs
+- Search files by name, with fuzzy matching and content-type filtering
+- EXIF/XMP metadata extraction for photos and camera RAW files (JPEG, TIFF,
+  PNG, HEIC/HEIF/AVIF, CR2/CR3/CRW, DNG, NEF, ARW, RW2)
+- Auto-generated preview thumbnails for images
+- Background crawler that reconciles the index with the bucket
 
-### Crawler
-Searches for new files in s3 bucket, sending to the index workers (index-stat, index-preview, index-exif)
+<!-- TODO: screenshot or short demo recording -->
 
-### File Manager
-Crud operations on files
+## Quickstart (local dev)
 
-### Database
-Postgres Database
-Migrations live in `internal/db/migrations/` as SQL files and are handled by [goose](https://github.com/pressly/goose).
-SQL queries in `internal/db/queries/` are compiled by [sqlc](https://sqlc.dev) into type-safe Go code in `internal/db/`.
+Requires [just](https://just.systems/man/en/), [docker](https://docs.docker.com/engine/install/),
+[kind](https://kind.sigs.k8s.io), [ctlptl](https://github.com/tilt-dev/ctlptl),
+and [tilt](https://docs.tilt.dev/). See [CONTRIBUTING.md](CONTRIBUTING.md) for
+details.
 
-## Dev
-### Dependencies
-- [just](https://just.systems/man/en/)
-- [psql](https://www.postgresql.org/docs/current/app-psql.html)
-- [tilt](https://docs.tilt.dev/index.html)
-- [golangci-lint](https://golangci-lint.run)
-- [docker](https://docs.docker.com/engine/install/)
-- [kind](https://kind.sigs.k8s.io)
-- [ctlptl](https://github.com/tilt-dev/ctlptl)
-- [Node.js](https://nodejs.org) >= 24 (current LTS; npm ships with it; used for the web frontend)
+1. `just up` — creates the shared local kind cluster (once per machine), then
+   deploys this checkout into its own namespace, named after the checkout
+   directory.
+2. Open `http://web.<checkout-dir>.localhost`.
+3. Trigger the `crawler` resource once in the Tilt UI to index the pre-seeded
+   sample data.
 
-### Components
-- kind cluster provisioned with ctlptl
-- tilt
-  - Manages development resources in k8s cluster
-  - Automatically generates code
-  - Automatically rebuilds containers
+`just` lists all available commands. `just down` tears down only this
+checkout's namespace; beware that `just cluster-down` destroys the SHARED
+cluster and every checkout's stack with it.
 
-### Getting started
-Run `just` to see all available commands.
+## Usage
 
-`just up` — creates (once per machine) the shared local kind cluster, then uses Tilt to provision this checkout's resources into its own namespace (named after the checkout directory), runs DB migrations, builds and deploys the app containers (index-stat, index-preview, files), and keeps them live-reloading on code changes. Code generation (sqlc, protobuf) runs automatically. Prints this checkout's Tilt web UI URL (a stable per-checkout port).
+<!-- TODO: short usage guide — search, photos view, uploads, metadata modal -->
 
-Every checkout of this repo shares the one cluster and can run at the same time: services are reached via the shared gateway at `http://<svc>.<checkout-dir>.localhost` — the app at `http://web.<checkout-dir>.localhost`, the MinIO console at `http://s3-console.<checkout-dir>.localhost`. `just down` tears down only this checkout's namespace; `just cluster-down` destroys the SHARED cluster and every checkout's stack with it.
+## Documentation
 
-The MinIO bucket comes pre-seeded with a small sample dataset (see
-`deploy/overlays/local/seed/`) — a few EXIF-bearing photos and text files. The crawler is
-manual-trigger in Tilt (click it in the web UI) since it's not something you
-want running on every code change; trigger it once to index the seed data.
+- [docs/deployment.md](docs/deployment.md) — deploying to a real environment
+- [docs/DESIGN.md](docs/DESIGN.md) — architecture and design rationale
+- [CONTRIBUTING.md](CONTRIBUTING.md) — development setup, testing, and conventions
+- [CHANGELOG.md](CHANGELOG.md)
 
-### Testing
-`just test` runs unit tests only
+## License
 
-Run the full suite (unit + integration) and check coverage thresholds from
-`.testcoverage.yml`:
-`just test-integration`
-
-Services come from explicit `DB_HOST`/`S3_ENDPOINT` env (what CI sets) or, when
-unset, from this checkout's namespace — postgres via an ephemeral kubectl
-port-forward, MinIO via the shared gateway (requires `just up`).
-
-Integration tests fail hard if postgres/MinIO are unreachable; they never skip.
-
-### E2E tests
-
-Playwright e2e tests live in `web/e2e/` (config: `web/playwright.config.ts`)
-and run against this checkout's Tilt deployment through the shared gateway —
-they need `just up` running, with the seed dataset indexed (the crawler runs
-once when the session starts):
-
-`just test-e2e`
-
-The recipe installs the Playwright Chromium binary on first run and points the
-suite at `http://web.<checkout-dir>.localhost`. The suite also runs as the
-`test-e2e` Tilt resource under `just ci` (this is the only place it runs in
-CI, via the deploy-verify workflow).
-
-### CI caching
-
-`setup-go`'s built-in caching is disabled in CI; every Go job instead uses the `.github/actions/setup-go-cache` composite action, which layers two `actions/cache` entries:
-- **Module cache** (`~/go/pkg/mod`), keyed only on a hash of `go.sum`. Content-addressed and identical across every job, so it's shared — no poisoning risk.
-- **Build cache** (`~/.cache/go-build`), keyed on a per-job `cache-key-prefix` input. This one isn't content-addressed (it's keyed on package import graphs, which differ per job, e.g. `-tags=integration`), so it stays job-scoped.
-
-## Production deployment notes
-
-### S3 bucket CORS is required for browser uploads
-
-The web app uploads files directly to the S3-compatible store using
-presigned PUT URLs. Because the request originates from the web origin
-(e.g. `https://files.territo.dev`) and targets the S3 public endpoint
-(e.g. `https://nyc3.digitaloceanspaces.com`), the browser sends a CORS
-preflight `OPTIONS` request that the bucket must answer before the upload
-starts. If CORS is not configured, the browser reports errors such as:
-
-```
-Cross-Origin Request Blocked: ... (Reason: CORS header ‘Access-Control-Allow-Origin’ missing). Status code: 403.
-```
-
-Configure the bucket with a rule that allows the web origin:
-
-- **Allowed origin**: the URL origin the web app is served from (e.g.
-  `https://files.territo.dev`).
-- **Allowed method**: `PUT` (small files and multipart upload parts both
-  use presigned PUT URLs).
-- **Allowed headers**: `*` is simplest and covers the `Content-Type` header
-  the small-file path sets explicitly; otherwise allow at least
-  `Content-Type` and `host`.
-- **Max age**: any reasonable value (e.g. 3000 seconds).
-
-Example DigitalOcean Spaces / AWS S3 CORS XML:
-
-```xml
-<CORSConfiguration>
-  <CORSRule>
-    <AllowedOrigin>https://files.territo.dev</AllowedOrigin>
-    <AllowedMethod>PUT</AllowedMethod>
-    <AllowedMethod>GET</AllowedMethod>
-    <AllowedHeader>*</AllowedHeader>
-    <MaxAgeSeconds>3000</MaxAgeSeconds>
-  </CORSRule>
-</CORSConfiguration>
-```
-
-The local-dev overlay configures `RUSTFS_CORS_ALLOWED_ORIGINS='*'` for the
-same reason (see `deploy/overlays/local/local-s3.yaml`).
-
-#### Conventions
-- **Table-driven tests with standard `testing` package.** No external assertion libraries.
-- **Consumer-side interfaces, mockery-generated fakes.** Each service defines a narrow interface (e.g. `ObjectStore`, `FileIndex`) listing only what it uses. Mocks are generated by [mockery](https://vektra.github.io/mockery/) (config in `.mockery.yaml`, run via `go generate ./...` / `just generate`) into `mocks_test.go` colocated with the interface's consumer.
-- **Integration tests** use `//go:build integration` and are excluded from `go test ./...`. Only add them when you need real DB or S3 interactions.
+TODO: a license has not been chosen yet.

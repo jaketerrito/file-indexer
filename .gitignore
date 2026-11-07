@@ -3,3 +3,5 @@ coverage.out
 coverage.xml
 # Local Pi runtime state
 .atl/
+# Local ODD/harness planning state
+odd/
